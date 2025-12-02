@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  truvera-mcp-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: truvera-mcp-service
+    environment:
+      - TRUVERA_API_KEY=${TRUVERA_API_KEY}
+      - TRUVERA_API_ENDPOINT=${TRUVERA_API_ENDPOINT:-https://api.truvera.com}
+      - NODE_ENV=production
+    restart: unless-stopped
+    networks:
+      - mcp-network
+
+networks:
+  mcp-network:
+    driver: bridge

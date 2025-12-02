@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug MCP Service",
+      "program": "${workspaceFolder}/dist/index.js",
+      "preLaunchTask": "build",
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+      "env": {
+        "TRUVERA_API_KEY": "${config:truvera.apiKey}",
+        "TRUVERA_API_ENDPOINT": "${config:truvera.apiEndpoint}"
+      }
+    }
+  ]
+}
