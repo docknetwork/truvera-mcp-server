@@ -6,6 +6,10 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
+# Upgrade npm so the build doesn't show a newer-version notice
+# Install known working npm version (avoids noisy update notices)
+RUN npm install -g npm@11.6.4 --no-fund --no-audit
+
 # Install dependencies
 RUN npm ci
 
@@ -23,6 +27,9 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+
+# Upgrade npm in the runtime image too (keeps logs consistent)
+RUN npm install -g npm@11.6.4 --no-fund --no-audit
 
 # Install production dependencies only
 RUN npm ci --only=production
