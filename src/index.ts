@@ -60,7 +60,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 // Handler for tool calls
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request;
+  const { params } = request;
+  const { name, arguments: args } = params;
+
 
   if (name === "call_truvera_api") {
     const { endpoint, method, payload } = args as {
