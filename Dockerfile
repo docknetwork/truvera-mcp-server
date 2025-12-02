@@ -1,5 +1,5 @@
 # Multi-stage build for Truvera MCP Service
-FROM node:20-alpine AS builder
+FROM node:22-alpine3.20 AS builder
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ COPY tsconfig.json ./
 RUN npm run build
 
 # Runtime stage
-FROM node:20-alpine
+FROM node:22-alpine3.20
 
 WORKDIR /app
 
