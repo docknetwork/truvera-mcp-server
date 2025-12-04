@@ -9,7 +9,11 @@ services:
     environment:
       - TRUVERA_API_KEY=${TRUVERA_API_KEY}
       - TRUVERA_API_ENDPOINT=${TRUVERA_API_ENDPOINT:-https://api.truvera.com}
+      - MCP_MODE=${MCP_MODE:-http}
+      - MCP_PORT=3000
       - NODE_ENV=production
+    ports:
+      - "3000:3000"
     restart: unless-stopped
     networks:
       - mcp-network

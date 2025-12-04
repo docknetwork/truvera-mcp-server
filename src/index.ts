@@ -4,15 +4,23 @@ import {
   CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { TruevaClient } from "./clients/truvera.js";
+import http from "http";
 
 // Configuration from environment variables
 const API_KEY = process.env.TRUVERA_API_KEY;
 const API_ENDPOINT = process.env.TRUVERA_API_ENDPOINT || "https://api.truvera.com";
+const MCP_PORT = parseInt(process.env.MCP_PORT || "3000", 10);
+const MCP_MODE = process.env.MCP_MODE || "stdio"; // "stdio" or "http"
 
 // Validate required environment variables
 if (!API_KEY) {
   throw new Error("TRUVERA_API_KEY environment variable is required");
 }
+
+// Initialize Truvera API client
+const truevaClient = new TruevaClient(API_KEY, API_ENDPOINT);
 
 // Create server instance
 const server = new Server(
@@ -54,6 +62,28 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["endpoint", "method"],
         },
       },
+      {
+        name: "create_did",
+        description: "Create a Decentralized Identifier (DID) in Truvera",
+        inputSchema: {
+          type: "object",
+          properties: {
+            method: {
+              type: "string",
+              description: "DID method (e.g., key, web)",
+            },
+            document: {
+              type: "object",
+              description: "Initial DID document payload",
+            },
+            metadata: {
+              type: "object",
+              description: "Optional metadata for the DID",
+            },
+          },
+          required: ["method"],
+        },
+      },
     ],
   };
 });
@@ -67,58 +97,95 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   if (name === "call_truvera_api") {
     const { endpoint, method, payload } = args as {
       endpoint: string;
-      method: string;
+      method: "GET" | "POST" | "PUT" | "DELETE";
       payload?: object;
     };
 
-    try {
-      const url = `${API_ENDPOINT}${endpoint}`;
-      const options: RequestInit = {
-        method,
-        headers: {
-          "Authorization": `Bearer ${API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      };
+    const result = await truevaClient.request({
+      method,
+      endpoint,
+      body: payload,
+    });
 
-      if (payload && (method === "POST" || method === "PUT")) {
-        options.body = JSON.stringify(payload);
-      }
-
-      const response = await fetch(url, options);
-
-      if (!response.ok) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `API Error: ${response.status} ${response.statusText}`,
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      const data = await response.json();
+    if (!result.success) {
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify(data, null, 2),
-          },
-        ],
-      };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error calling Truvera API: ${error instanceof Error ? error.message : String(error)}`,
+            text: result.error || "Unknown error",
           },
         ],
         isError: true,
       };
     }
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(result.data, null, 2),
+        },
+      ],
+    };
+  }
+
+  if (name === "create_did") {
+    const { method: didMethod, document, metadata } = args as any;
+
+    // Validate required fields
+    if (!didMethod) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: 'method' is required for DID creation (e.g., 'cheqd', 'dock', 'key')",
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    // Validate method is one of the supported types
+    const validMethods = ["cheqd", "dock", "key"];
+    if (!validMethods.includes(didMethod)) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: 'method' must be one of ${validMethods.join(", ")}, got '${didMethod}'`,
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    const result = await truevaClient.createDid({
+      method: didMethod,
+      // Pass through optional fields if provided
+      ...(document && { document }),
+      ...(metadata && { metadata }),
+    });
+
+    if (!result.success) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: result.error || "Failed to create DID",
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(result.data, null, 2),
+        },
+      ],
+    };
   }
 
   return {
@@ -134,9 +201,98 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 // Start server
 async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("Truvera MCP service started");
+  if (MCP_MODE === "http") {
+    // HTTP mode using SSE transport
+    // Map of active SSE transports keyed by sessionId
+    const transports: Map<string, SSEServerTransport> = new Map();
+
+    const httpServer = http.createServer(async (req, res) => {
+      // Enable CORS
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+      if (req.method === "OPTIONS") {
+        res.writeHead(200);
+        res.end();
+        return;
+      }
+
+      // Health check endpoint
+      if (req.method === "GET" && req.url === "/health") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ status: "ok", service: "truvera-mcp-service" }));
+        return;
+      }
+
+      // SSE endpoint for MCP communication
+          if (req.method === "GET" && req.url === "/sse") {
+            const transport = new SSEServerTransport("/messages", res);
+            // Connect registers and starts the transport; do not call start() again.
+            await server.connect(transport);
+            // Track transport by sessionId so POSTs can be routed to it.
+            transports.set(transport.sessionId, transport);
+            // Remove from map when transport closes
+            transport.onclose = () => transports.delete(transport.sessionId);
+            return;
+          }
+
+      // POST endpoint for client messages
+      if (req.method === "POST" && req.url && req.url.startsWith("/messages")) {
+        // Route POSTs to the correct SSE transport based on sessionId query param
+        try {
+          const url = new URL(req.url, `http://localhost:${MCP_PORT}`);
+          const sessionId = url.searchParams.get("sessionId");
+          if (!sessionId) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "sessionId query parameter is required" }));
+            return;
+          }
+
+          const transport = transports.get(sessionId);
+          if (!transport) {
+            res.writeHead(404, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "SSE session not found" }));
+            return;
+          }
+
+          await transport.handlePostMessage(req, res);
+        } catch (err) {
+          console.error("Error routing POST /messages:", err);
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: String(err) }));
+        }
+        return;
+      }
+
+      // 404
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Not found" }));
+    });
+
+    httpServer.listen(MCP_PORT, "0.0.0.0", () => {
+      console.error(`Truvera MCP service started (HTTP mode on port ${MCP_PORT})`);
+      console.error(`  - SSE endpoint: http://localhost:${MCP_PORT}/sse`);
+      console.error(`  - Message endpoint: http://localhost:${MCP_PORT}/messages`);
+      console.error(`  - Health check: http://localhost:${MCP_PORT}/health`);
+    });
+
+    // Handle graceful shutdown
+    process.on("SIGINT", () => {
+      console.error("Shutting down HTTP MCP server...");
+      httpServer.close(() => process.exit(0));
+    });
+
+    process.on("SIGTERM", () => {
+      console.error("Shutting down HTTP MCP server...");
+      httpServer.close(() => process.exit(0));
+    });
+  } else {
+    // Default: stdio mode for direct MCP communication
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    console.error("Truvera MCP service started (stdio mode)");
+  }
 }
 
 main().catch((error) => {

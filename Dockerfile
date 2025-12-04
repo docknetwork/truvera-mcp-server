@@ -41,6 +41,9 @@ COPY --from=builder /app/dist ./dist
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
 USER nodejs
 
+# Expose MCP HTTP port (used when MCP_MODE=http)
+EXPOSE 3000
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD node -e "process.exit(0)" || exit 1
