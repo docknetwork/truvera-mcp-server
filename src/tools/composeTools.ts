@@ -1,21 +1,21 @@
-import type { TruveraClient } from "../clients/truvera.js";
-import type { DidClient } from "../features/dids/client.js";
-import type { CredentialsClient } from "../features/credentials/client.js";
-import type { PresentationsClient } from "../features/presentations/client.js";
-import type { RegistriesClient } from "../features/registries/client.js";
-import type { SchemasClient } from "../features/schemas/client.js";
-import type { ProfilesClient } from "../features/profiles/client.js";
-import type { WebhooksClient } from "../features/webhooks/client.js";
-import type { TemplatesClient } from "../features/templates/client.js";
-import type { SubaccountsClient } from "../features/subaccounts/client.js";
-import type { TeamsClient } from "../features/teams/client.js";
-import type { MessagingClient } from "../features/messaging/client.js";
-import type { OpenIdClient } from "../features/openid/client.js";
-import type { TrustRegistriesClient } from "../features/trustRegistries/client.js";
-import type { DataClient } from "../features/data/client.js";
-import type { KeysClient } from "../features/keys/client.js";
-import type { JobsClient } from "../features/jobs/client.js";
-import type { VerifyClient } from "../features/verify/client.js";
+import { TruveraClient } from "../clients/truvera.js";
+import { DidClient } from "../features/dids/client.js";
+import { CredentialsClient } from "../features/credentials/client.js";
+import { PresentationsClient } from "../features/presentations/client.js";
+import { RegistriesClient } from "../features/registries/client.js";
+import { SchemasClient } from "../features/schemas/client.js";
+import { ProfilesClient } from "../features/profiles/client.js";
+import { WebhooksClient } from "../features/webhooks/client.js";
+import { TemplatesClient } from "../features/templates/client.js";
+import { SubaccountsClient } from "../features/subaccounts/client.js";
+import { TeamsClient } from "../features/teams/client.js";
+import { MessagingClient } from "../features/messaging/client.js";
+import { OpenIdClient } from "../features/openid/client.js";
+import { TrustRegistriesClient } from "../features/trustRegistries/client.js";
+import { DataClient } from "../features/data/client.js";
+import { KeysClient } from "../features/keys/client.js";
+import { JobsClient } from "../features/jobs/client.js";
+import { VerifyClient } from "../features/verify/client.js";
 
 import type { ToolDef, ToolHandler } from "./types.js";
 
@@ -112,4 +112,29 @@ export function buildHandlerMap(clients: {
   }
 
   return handlers;
+}
+
+export function buildHandlerMapFromTruvera(truvera: TruveraClient) {
+  const clients = {
+    truvera,
+    dids: new DidClient(truvera),
+    credentials: new CredentialsClient(truvera),
+    presentations: new PresentationsClient(truvera),
+    registries: new RegistriesClient(truvera),
+    schemas: new SchemasClient(truvera),
+    profiles: new ProfilesClient(truvera),
+    webhooks: new WebhooksClient(truvera),
+    templates: new TemplatesClient(truvera),
+    subaccounts: new SubaccountsClient(truvera),
+    teams: new TeamsClient(truvera),
+    messaging: new MessagingClient(truvera),
+    openid: new OpenIdClient(truvera),
+    trustRegistries: new TrustRegistriesClient(truvera),
+    data: new DataClient(truvera),
+    keys: new KeysClient(truvera),
+    jobs: new JobsClient(truvera),
+    verify: new VerifyClient(truvera),
+  };
+
+  return buildHandlerMap(clients);
 }

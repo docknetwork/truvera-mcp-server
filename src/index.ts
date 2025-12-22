@@ -5,8 +5,8 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
-import { TruveraClient, DidClient, CredentialsClient, PresentationsClient, RegistriesClient, SchemasClient, ProfilesClient, WebhooksClient, TemplatesClient, SubaccountsClient, TeamsClient, MessagingClient, OpenIdClient, TrustRegistriesClient, DataClient, KeysClient, JobsClient, VerifyClient } from "./clients/index.js";
-import { buildToolList, buildHandlerMap } from "./tools/composeTools.js";
+import { TruveraClient } from "./clients/index.js";
+import { buildToolList, buildHandlerMapFromTruvera } from "./tools/composeTools.js";
 import http from "http";
 
 // Configuration from environment variables
@@ -22,46 +22,10 @@ if (!API_KEY) {
 
 // Initialize Truvera API client
 const truveraClient = new TruveraClient(API_KEY, API_ENDPOINT);
-const didClient = new DidClient(truveraClient);
-const credentialsClient = new CredentialsClient(truveraClient);
-const presentationsClient = new PresentationsClient(truveraClient);
-const registriesClient = new RegistriesClient(truveraClient);
-const schemasClient = new SchemasClient(truveraClient);
-const profilesClient = new ProfilesClient(truveraClient);
-const webhooksClient = new WebhooksClient(truveraClient);
-const templatesClient = new TemplatesClient(truveraClient);
-const subaccountsClient = new SubaccountsClient(truveraClient);
-const teamsClient = new TeamsClient(truveraClient);
-const messagingClient = new MessagingClient(truveraClient);
-const openIdClient = new OpenIdClient(truveraClient);
-const trustRegistriesClient = new TrustRegistriesClient(truveraClient);
-const dataClient = new DataClient(truveraClient);
-const keysClient = new KeysClient(truveraClient);
-const jobsClient = new JobsClient(truveraClient);
-const verifyClient = new VerifyClient(truveraClient);
 
 // Build tools and handlers
 const tools = buildToolList();
-const toolHandlers = buildHandlerMap({
-  truvera: truveraClient,
-  dids: didClient,
-  credentials: credentialsClient,
-  presentations: presentationsClient,
-  registries: registriesClient,
-  schemas: schemasClient,
-  profiles: profilesClient,
-  webhooks: webhooksClient,
-  templates: templatesClient,
-  subaccounts: subaccountsClient,
-  teams: teamsClient,
-  messaging: messagingClient,
-  openid: openIdClient,
-  trustRegistries: trustRegistriesClient,
-  data: dataClient,
-  keys: keysClient,
-  jobs: jobsClient,
-  verify: verifyClient,
-});
+const toolHandlers = buildHandlerMapFromTruvera(truveraClient);
 
 // Create server instance
 const server = new Server(

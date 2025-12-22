@@ -1,304 +1,130 @@
 # Truvera MCP Service
 
-A Model Context Protocol (MCP) server for integrating with the Truvera REST API. Built with TypeScript/Node.js and deployable via Docker.
+A Model Context Protocol (MCP) server that exposes Truvera API functionality as MCP tools. Built with TypeScript/Node.js and designed for development with Docker.
 
-## Overview
+## What this repository contains
 
-This MCP service provides a bridge between Claude and the Truvera API, allowing Claude to make authenticated calls to external REST endpoints through the MCP protocol. It supports two communication modes:
+- A small, **feature-based** layout where each API area lives under `src/features/<feature>/` and exports a client, `toolDefs`, and `getHandlers`.
+- `src/clients/truvera.ts` — the low-level authenticated HTTP client used by features.
+- `src/tools/composeTools.ts` — composes tool definitions and handlers from feature modules and is the source of the MCP tools list.
+- An MCP server (`src/index.ts`) exposing tools via stdio (default) or HTTP (SSE) transport.
 
-- **Stdio mode**: Direct subprocess communication (default)
-- **HTTP mode**: Remote access via HTTP (ideal for Claude Desktop with `mcp-remote`)
+## Quickstart
 
-## Features
-
-- **MCP Server Implementation**: Fully compliant Model Context Protocol server
-- **Dual Transport Modes**: Stdio (default) or HTTP
-- **REST API Integration**: Call external APIs with authentication
-- **Environment Configuration**: API key and endpoint configured via environment variables
-- **Docker Deployment**: Multi-stage Docker build for optimized production images
-- **Request Validation**: Input validation for API calls
-- **Centralized API Client**: Reusable Truvera client with typed methods
-- **Docker Compose Support**: Easy local development and deployment
-
-## Prerequisites
-
-- Node.js 18+
-- Docker & Docker Compose (for containerized deployment)
-- npm or yarn
-
-## Configuration
-
-The service is configured via environment variables:
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `TRUVERA_API_KEY` | Yes | - | Authentication key for Truvera API |
-| `TRUVERA_API_ENDPOINT` | No | `https://api.truvera.com` | Base URL for Truvera API |
-
-## Local Development
-
-### Setup
+1) Install dependencies
 
 ```bash
 npm install
 ```
 
-### Running Locally
+2) Development (stdio mode)
 
 ```bash
-# Development mode with hot reload
+# run with hot-reload (tsx)
 npm run dev
+```
 
-# Or build and run
+3) Build & run
+
+```bash
 npm run build
 npm start
 ```
 
-### Type Checking
+Notes:
+- `MCP_MODE` selects the transport: `stdio` (default) or `http`.
+- For HTTP mode set `MCP_MODE=http` and optionally `MCP_PORT` (default 3000).
 
-```bash
-npm run typecheck
-```
+## Environment variables
 
-## Docker Deployment
+- `TRUVERA_API_KEY` (required): Truvera API key
+- `TRUVERA_API_ENDPOINT` (optional): Base API URL (default: `https://api.truvera.com`)
+- `MCP_MODE` (optional): `stdio` or `http` (default `stdio`)
+- `MCP_PORT` (optional): HTTP port (default `3000` when `MCP_MODE=http`)
 
-### Build Image
+## How tools are organized
+
+- Each feature exports `toolDefs` (tool metadata) and `getHandlers(truveraClient)` which returns a map of tool handlers.
+- `src/tools/composeTools.ts` imports those `toolDefs` and `getHandlers` and merges them into the global tools list and handlers map exposed by the MCP server.
+
+To see available tools at runtime, call the `ListTools` endpoint (MCP ListToolsRequest) — the server returns the merged tool definitions.
+
+## Example tools
+
+- `call_truvera_api` — low-level API caller for arbitrary Truvera endpoints
+- `create_did`, `get_did`, `list_dids`, etc. — DID management tools
+
+The supported tool names and input schemas are provided in the tool listing returned by the server.
+
+## Development tips
+
+- Add a new feature:
+  1. Create `src/features/<feature>/client.ts` that uses `TruveraClient` and implements API operations.
+  2. Create `src/features/<feature>/tools.ts` exporting `toolDefs` and `getHandlers`.
+  3. Add an `index.ts` in the feature folder that re-exports client and tools.
+  4. Import the feature in `src/tools/composeTools.ts` (or add it to the feature list there).
+
+- Keep feature surface small: export only what other code needs (client class and `toolDefs`/`getHandlers`).
+- Use dependency injection: pass a `TruveraClient` instance into feature clients to make testing easier.
+
+## Running in Docker
+
+Build image:
 
 ```bash
 docker build -t truvera-mcp-service:latest .
 ```
 
-### Run Container
+Run container (stdio mode):
 
 ```bash
-docker run -e TRUVERA_API_KEY=your-api-key \
-           -e TRUVERA_API_ENDPOINT=https://api.truvera.com \
-           truvera-mcp-service:latest
+docker run -e TRUVERA_API_KEY=your-api-key -e TRUVERA_API_ENDPOINT=https://api.truvera.com truvera-mcp-service:latest
 ```
 
-### Using Docker Compose (Stdio Mode)
-
-1. Create a `.env` file in the project root:
-
-```env
-TRUVERA_API_KEY=your-api-key
-TRUVERA_API_ENDPOINT=https://api.truvera.com
-MCP_MODE=stdio
-```
-
-2. Start the service:
+Run in HTTP mode (useful for remote MCP transports like Claude Desktop + mcp-remote):
 
 ```bash
-docker-compose up -d
+docker run -e TRUVERA_API_KEY=your-api-key -e MCP_MODE=http -e MCP_PORT=3000 -p 3000:3000 truvera-mcp-service:latest
 ```
 
-3. View logs:
-
-```bash
-docker-compose logs -f truvera-mcp-service
-```
-
-4. Stop the service:
-
-```bash
-docker-compose down
-```
-
-### HTTP Mode (Claude Desktop + mcp-remote)
-
-The service supports HTTP mode for remote access, ideal for Claude Desktop via the `mcp-remote` package.
-
-#### Starting in HTTP Mode
-
-1. Update your `.env` file:
-
-```env
-TRUVERA_API_KEY=your-api-key
-TRUVERA_API_ENDPOINT=https://api.truvera.com
-MCP_MODE=http
-MCP_PORT=3000
-```
-
-2. Start the service:
-
-```bash
-docker-compose up -d
-```
-
-3. Verify the service is running:
+Health check (HTTP mode):
 
 ```bash
 curl http://localhost:3000/health
-# Response: {"status":"ok","service":"truvera-mcp-service"}
+# Expected: {"status":"ok","service":"truvera-mcp-service"}
 ```
 
-#### HTTP Endpoints
+## Tests & Type Checking
 
-The service uses Server-Sent Events (SSE) transport for MCP communication when in HTTP mode:
-
-- **GET `/health`**: Health check - verify the server is up and available
-- **GET `/sse`**: SSE endpoint - Claude Desktop clients establish MCP protocol communication here
-- **POST `/messages`**: Message endpoint - clients POST MCP protocol messages to this endpoint
-
-#### Configuring Claude Desktop with mcp-remote
-
-Install and configure `mcp-remote` to bridge HTTP connections to Claude Desktop:
+- TypeScript check:
 
 ```bash
-npm install -g mcp-remote
+npm run typecheck
 ```
 
-Add the following to your Claude Desktop configuration (`claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "truvera-mcp": {
-      "command": "npx",
-      "args": ["mcp-remote", "http://localhost:3000"]
-    }
-  }
-}
-```
-
-**Note**: The HTTP port (default 3000) must be accessible from where Claude Desktop is running. For remote deployments, use the appropriate hostname/IP address and ensure firewall rules allow access.
-
-#### Environment Variables for HTTP Mode
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `MCP_MODE` | No | `stdio` | Transport mode: `stdio` or `http` |
-| `MCP_PORT` | No | `3000` | HTTP port (only used when `MCP_MODE=http`) |
-
-## Available Tools
-
-The MCP service exposes the following tools to Claude:
-
-### `call_truvera_api`
-
-Make authenticated HTTP requests to the Truvera API.
-
-**Parameters:**
-- `endpoint` (string, required): API endpoint path (e.g., `/dids`, `/dids/{did}`)
-- `method` (string, required): HTTP method - `GET`, `POST`, `PUT`, or `DELETE`
-- `payload` (object, optional): Request body for POST/PUT requests
-
-**Example:**
-
-```json
-{
-  "tool": "call_truvera_api",
-  "endpoint": "/dids",
-  "method": "GET"
-}
-```
-
-### `create_did`
-
-Create a Decentralized Identifier (DID) using the Truvera API.
-
-**Parameters:**
-- `method` (string, required): DID method - `cheqd`, `dock`, or `key`
-- `metadata` (object, optional): Additional DID metadata
-
-**Example:**
-
-```json
-{
-  "tool": "create_did",
-  "method": "cheqd",
-  "metadata": {"context": "example"}
-}
-```
-
-## Project Structure
-
-```
-.
-├── src/
-│   └── index.ts           # Main MCP server implementation
-├── dist/                  # Compiled JavaScript (generated)
-├── Dockerfile             # Multi-stage Docker build
-├── docker-compose.yml     # Docker Compose configuration
-├── package.json           # Project dependencies
-├── tsconfig.json          # TypeScript configuration
-├── .dockerignore           # Docker build ignore patterns
-├── .gitignore             # Git ignore patterns
-└── README.md              # This file
-```
-
-## Extending the Service
-
-To add more tools or functionality:
-
-1. **Add new tools** in the `ListToolsRequestSchema` handler
-2. **Implement tool logic** in the `CallToolRequestSchema` handler
-3. **Add new API clients** in dedicated modules under `src/`
-
-Example structure for multiple API integrations:
-
-```
-src/
-├── index.ts
-├── clients/
-│   ├── truvera.ts
-│   └── other-api.ts
-└── tools/
-    ├── truvera-tools.ts
-    └── other-tools.ts
-```
-
-## Debugging
-
-### Local Debugging with VS Code
-
-The MCP configuration is available in `.vscode/mcp.json` for debugging.
-
-### Viewing Logs
+- Build:
 
 ```bash
-# Docker logs
-docker-compose logs -f
-
-# Local Node process
-# Logs are sent to stderr by default
-```
-
-## Security Considerations
-
-- **API Key Protection**: Store `TRUVERA_API_KEY` securely (use `.env` files, Docker secrets, or environment management)
-- **HTTPS Only**: Always use HTTPS endpoints in production
-- **Input Validation**: The service validates endpoint and method parameters
-- **Non-root User**: Docker container runs as non-root user `nodejs`
-
-## Troubleshooting
-
-### Container fails to start
-
-Check environment variables are set:
-```bash
-docker-compose config  # Shows current configuration
-```
-
-### API calls returning errors
-
-Verify:
-- `TRUVERA_API_KEY` is correct and not expired
-- `TRUVERA_API_ENDPOINT` is accessible and correct
-- Network connectivity to the API endpoint
-
-### TypeScript compilation errors
-
-Rebuild the project:
-```bash
-npm install
 npm run build
 ```
 
-## License
+## Contributing
+
+- Keep PRs focused per feature to minimize risk and make review easy.
+- Add unit tests near the feature implementation.
+- If you refactor shared utilities, prefer `src/tools/` or `src/lib/` for shared code.
+
+## Security and Production Notes
+
+- Treat `TRUVERA_API_KEY` as a secret.
+- Use HTTPS and secure secrets management in production.
+
+---
+
+If you'd like, I can also: 
+- generate a short `CONTRIBUTING.md` with the feature workflow, or
+- add an example smoke test that asserts a tool listing is returned.
+
+---
 
 MIT
-
-## Support
-
-For issues or questions, contact the development team.

@@ -80,7 +80,4 @@ export class TruveraClient {
       } as ApiResponse<T>;
     }
   }
-
-  // DID operations have been moved to `src/clients/dids.ts`.
-  // Use a dedicated `DidClient` that composes `TruveraClient` for DID-specific endpoints.
 }
