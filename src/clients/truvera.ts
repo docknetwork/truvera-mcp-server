@@ -15,7 +15,7 @@ interface ApiResponse<T = unknown> {
   error?: string;
 }
 
-export class TruevaClient {
+export class TruveraClient {
   private apiKey: string;
   private apiEndpoint: string;
 
@@ -33,8 +33,10 @@ export class TruevaClient {
   async request<T = unknown>(options: RequestOptions): Promise<ApiResponse<T>> {
     const { method, endpoint, body } = options;
 
+    const url = `${this.apiEndpoint}${endpoint}`;
+    console.error(`TruveraClient request -> ${method} ${url} body=${body ? JSON.stringify(body) : '<none>'}`);
+
     try {
-      const url = `${this.apiEndpoint}${endpoint}`;
       const fetchOptions: RequestInit = {
         method,
         headers: {
@@ -49,20 +51,29 @@ export class TruevaClient {
 
       const response = await fetch(url, fetchOptions);
 
+      const text = await response.text();
+      let data: T | undefined = undefined;
+      try {
+        data = text ? (JSON.parse(text) as T) : undefined;
+      } catch (e) {
+        console.error("TruveraClient: failed to parse JSON response", e);
+      }
+
+      console.error(`TruveraClient response -> status=${response.status} statusText=${response.statusText} body=${text}`);
+
       if (!response.ok) {
-        const errorText = await response.text();
         return {
           success: false,
-          error: `API Error: ${response.status} ${response.statusText} - ${errorText}`,
+          error: `API Error: ${response.status} ${response.statusText} - ${text}`,
         } as ApiResponse<T>;
       }
 
-      const data = await response.json() as T;
       return {
         success: true,
         data,
       };
     } catch (error) {
+      console.error("TruveraClient request failed:", error);
       return {
         success: false,
         error: `Request failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -81,6 +92,7 @@ export class TruevaClient {
     didcommServiceUrl?: string;
     includeDidcommService?: boolean;
   }): Promise<ApiResponse> {
+    console.log("Creating DID with options:", options);
     return this.request({
       method: "POST",
       endpoint: "/dids",

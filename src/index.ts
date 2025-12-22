@@ -5,7 +5,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
-import { TruevaClient } from "./clients/truvera.js";
+import { TruveraClient } from "./clients/truvera.js";
 import http from "http";
 
 // Configuration from environment variables
@@ -20,7 +20,7 @@ if (!API_KEY) {
 }
 
 // Initialize Truvera API client
-const truevaClient = new TruevaClient(API_KEY, API_ENDPOINT);
+const truveraClient = new TruveraClient(API_KEY, API_ENDPOINT);
 
 // Create server instance
 const server = new Server(
@@ -37,6 +37,7 @@ const server = new Server(
 
 // Handler for listing available tools
 server.setRequestHandler(ListToolsRequestSchema, async () => {
+  console.error('ListToolsRequest received');
   return {
     tools: [
       {
@@ -92,102 +93,127 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { params } = request;
   const { name, arguments: args } = params;
+  console.error(`CallToolRequest received: params=${JSON.stringify(params)}`);
+  console.error(`CallToolRequest details: name=${name} args=${JSON.stringify(args)}`);
 
+  try {
+    if (name === "call_truvera_api") {
+      const { endpoint, method, payload } = args as {
+        endpoint: string;
+        method: "GET" | "POST" | "PUT" | "DELETE";
+        payload?: object;
+      };
 
-  if (name === "call_truvera_api") {
-    const { endpoint, method, payload } = args as {
-      endpoint: string;
-      method: "GET" | "POST" | "PUT" | "DELETE";
-      payload?: object;
-    };
+      console.error(`Invoking call_truvera_api -> ${method} ${endpoint}`);
 
-    const result = await truevaClient.request({
-      method,
-      endpoint,
-      body: payload,
-    });
+      const result = await truveraClient.request({
+        method,
+        endpoint,
+        body: payload,
+      });
 
-    if (!result.success) {
+      console.error(`call_truvera_api result: success=${result.success}` + (result.error ? ` error=${result.error}` : ""));
+
+      if (!result.success) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: result.error || "Unknown error",
+            },
+          ],
+          isError: true,
+        };
+      }
+
       return {
         content: [
           {
             type: "text",
-            text: result.error || "Unknown error",
+            text: JSON.stringify(result.data, null, 2),
           },
         ],
-        isError: true,
       };
     }
 
+    if (name === "create_did") {
+      const { method: didMethod, document, metadata } = args as any;
+
+      console.error(`Invoking create_did -> method=${didMethod}`);
+
+      // Validate required fields
+      if (!didMethod) {
+        console.error("create_did missing method");
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Error: 'method' is required for DID creation (e.g., 'cheqd', 'dock', 'key')",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      // Validate method is one of the supported types
+      const validMethods = ["cheqd", "dock", "key"];
+      if (!validMethods.includes(didMethod)) {
+        console.error(`create_did invalid method: ${didMethod}`);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error: 'method' must be one of ${validMethods.join(", ")}, got '${didMethod}'`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const result = await truveraClient.createDid({
+        method: didMethod,
+        // Pass through optional fields if provided
+        ...(document && { document }),
+        ...(metadata && { metadata }),
+      });
+
+      console.error(`create_did result: success=${result.success}` + (result.error ? ` error=${result.error}` : ""));
+
+      if (!result.success) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: result.error || "Failed to create DID",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result.data, null, 2),
+          },
+        ],
+      };
+    }
+  } catch (err) {
+    console.error('Error handling CallToolRequest:', err);
     return {
       content: [
         {
-          type: "text",
-          text: JSON.stringify(result.data, null, 2),
+          type: 'text',
+          text: `Internal server error: ${String(err)}`,
         },
       ],
+      isError: true,
     };
   }
 
-  if (name === "create_did") {
-    const { method: didMethod, document, metadata } = args as any;
-
-    // Validate required fields
-    if (!didMethod) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: "Error: 'method' is required for DID creation (e.g., 'cheqd', 'dock', 'key')",
-          },
-        ],
-        isError: true,
-      };
-    }
-
-    // Validate method is one of the supported types
-    const validMethods = ["cheqd", "dock", "key"];
-    if (!validMethods.includes(didMethod)) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: 'method' must be one of ${validMethods.join(", ")}, got '${didMethod}'`,
-          },
-        ],
-        isError: true,
-      };
-    }
-
-    const result = await truevaClient.createDid({
-      method: didMethod,
-      // Pass through optional fields if provided
-      ...(document && { document }),
-      ...(metadata && { metadata }),
-    });
-
-    if (!result.success) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: result.error || "Failed to create DID",
-          },
-        ],
-        isError: true,
-      };
-    }
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(result.data, null, 2),
-        },
-      ],
-    };
-  }
-
+  console.error(`Unknown tool requested: ${name}`);
   return {
     content: [
       {
