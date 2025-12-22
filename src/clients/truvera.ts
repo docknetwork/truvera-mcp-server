@@ -4,12 +4,12 @@
  */
 
 interface RequestOptions {
-  method: "GET" | "POST" | "PUT" | "DELETE";
+  method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
   endpoint: string;
   body?: unknown;
 }
 
-interface ApiResponse<T = unknown> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -45,7 +45,7 @@ export class TruveraClient {
         },
       };
 
-      if (body && (method === "POST" || method === "PUT")) {
+      if (body && (method === "POST" || method === "PUT" || method === "PATCH")) {
         fetchOptions.body = JSON.stringify(body);
       }
 
@@ -81,92 +81,6 @@ export class TruveraClient {
     }
   }
 
-  /**
-   * Create a Decentralized Identifier (DID)
-   */
-  async createDid(options: {
-    method?: "cheqd" | "dock" | "key";
-    did?: string;
-    controller?: string;
-    keyType?: "ed25519" | "bjj" | "secp256k1" | "sr25519";
-    didcommServiceUrl?: string;
-    includeDidcommService?: boolean;
-  }): Promise<ApiResponse> {
-    console.log("Creating DID with options:", options);
-    return this.request({
-      method: "POST",
-      endpoint: "/dids",
-      body: options,
-    });
-  }
-
-  /**
-   * Get a DID by its identifier
-   */
-  async getDid(did: string): Promise<ApiResponse> {
-    // Encode the DID for safe URL usage
-    const encodedDid = encodeURIComponent(did);
-    return this.request({
-      method: "GET",
-      endpoint: `/dids/${encodedDid}`,
-    });
-  }
-
-  /**
-   * List all DIDs controlled by the user
-   */
-  async listDids(options?: {
-    offset?: number;
-    limit?: number;
-    type?: string;
-  }): Promise<ApiResponse> {
-    const params = new URLSearchParams();
-    if (options?.offset !== undefined) params.append("offset", String(options.offset));
-    if (options?.limit !== undefined) params.append("limit", String(options.limit));
-    if (options?.type) params.append("type", options.type);
-
-    const endpoint = `/dids${params.toString() ? `?${params.toString()}` : ""}`;
-    return this.request({
-      method: "GET",
-      endpoint,
-    });
-  }
-
-  /**
-   * Delete a DID
-   */
-  async deleteDid(did: string, fromBlockchain: boolean = true): Promise<ApiResponse> {
-    const encodedDid = encodeURIComponent(did);
-    const endpoint = `/dids/${encodedDid}?fromBlockchain=${fromBlockchain}`;
-    return this.request({
-      method: "DELETE",
-      endpoint,
-    });
-  }
-
-  /**
-   * Export a DID and its keys as an encrypted wallet
-   */
-  async exportDid(did: string, password: string): Promise<ApiResponse> {
-    const encodedDid = encodeURIComponent(did);
-    return this.request({
-      method: "POST",
-      endpoint: `/dids/${encodedDid}/export`,
-      body: { password },
-    });
-  }
-
-  /**
-   * Import DIDs from JSON objects
-   */
-  async importDids(data: unknown, password?: string): Promise<ApiResponse> {
-    return this.request<unknown>({
-      method: "POST",
-      endpoint: "/dids/import",
-      body: {
-        data,
-        password,
-      },
-    });
-  }
+  // DID operations have been moved to `src/clients/dids.ts`.
+  // Use a dedicated `DidClient` that composes `TruveraClient` for DID-specific endpoints.
 }

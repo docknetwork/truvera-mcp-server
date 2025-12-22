@@ -5,7 +5,8 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
-import { TruveraClient } from "./clients/truvera.js";
+import { TruveraClient, DidClient, CredentialsClient, PresentationsClient, RegistriesClient, SchemasClient, ProfilesClient, WebhooksClient, TemplatesClient, SubaccountsClient, TeamsClient, MessagingClient, OpenIdClient, TrustRegistriesClient, DataClient, KeysClient, JobsClient, VerifyClient } from "./clients/index.js";
+import { buildToolList, buildHandlerMap } from "./tools/composeTools.js";
 import http from "http";
 
 // Configuration from environment variables
@@ -21,6 +22,46 @@ if (!API_KEY) {
 
 // Initialize Truvera API client
 const truveraClient = new TruveraClient(API_KEY, API_ENDPOINT);
+const didClient = new DidClient(truveraClient);
+const credentialsClient = new CredentialsClient(truveraClient);
+const presentationsClient = new PresentationsClient(truveraClient);
+const registriesClient = new RegistriesClient(truveraClient);
+const schemasClient = new SchemasClient(truveraClient);
+const profilesClient = new ProfilesClient(truveraClient);
+const webhooksClient = new WebhooksClient(truveraClient);
+const templatesClient = new TemplatesClient(truveraClient);
+const subaccountsClient = new SubaccountsClient(truveraClient);
+const teamsClient = new TeamsClient(truveraClient);
+const messagingClient = new MessagingClient(truveraClient);
+const openIdClient = new OpenIdClient(truveraClient);
+const trustRegistriesClient = new TrustRegistriesClient(truveraClient);
+const dataClient = new DataClient(truveraClient);
+const keysClient = new KeysClient(truveraClient);
+const jobsClient = new JobsClient(truveraClient);
+const verifyClient = new VerifyClient(truveraClient);
+
+// Build tools and handlers
+const tools = buildToolList();
+const toolHandlers = buildHandlerMap({
+  truvera: truveraClient,
+  dids: didClient,
+  credentials: credentialsClient,
+  presentations: presentationsClient,
+  registries: registriesClient,
+  schemas: schemasClient,
+  profiles: profilesClient,
+  webhooks: webhooksClient,
+  templates: templatesClient,
+  subaccounts: subaccountsClient,
+  teams: teamsClient,
+  messaging: messagingClient,
+  openid: openIdClient,
+  trustRegistries: trustRegistriesClient,
+  data: dataClient,
+  keys: keysClient,
+  jobs: jobsClient,
+  verify: verifyClient,
+});
 
 // Create server instance
 const server = new Server(
@@ -39,53 +80,7 @@ const server = new Server(
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   console.error('ListToolsRequest received');
   return {
-    tools: [
-      {
-        name: "call_truvera_api",
-        description: "Call the Truvera REST API with specified endpoint and parameters",
-        inputSchema: {
-          type: "object",
-          properties: {
-            endpoint: {
-              type: "string",
-              description: "API endpoint path (e.g., /v1/data)",
-            },
-            method: {
-              type: "string",
-              enum: ["GET", "POST", "PUT", "DELETE"],
-              description: "HTTP method",
-            },
-            payload: {
-              type: "object",
-              description: "Request payload for POST/PUT requests",
-            },
-          },
-          required: ["endpoint", "method"],
-        },
-      },
-      {
-        name: "create_did",
-        description: "Create a Decentralized Identifier (DID) in Truvera",
-        inputSchema: {
-          type: "object",
-          properties: {
-            method: {
-              type: "string",
-              description: "DID method (e.g., key, web)",
-            },
-            document: {
-              type: "object",
-              description: "Initial DID document payload",
-            },
-            metadata: {
-              type: "object",
-              description: "Optional metadata for the DID",
-            },
-          },
-          required: ["method"],
-        },
-      },
-    ],
+    tools,
   };
 });
 
@@ -97,109 +92,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   console.error(`CallToolRequest details: name=${name} args=${JSON.stringify(args)}`);
 
   try {
-    if (name === "call_truvera_api") {
-      const { endpoint, method, payload } = args as {
-        endpoint: string;
-        method: "GET" | "POST" | "PUT" | "DELETE";
-        payload?: object;
-      };
-
-      console.error(`Invoking call_truvera_api -> ${method} ${endpoint}`);
-
-      const result = await truveraClient.request({
-        method,
-        endpoint,
-        body: payload,
-      });
-
-      console.error(`call_truvera_api result: success=${result.success}` + (result.error ? ` error=${result.error}` : ""));
-
-      if (!result.success) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: result.error || "Unknown error",
-            },
-          ],
-          isError: true,
-        };
-      }
-
+    const handler = toolHandlers.get(name);
+    if (!handler) {
+      console.error(`Unknown tool requested: ${name}`);
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify(result.data, null, 2),
+            text: `Unknown tool: ${name}`,
           },
         ],
+        isError: true,
       };
     }
 
-    if (name === "create_did") {
-      const { method: didMethod, document, metadata } = args as any;
-
-      console.error(`Invoking create_did -> method=${didMethod}`);
-
-      // Validate required fields
-      if (!didMethod) {
-        console.error("create_did missing method");
-        return {
-          content: [
-            {
-              type: "text",
-              text: "Error: 'method' is required for DID creation (e.g., 'cheqd', 'dock', 'key')",
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      // Validate method is one of the supported types
-      const validMethods = ["cheqd", "dock", "key"];
-      if (!validMethods.includes(didMethod)) {
-        console.error(`create_did invalid method: ${didMethod}`);
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error: 'method' must be one of ${validMethods.join(", ")}, got '${didMethod}'`,
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      const result = await truveraClient.createDid({
-        method: didMethod,
-        // Pass through optional fields if provided
-        ...(document && { document }),
-        ...(metadata && { metadata }),
-      });
-
-      console.error(`create_did result: success=${result.success}` + (result.error ? ` error=${result.error}` : ""));
-
-      if (!result.success) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: result.error || "Failed to create DID",
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result.data, null, 2),
-          },
-        ],
-      };
-    }
+    return await handler(args);
   } catch (err) {
     console.error('Error handling CallToolRequest:', err);
     return {
@@ -212,17 +119,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       isError: true,
     };
   }
-
-  console.error(`Unknown tool requested: ${name}`);
-  return {
-    content: [
-      {
-        type: "text",
-        text: `Unknown tool: ${name}`,
-      },
-    ],
-    isError: true,
-  };
 });
 
 // Start server
