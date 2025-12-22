@@ -1,4 +1,4 @@
-# Truvera MCP Service
+# Truvera MCP Server
 
 [![CI](https://github.com/docknetwork/truvera-mcp-server/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/docknetwork/truvera-mcp-server/actions/workflows/ci.yml)
 
@@ -10,6 +10,13 @@ A Model Context Protocol (MCP) server that exposes Truvera API functionality as 
 - `src/clients/truvera.ts` — the low-level authenticated HTTP client used by features.
 - `src/tools/composeTools.ts` — composes tool definitions and handlers from feature modules and is the source of the MCP tools list.
 - An MCP server (`src/index.ts`) exposing tools via stdio (default) or HTTP (SSE) transport.
+
+## Environment variables
+
+- `TRUVERA_API_KEY` (required): Truvera API key
+- `TRUVERA_API_ENDPOINT` (optional): Base API URL (default: `https://api.truvera.com`)
+- `MCP_MODE` (optional): `stdio` or `http` (default `stdio`)
+- `MCP_PORT` (optional): HTTP port (default `3000` when `MCP_MODE=http`)
 
 ## Quickstart
 
@@ -37,12 +44,32 @@ Notes:
 - `MCP_MODE` selects the transport: `stdio` (default) or `http`.
 - For HTTP mode set `MCP_MODE=http` and optionally `MCP_PORT` (default 3000).
 
-## Environment variables
+## Running in Docker
 
-- `TRUVERA_API_KEY` (required): Truvera API key
-- `TRUVERA_API_ENDPOINT` (optional): Base API URL (default: `https://api.truvera.com`)
-- `MCP_MODE` (optional): `stdio` or `http` (default `stdio`)
-- `MCP_PORT` (optional): HTTP port (default `3000` when `MCP_MODE=http`)
+Build image:
+
+```bash
+docker build -t truvera-mcp-service:latest .
+```
+
+Run container (stdio mode):
+
+```bash
+docker run -e TRUVERA_API_KEY=your-api-key -e TRUVERA_API_ENDPOINT=https://api.truvera.com truvera-mcp-service:latest
+```
+
+Run in HTTP mode (useful for remote MCP transports like Claude Desktop + mcp-remote):
+
+```bash
+docker run -e TRUVERA_API_KEY=your-api-key -e MCP_MODE=http -e MCP_PORT=3000 -p 3000:3000 truvera-mcp-service:latest
+```
+
+### Health check (HTTP mode):
+
+```bash
+curl http://localhost:3000/health
+# Expected: {"status":"ok","service":"truvera-mcp-service"}
+```
 
 ## How tools are organized
 
@@ -68,33 +95,6 @@ The supported tool names and input schemas are provided in the tool listing retu
 
 - Keep feature surface small: export only what other code needs (client class and `toolDefs`/`getHandlers`).
 - Use dependency injection: pass a `TruveraClient` instance into feature clients to make testing easier.
-
-## Running in Docker
-
-Build image:
-
-```bash
-docker build -t truvera-mcp-service:latest .
-```
-
-Run container (stdio mode):
-
-```bash
-docker run -e TRUVERA_API_KEY=your-api-key -e TRUVERA_API_ENDPOINT=https://api.truvera.com truvera-mcp-service:latest
-```
-
-Run in HTTP mode (useful for remote MCP transports like Claude Desktop + mcp-remote):
-
-```bash
-docker run -e TRUVERA_API_KEY=your-api-key -e MCP_MODE=http -e MCP_PORT=3000 -p 3000:3000 truvera-mcp-service:latest
-```
-
-Health check (HTTP mode):
-
-```bash
-curl http://localhost:3000/health
-# Expected: {"status":"ok","service":"truvera-mcp-service"}
-```
 
 ## Tests & Type Checking
 

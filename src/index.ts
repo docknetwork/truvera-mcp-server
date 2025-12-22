@@ -104,10 +104,15 @@ async function main() {
         return;
       }
 
-      // Health check endpoint
+      // Health check endpoint (also returns available tools for quick verification)
       if (req.method === "GET" && req.url === "/health") {
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ status: "ok", service: "truvera-mcp-service" }));
+        res.end(JSON.stringify({
+          status: "ok",
+          service: "truvera-mcp-service",
+          toolCount: tools.length,
+          tools: tools.map((t) => ({ name: t.name, description: t.description ?? null })),
+        }));
         return;
       }
 
