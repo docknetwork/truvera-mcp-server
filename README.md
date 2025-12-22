@@ -1,5 +1,7 @@
 # Truvera MCP Service
 
+[![CI](https://github.com/docknetwork/truvera-mcp-server/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/docknetwork/truvera-mcp-server/actions/workflows/ci.yml)
+
 A Model Context Protocol (MCP) server that exposes Truvera API functionality as MCP tools. Built with TypeScript/Node.js and designed for development with Docker.
 
 ## What this repository contains
