@@ -15,19 +15,19 @@ export class TeamsClient {
     return this.truvera.request({ method: "PATCH", endpoint: `/teams/${encodeURIComponent(id)}`, body });
   }
 
-  async listInvitations(options?: { offset?: number; limit?: number }): Promise<ApiResponse> {
+  async listInvitations(teamId: number, options?: { offset?: number; limit?: number }): Promise<ApiResponse> {
     const params = new URLSearchParams();
     if (options?.offset !== undefined) params.append("offset", String(options.offset));
     if (options?.limit !== undefined) params.append("limit", String(options.limit));
-    const endpoint = `/teams/invitations${params.toString() ? `?${params.toString()}` : ""}`;
+    const endpoint = `/teams/${encodeURIComponent(String(teamId))}/invitations${params.toString() ? `?${params.toString()}` : ""}`;
     return this.truvera.request({ method: "GET", endpoint });
   }
 
-  async listMembers(options?: { offset?: number; limit?: number }): Promise<ApiResponse> {
+  async listMembers(teamId: number, options?: { offset?: number; limit?: number }): Promise<ApiResponse> {
     const params = new URLSearchParams();
     if (options?.offset !== undefined) params.append("offset", String(options.offset));
     if (options?.limit !== undefined) params.append("limit", String(options.limit));
-    const endpoint = `/teams/members${params.toString() ? `?${params.toString()}` : ""}`;
+    const endpoint = `/teams/${encodeURIComponent(String(teamId))}/members${params.toString() ? `?${params.toString()}` : ""}`;
     return this.truvera.request({ method: "GET", endpoint });
   }
 }

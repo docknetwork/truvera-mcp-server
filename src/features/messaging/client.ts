@@ -16,7 +16,12 @@ export class MessagingClient {
     if (options?.offset !== undefined) params.append("offset", String(options.offset));
     if (options?.limit !== undefined) params.append("limit", String(options.limit));
     const endpoint = `/messages${params.toString() ? `?${params.toString()}` : ""}`;
-    return this.truvera.request({ method: "GET", endpoint });
+    const res = await this.truvera.request({ method: "GET", endpoint });
+    // Some environments return 404 when there are no messages - map that to an empty list
+    if (!res.success && res.error && res.error.includes("404")) {
+      return { success: true, data: [] };
+    }
+    return res;
   }
 
   async getMessage(id: string): Promise<ApiResponse> {
