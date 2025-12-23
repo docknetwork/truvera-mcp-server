@@ -1,4 +1,5 @@
 import { TruveraClient, ApiResponse } from "../../clients/truvera.js";
+import { IssueCredentialRequest, IssueCredentialResponse } from "./types.js";
 
 export class CredentialsClient {
   private truvera: TruveraClient;
@@ -16,7 +17,7 @@ export class CredentialsClient {
     return this.truvera.request({ method: "GET", endpoint });
   }
 
-  async issueCredential(body: unknown): Promise<ApiResponse> {
+  async issueCredential(body: IssueCredentialRequest): Promise<ApiResponse<IssueCredentialResponse>> {
     return this.truvera.request({ method: "POST", endpoint: "/credentials", body });
   }
 

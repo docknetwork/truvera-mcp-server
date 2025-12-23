@@ -9,6 +9,8 @@ dotenv.config({ path: '.env.tests' });
 const API_KEY = process.env.TRUVERA_API_KEY;
 const API_ENDPOINT = process.env.TRUVERA_API_ENDPOINT || 'https://api.truvera.com';
 
+console.log('E2E Test - Truvera API Key:', API_KEY ? 'Provided' : 'Not Provided');
+
 // Skip the suite if no credentials are provided
 const shouldRunE2E = !!API_KEY;
 
