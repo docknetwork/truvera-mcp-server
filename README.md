@@ -110,23 +110,42 @@ npm run typecheck
 npm run build
 ```
 
-## Contributing
+## Developer Testing
+Test with Claude Desktop or using The MCP Inspector
 
-- Keep PRs focused per feature to minimize risk and make review easy.
-- Add unit tests near the feature implementation.
-- If you refactor shared utilities, prefer `src/tools/` or `src/lib/` for shared code.
+### Claude Desktop
+Configure the MCP server in the Claude `claude_desktop_config.json` file (located on Windows in `~\AppData\Roaming\Claude\claude_desktop_config.json`).
+
+```json
+{
+  "mcpServers": {
+    "truvera-mcp-service": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "http://localhost:3000/sse",
+        "--insecure"
+      ]
+    }
+  }
+}
+```
+
+### MCP Inspector
+The MCP Inspector is an open source tool that provides a GUI client for interacting with the MCP server tools.
+
+```bash
+docker run --rm \
+  -p 127.0.0.1:6274:6274 \
+  -p 127.0.0.1:6277:6277 \
+  -e HOST=0.0.0.0 \
+  -e MCP_AUTO_OPEN_ENABLED=false \
+  ghcr.io/modelcontextprotocol/inspector:latest
+```
 
 ## Security and Production Notes
 
 - Treat `TRUVERA_API_KEY` as a secret.
 - Use HTTPS and secure secrets management in production.
 
----
-
-If you'd like, I can also: 
-- generate a short `CONTRIBUTING.md` with the feature workflow, or
-- add an example smoke test that asserts a tool listing is returned.
-
----
-
-MIT
