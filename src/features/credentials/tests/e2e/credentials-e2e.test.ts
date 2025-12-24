@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { TruveraClient } from '../../../../../src/clients/index.js';
 import dotenv from 'dotenv';
 import { CredentialsClient } from '../../client.js';
+import { VerifiableCredential, CredentialIssuer } from '../../../shared/credentials.js';
 
 // Load test environment variables if present
 dotenv.config({ path: '.env.tests' });
@@ -29,8 +30,10 @@ describe.skipIf(!shouldRunE2E)('e2e: CredentialClient tests for the Truvera API'
     const response = await credentialClient.issueCredential({
       credential: {
         type: ['VerifiableCredential', 'TestCredential'],
-        issuer: ISSUER_DID,
-        subject: {
+        issuer: {
+          id: ISSUER_DID,
+        },
+        credentialSubject: {
           id: 'did:example:subject',
           name: 'Test User',
         },
@@ -38,5 +41,22 @@ describe.skipIf(!shouldRunE2E)('e2e: CredentialClient tests for the Truvera API'
     });
     console.log(response);
     expect(response.success).toBe(true);
-    });
+    expect(response.data).toBeDefined();
+
+    const credential = response.data as VerifiableCredential;
+    expect(credential).toBeDefined();
+    expect(credential.type).toContain('VerifiableCredential');
+    expect(credential.type).toContain('TestCredential');
+    expect(credential.credentialSubject).toBeDefined();
+    expect((credential.credentialSubject as any).name).toBe('Test User');
+    expect(credential.id).toBeDefined();
+    expect(credential.issuanceDate).toBeDefined();
+    expect(credential.proof).toBeDefined();
+    expect(credential.issuer).toBeDefined();
+
+    expect(typeof credential.issuer).toBe('object');
+    const issuerObj = credential.issuer as CredentialIssuer;
+    expect(issuerObj.id).toBe(ISSUER_DID);
+    
+  });
 });

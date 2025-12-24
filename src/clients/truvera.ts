@@ -3,6 +3,8 @@
  * Centralized module for making authenticated requests to the Truvera API
  */
 
+import { liftProperties } from "../tools/utils.js";
+
 interface RequestOptions {
   method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
   endpoint: string;
@@ -45,8 +47,12 @@ export class TruveraClient {
         },
       };
 
+      let reqBody = body;
       if (body && (method === "POST" || method === "PUT" || method === "PATCH")) {
-        fetchOptions.body = JSON.stringify(body);
+        if (typeof body === "object" && (body.hasOwnProperty('payload') || body.hasOwnProperty('body'))) {
+          reqBody = liftProperties(body);
+        }
+        fetchOptions.body = JSON.stringify(reqBody);
       }
 
       const response = await fetch(url, fetchOptions);

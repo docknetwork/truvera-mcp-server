@@ -1,10 +1,11 @@
 import type { CredentialsClient } from "./client.js";
 import type { ToolDef, ToolHandler } from "../../tools/types.js";
 import { formatResult } from "../../tools/utils.js";
+import { components } from "./schemas.js";
 
 export const toolDefs: ToolDef[] = [
   { name: "list_credentials", description: "List credentials", inputSchema: { type: "object" } },
-  { name: "issue_credential", description: "Issue a credential", inputSchema: { type: "object" } },
+  { name: "issue_credential", description: "Issue a verifiable credential using the Truvera API.", inputSchema: components.schemas.CredentialIssueRequest },
   { name: "get_credential", description: "Get credential", inputSchema: { type: "object", required: ["id"] } },
   { name: "delete_credential", description: "Delete credential", inputSchema: { type: "object", required: ["id"] } },
 ];

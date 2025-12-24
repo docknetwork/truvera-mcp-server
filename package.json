@@ -14,10 +14,12 @@
     "e2e": "vitest tests/e2e --run"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.25.1"
+    "@modelcontextprotocol/sdk": "^1.25.1",
+    "request": "^2.88.2"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@types/request": "^2.48.13",
     "dotenv": "^16.6.1",
     "tsx": "^4.7.0",
     "typescript": "^5.3.0",
