@@ -1,12 +1,13 @@
 import type { MessagingClient } from "./client.js";
 import type { ToolDef, ToolHandler } from "../../tools/types.js";
 import { formatResult } from "../../tools/utils.js";
+import { components } from "./schemas.js";
 
 export const toolDefs: ToolDef[] = [
-  { name: "send_message", description: "Send message", inputSchema: { type: "object" } },
-  { name: "list_messages", description: "List messages", inputSchema: { type: "object" } },
-  { name: "get_message", description: "Get message", inputSchema: { type: "object", required: ["id"] } },
-  { name: "delete_message", description: "Delete message", inputSchema: { type: "object", required: ["id"] } },
+  { name: "send_message", description: "Send message", inputSchema: components.schemas.SendMessageRequest },
+  { name: "list_messages", description: "List messages", inputSchema: components.schemas.ListMessagesOptions },
+  { name: "get_message", description: "Get message", inputSchema: components.schemas.GetMessageRequest },
+  { name: "delete_message", description: "Delete message", inputSchema: components.schemas.DeleteMessageRequest },
 ];
 
 export function getHandlers(messaging: MessagingClient): Map<string, ToolHandler> {

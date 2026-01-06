@@ -1,14 +1,15 @@
 import type { DidClient } from "./client.js";
 import type { ToolDef, ToolHandler } from "../../tools/types.js";
 import { formatResult } from "../../tools/utils.js";
+import { components } from "./schemas.js";
 
 export const toolDefs: ToolDef[] = [
-  { name: "create_did", description: "Create a Decentralized Identifier (DID) in Truvera", inputSchema: { type: "object", properties: { method: { type: "string" }, document: { type: "object" }, metadata: { type: "object" } }, required: ["method"] } },
-  { name: "get_did", description: "Get a DID by its identifier", inputSchema: { type: "object", required: ["did"] } },
-  { name: "list_dids", description: "List DIDs", inputSchema: { type: "object" } },
-  { name: "delete_did", description: "Delete a DID", inputSchema: { type: "object", required: ["did"] } },
-  { name: "export_did", description: "Export DID as encrypted wallet", inputSchema: { type: "object", required: ["did","password"] } },
-  { name: "import_dids", description: "Import DIDs", inputSchema: { type: "object", required: ["data"] } },
+  { name: "create_did", description: "Create a Decentralized Identifier (DID) in Truvera", inputSchema: components.schemas.CreateDidRequest },
+  { name: "get_did", description: "Get a DID by its identifier", inputSchema: components.schemas.GetDidRequest },
+  { name: "list_dids", description: "List DIDs", inputSchema: components.schemas.ListDidsOptions },
+  { name: "delete_did", description: "Delete a DID", inputSchema: components.schemas.DeleteDidRequest },
+  { name: "export_did", description: "Export DID as encrypted wallet", inputSchema: components.schemas.ExportDidRequest },
+  { name: "import_dids", description: "Import DIDs", inputSchema: components.schemas.ImportDidsRequest },
 ];
 
 export function getHandlers(dids: DidClient): Map<string, ToolHandler> {

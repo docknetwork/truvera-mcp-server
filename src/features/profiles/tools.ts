@@ -1,13 +1,14 @@
 import type { ProfilesClient } from "./client.js";
 import type { ToolDef, ToolHandler } from "../../tools/types.js";
 import { formatResult } from "../../tools/utils.js";
+import { components } from "./schemas.js";
 
 export const toolDefs: ToolDef[] = [
-  { name: "create_profile", description: "Create profile", inputSchema: { type: "object" } },
-  { name: "list_profiles", description: "List profiles", inputSchema: { type: "object" } },
-  { name: "get_profile", description: "Get profile", inputSchema: { type: "object", required: ["id"] } },
-  { name: "update_profile", description: "Update profile", inputSchema: { type: "object" } },
-  { name: "delete_profile", description: "Delete profile", inputSchema: { type: "object", required: ["id"] } },
+  { name: "create_profile", description: "Create profile", inputSchema: components.schemas.CreateProfileRequest },
+  { name: "list_profiles", description: "List profiles", inputSchema: components.schemas.ListProfilesOptions },
+  { name: "get_profile", description: "Get profile", inputSchema: components.schemas.GetProfileRequest },
+  { name: "update_profile", description: "Update profile", inputSchema: components.schemas.UpdateProfileRequest },
+  { name: "delete_profile", description: "Delete profile", inputSchema: components.schemas.DeleteProfileRequest },
 ];
 
 export function getHandlers(profiles: ProfilesClient): Map<string, ToolHandler> {

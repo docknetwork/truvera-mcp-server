@@ -1,12 +1,13 @@
 import type { PresentationsClient } from "./client.js";
 import type { ToolDef, ToolHandler } from "../../tools/types.js";
 import { formatResult } from "../../tools/utils.js";
+import { components } from "./schemas.js";
 
 export const toolDefs: ToolDef[] = [
-  { name: "list_proof_templates", description: "List proof templates", inputSchema: { type: "object" } },
-  { name: "create_proof_template", description: "Create proof template", inputSchema: { type: "object" } },
-  { name: "get_proof_template", description: "Get proof template", inputSchema: { type: "object", required: ["id"] } },
-  { name: "create_proof_request", description: "Create proof request", inputSchema: { type: "object" } },
+  { name: "list_proof_templates", description: "List proof templates", inputSchema: components.schemas.ListProofTemplatesOptions },
+  { name: "create_proof_template", description: "Create proof template", inputSchema: components.schemas.CreateProofTemplateRequest },
+  { name: "get_proof_template", description: "Get proof template", inputSchema: components.schemas.GetProofTemplateRequest },
+  { name: "create_proof_request", description: "Create proof request", inputSchema: components.schemas.CreateProofRequest },
 ];
 
 export function getHandlers(presentations: PresentationsClient): Map<string, ToolHandler> {

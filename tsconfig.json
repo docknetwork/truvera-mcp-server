@@ -15,6 +15,6 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["src/**/*", "truvera/model"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }
