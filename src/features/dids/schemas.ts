@@ -5,11 +5,13 @@ export const components = {
     ...shared.schemas,
     CreateDidRequest: {
       type: "object",
-      required: ["method"],
       properties: {
-        method: { type: "string" },
-        document: { type: "object" },
-        metadata: { type: "object" }
+        type: { type: "string", enum: ["cheqd", "key", "dock"], default: "cheqd" },
+        did: { $ref: "#/components/schemas/DID" },
+        controller: { $ref: "#/components/schemas/DID" },
+        keyType: { type: "string" },
+        didcommServiceUrl: { type: "string", format: "uri" },
+        includeDidcommService: { type: "boolean", default: true }
       }
     },
     GetDidRequest: {

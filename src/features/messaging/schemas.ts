@@ -5,13 +5,13 @@ export const components = {
     ...shared.schemas,
     SendMessageRequest: {
       type: "object",
-      required: ["to", "body"],
+      required: ["to", "message"],
       properties: {
         to: { type: "string", description: "Recipient DID or address" },
         from: { type: "string", description: "Sender DID or address" },
         type: { type: "string" },
-        body: { oneOf: [{ type: "string" }, { type: "object" }] },
-        metadata: { type: "object" }
+        message: { oneOf: [{ type: "string" }, { $ref: "#/components/schemas/DIDCommMessage" }, { type: "object" }] },
+        metadata: { type: "object", additionalProperties: true }
       }
     },
     GetMessageRequest: {
