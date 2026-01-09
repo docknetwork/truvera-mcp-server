@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildToolList } from "../../src/tools/composeTools.js";
+import { buildToolList } from "../../composeTools.js";
 
 // Helper to recursively check if a schema contains any $ref entries (except within oneOf/anyOf/allOf arrays)
 function hasUnresolvedRefs(obj: any, path = ""): { found: boolean; paths: string[] } {
