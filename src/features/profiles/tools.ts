@@ -4,11 +4,11 @@ import { formatResult } from "../../tools/utils.js";
 import { components } from "./schemas.js";
 
 export const toolDefs: ToolDef[] = [
-  { name: "create_profile", description: "Create profile", inputSchema: components.schemas.CreateProfileRequest },
-  { name: "list_profiles", description: "List profiles", inputSchema: components.schemas.ListProfilesOptions },
-  { name: "get_profile", description: "Get profile", inputSchema: components.schemas.GetProfileRequest },
-  { name: "update_profile", description: "Update profile", inputSchema: components.schemas.UpdateProfileRequest },
-  { name: "delete_profile", description: "Delete profile", inputSchema: components.schemas.DeleteProfileRequest },
+  { name: "create_profile", description: "Create profile. POST /profiles. For schema details including DID and profile properties, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.CreateProfileRequest },
+  { name: "list_profiles", description: "List profiles. GET /profiles. Supports offset and limit pagination. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.ListProfilesOptions },
+  { name: "get_profile", description: "Get profile by ID. GET /profiles/{id}. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.GetProfileRequest },
+  { name: "update_profile", description: "Update profile. PATCH /profiles/{did}. For schema details including profile body structure, refer to: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.UpdateProfileRequest },
+  { name: "delete_profile", description: "Delete profile by ID. DELETE /profiles/{id}. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.DeleteProfileRequest },
 ];
 
 export function getHandlers(profiles: ProfilesClient): Map<string, ToolHandler> {

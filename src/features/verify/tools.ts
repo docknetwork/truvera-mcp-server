@@ -4,7 +4,7 @@ import { formatResult } from "../../tools/utils.js";
 import { components } from "./schemas.js";
 
 export const toolDefs: ToolDef[] = [
-  { name: "verify", description: "Verify data", inputSchema: components.schemas.VerifyRequest },
+  { name: "verify", description: "Verify verifiable credentials, presentations, or JWTs. POST /verify. Accepts VerifiableCredential, VerifiablePresentation, or JWT string. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.VerifyRequest },
 ];
 
 export function getHandlers(verify: VerifyClient): Map<string, ToolHandler> {

@@ -4,12 +4,12 @@ import { formatResult } from "../../tools/utils.js";
 import { components } from "./schemas.js";
 
 export const toolDefs: ToolDef[] = [
-  { name: "create_did", description: "Create a Decentralized Identifier (DID) in Truvera", inputSchema: components.schemas.CreateDidRequest },
-  { name: "get_did", description: "Get a DID by its identifier", inputSchema: components.schemas.GetDidRequest },
-  { name: "list_dids", description: "List DIDs", inputSchema: components.schemas.ListDidsOptions },
-  { name: "delete_did", description: "Delete a DID", inputSchema: components.schemas.DeleteDidRequest },
-  { name: "export_did", description: "Export DID as encrypted wallet", inputSchema: components.schemas.ExportDidRequest },
-  { name: "import_dids", description: "Import DIDs", inputSchema: components.schemas.ImportDidsRequest },
+  { name: "create_did", description: "Create a Decentralized Identifier (DID) in Truvera. POST /dids. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.CreateDidRequest },
+  { name: "get_did", description: "Get a DID by its identifier. GET /dids/{did}. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.GetDidRequest },
+  { name: "list_dids", description: "List DIDs. GET /dids. Supports offset and limit pagination. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.ListDidsOptions },
+  { name: "delete_did", description: "Delete a DID. DELETE /dids/{did}. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.DeleteDidRequest },
+  { name: "export_did", description: "Export DID as encrypted wallet. POST /dids/{did}/export. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.ExportDidRequest },
+  { name: "import_dids", description: "Import DIDs. POST /dids/import. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.ImportDidsRequest },
 ];
 
 export function getHandlers(dids: DidClient): Map<string, ToolHandler> {

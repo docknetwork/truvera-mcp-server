@@ -5,6 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
+    "prebuild": "node scripts/update-build-version.js",
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",

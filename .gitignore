@@ -6,3 +6,5 @@ dist/
 npm-debug.log*
 .DS_Store
 truvera/
+.buildnumber
+src/build-info.ts

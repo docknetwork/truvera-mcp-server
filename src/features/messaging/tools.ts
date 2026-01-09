@@ -4,10 +4,10 @@ import { formatResult } from "../../tools/utils.js";
 import { components } from "./schemas.js";
 
 export const toolDefs: ToolDef[] = [
-  { name: "send_message", description: "Send message", inputSchema: components.schemas.SendMessageRequest },
-  { name: "list_messages", description: "List messages", inputSchema: components.schemas.ListMessagesOptions },
-  { name: "get_message", description: "Get message", inputSchema: components.schemas.GetMessageRequest },
-  { name: "delete_message", description: "Delete message", inputSchema: components.schemas.DeleteMessageRequest },
+  { name: "send_message", description: "Send message. POST /messages. ⚠️ IMPORTANT: DIDComm message format and field structure in Truvera may differ from standard DIDComm specifications. ALWAYS check the Truvera API spec for exact field names, message types, and envelope structure: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.SendMessageRequest },
+  { name: "list_messages", description: "List messages. GET /messages. Supports offset and limit pagination. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.ListMessagesOptions },
+  { name: "get_message", description: "Get message by ID. GET /messages/{id}. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.GetMessageRequest },
+  { name: "delete_message", description: "Delete message by ID. DELETE /messages/{id}. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.DeleteMessageRequest },
 ];
 
 export function getHandlers(messaging: MessagingClient): Map<string, ToolHandler> {

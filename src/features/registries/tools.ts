@@ -4,10 +4,10 @@ import { formatResult } from "../../tools/utils.js";
 import { components } from "./schemas.js";
 
 export const toolDefs: ToolDef[] = [
-  { name: "list_registries", description: "List registries", inputSchema: components.schemas.ListRegistriesOptions },
-  { name: "create_registry", description: "Create registry", inputSchema: components.schemas.CreateRegistryRequest },
-  { name: "get_registry", description: "Get registry", inputSchema: components.schemas.GetRegistryRequest },
-  { name: "delete_registry", description: "Delete registry", inputSchema: components.schemas.DeleteRegistryRequest },
+  { name: "list_registries", description: "List registries. GET /registries. Supports offset and limit pagination. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.ListRegistriesOptions },
+  { name: "create_registry", description: "Create registry. POST /registries. For schema details including required fields (convener DID, name, governance framework, etc.), refer to: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.CreateRegistryRequest },
+  { name: "get_registry", description: "Get registry by ID. GET /registries/{id}. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.GetRegistryRequest },
+  { name: "delete_registry", description: "Delete registry by ID. DELETE /registries/{id}. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.DeleteRegistryRequest },
 ];
 
 export function getHandlers(registries: RegistriesClient): Map<string, ToolHandler> {

@@ -1,5 +1,9 @@
 # Multi-stage build for Truvera MCP Service
+ARG BUILD_NUMBER=1
+
 FROM node:22-alpine3.20 AS builder
+
+ARG BUILD_NUMBER
 
 WORKDIR /app
 
@@ -15,10 +19,11 @@ RUN npm ci
 
 # Copy source code
 COPY src ./src
+COPY scripts ./scripts
 COPY tsconfig.json ./
 
-# Build TypeScript
-RUN npm run build
+# Build TypeScript with explicit build number
+RUN BUILD_NUMBER=$BUILD_NUMBER npm run build
 
 # Runtime stage
 FROM node:22-alpine3.20

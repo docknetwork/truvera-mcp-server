@@ -5,7 +5,7 @@ import { formatResult } from "./utils.js";
 export const toolDefs: ToolDef[] = [
   {
     name: "call_truvera_api",
-    description: "Call the Truvera REST API with specified endpoint and parameters",
+    description: "Call the Truvera REST API with specified endpoint and parameters. Refer to https://swagger-api.truvera.io/openapi.yaml for complete API documentation and endpoint details.",
     inputSchema: {
       type: "object",
       properties: {

@@ -7,6 +7,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { TruveraClient } from "./clients/index.js";
 import { buildToolList, buildHandlerMapFromTruvera } from "./tools/composeTools.js";
+import { BUILD_INFO } from "./build-info.js";
 import http from "http";
 
 // Configuration from environment variables
@@ -31,7 +32,7 @@ const toolHandlers = buildHandlerMapFromTruvera(truveraClient);
 const server = new Server(
   {
     name: "truvera-mcp-service",
-    version: "1.0.0",
+    version: BUILD_INFO.version,
   },
   {
     capabilities: {
@@ -42,7 +43,7 @@ const server = new Server(
 
 // Handler for listing available tools
 server.setRequestHandler(ListToolsRequestSchema, async () => {
-  console.error('ListToolsRequest received');
+  console.error(`ListToolsRequest received [Build: ${BUILD_INFO.buildNumber}]`);
   return {
     tools,
   };
@@ -110,6 +111,9 @@ async function main() {
         res.end(JSON.stringify({
           status: "ok",
           service: "truvera-mcp-service",
+          version: BUILD_INFO.version,
+          buildNumber: BUILD_INFO.buildNumber,
+          buildTime: BUILD_INFO.timestamp,
           toolCount: tools.length,
           tools: tools.map((t) => ({ name: t.name, description: t.description ?? null })),
         }));
@@ -163,6 +167,7 @@ async function main() {
 
     httpServer.listen(MCP_PORT, "0.0.0.0", () => {
       console.error(`Truvera MCP service started (HTTP mode on port ${MCP_PORT})`);
+      console.error(`  - Build: ${BUILD_INFO.buildNumber} (${BUILD_INFO.timestamp})`);
       console.error(`  - SSE endpoint: http://localhost:${MCP_PORT}/sse`);
       console.error(`  - Message endpoint: http://localhost:${MCP_PORT}/messages`);
       console.error(`  - Health check: http://localhost:${MCP_PORT}/health`);
@@ -182,7 +187,8 @@ async function main() {
     // Default: stdio mode for direct MCP communication
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error("Truvera MCP service started (stdio mode)");
+    console.error(`Truvera MCP service started (stdio mode)`);
+    console.error(`  - Build: ${BUILD_INFO.buildNumber} (${BUILD_INFO.timestamp})`);
   }
 }
 
