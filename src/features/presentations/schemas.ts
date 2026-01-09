@@ -29,6 +29,17 @@ export const components = {
     },
     CreateProofTemplateRequest: { $ref: '#/components/schemas/ProofTemplatePayload' },
     GetProofTemplateRequest: { type: "object", required: ["id"], properties: { id: { type: "string" } } },
-    CreateProofRequest: { $ref: '#/components/schemas/ProofRequestPayload' }
+    CreateProofRequest: { $ref: '#/components/schemas/ProofRequestPayload' },
+    // Input arguments for POST /proof-templates/{templateId}/request
+    CreateProofRequestArgs: {
+      type: "object",
+      // Either supply `templateId` (path param) or include `template` inside the `body`.
+      // The `body` property is required; `templateId` is optional but preferred.
+      required: ["body"],
+      properties: {
+        templateId: { type: "string", format: "uuid" },
+        body: { $ref: '#/components/schemas/ProofRequestPayload' }
+      }
+    }
   }
 };
