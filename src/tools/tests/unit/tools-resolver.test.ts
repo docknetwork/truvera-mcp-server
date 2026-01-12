@@ -94,9 +94,7 @@ describe("tool list resolver", () => {
       const schema = tool.inputSchema as any;
       if (schema && typeof schema === "object") {
         // Top-level should never be a bare $ref
-        expect(schema.$ref).toBeUndefined(
-          `Tool '${tool.name}' has a bare $ref at top level`
-        );
+        expect(schema.$ref).toBeUndefined();
       }
     }
   });
@@ -111,7 +109,7 @@ describe("tool list resolver", () => {
 
         // We expect no unresolved $refs in the main schema structure
         // (oneOf/anyOf are allowed to have $refs since they represent alternatives)
-        expect(found).toBe(false, `Tool '${tool.name}' has unresolved $refs: ${paths.join(", ")}`);
+        expect(found).toBe(false);
       }
     }
   });

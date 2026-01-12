@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { components } from "../../src/features/presentations/schemas.js";
-import { toolDefs, getHandlers } from "../../src/features/presentations/tools.js";
+import { components } from "../schemas.js";
+import { toolDefs, getHandlers } from "../tools.js";
 
 describe("presentations schema and tool definitions", () => {
   it("exposes 'template' property on ProofRequestPayload", () => {
