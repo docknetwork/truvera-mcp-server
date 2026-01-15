@@ -73,17 +73,14 @@ curl http://localhost:3000/health
 
 ## How tools are organized
 
+- Each tool's code is located in a sub-folder under ./src/features.
 - Each feature exports `toolDefs` (tool metadata) and `getHandlers(truveraClient)` which returns a map of tool handlers.
 - `src/tools/composeTools.ts` imports those `toolDefs` and `getHandlers` and merges them into the global tools list and handlers map exposed by the MCP server.
 
 To see available tools at runtime, call the `ListTools` endpoint (MCP ListToolsRequest) — the server returns the merged tool definitions.
 
-## Example tools
-
-- `call_truvera_api` — low-level API caller for arbitrary Truvera endpoints
-- `create_did`, `get_did`, `list_dids`, etc. — DID management tools
-
-The supported tool names and input schemas are provided in the tool listing returned by the server.
+## Supported Tools
+Not all Truvera API endpoints are exposed via the MCP server. The supported tool names and input schemas are provided in the tool listing returned by the server.
 
 ## Development tips
 
@@ -128,6 +125,30 @@ Configure the MCP server in the Claude `claude_desktop_config.json` file (locate
         "--insecure"
       ]
     }
+  }
+}
+```
+
+### VS Code Copilot
+1. Configure the MCP Server in the [mcp.json](./.vscode/mcp.json) file.
+2. Click the `Configure tools...` icon in the Copilot chat pane.
+3. Click `Update tools` under the `truvera-mcp-service-vs-code` MCP server.
+4. Click the checkbox beside the tools you want to enable.
+5. Click `OK`
+
+```json
+{
+  "servers": {
+    "truvera-mcp-service-vs-code": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "http://localhost:3000/sse",
+        "--insecure"
+      ]
+    }
+
   }
 }
 ```
