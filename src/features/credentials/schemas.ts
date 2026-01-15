@@ -95,7 +95,8 @@ export const components = {
               "type": "object"
             },
             {
-              "type": "array"
+              "type": "array",
+              "items": { "type": "object" }
             }
           ]
         },

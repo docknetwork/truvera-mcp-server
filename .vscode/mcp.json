@@ -1,9 +1,14 @@
 {
   "servers": {
-    "truvera-mcp-service": {
-      "type": "stdio",
-      "command": "node",
-      "args": ["dist/index.js"]
+    "truvera-mcp-service-vs-code": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "http://localhost:3000/sse",
+        "--insecure"
+      ]
     }
+
   }
 }
