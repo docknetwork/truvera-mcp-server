@@ -4,10 +4,8 @@ import { formatResult } from "../../tools/utils.js";
 import { components } from "./schemas.js";
 
 export const toolDefs: ToolDef[] = [
-  { name: "create_schema", description: "Create schema. POST /schemas. For schema structure details including properties and required fields, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.VerifiableCredentialSchema },
   { name: "list_schemas", description: "List schemas. GET /schemas. Supports offset and limit pagination. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.ListSchemasOptions },
   { name: "get_schema", description: "Get schema by ID. GET /schemas/{id}. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.GetSchemaRequest },
-  { name: "delete_schema", description: "Delete schema by ID. DELETE /schemas/{id}. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.DeleteSchemaRequest },
 ];
 
 export function getHandlers(schemas: SchemasClient): Map<string, ToolHandler> {

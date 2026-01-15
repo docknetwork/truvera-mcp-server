@@ -2,7 +2,6 @@ import { TruveraClient } from "../clients/truvera.js";
 import { DidClient } from "../features/dids/client.js";
 import { CredentialsClient } from "../features/credentials/client.js";
 import { PresentationsClient } from "../features/presentations/client.js";
-import { RegistriesClient } from "../features/registries/client.js";
 import { SchemasClient } from "../features/schemas/client.js";
 import { ProfilesClient } from "../features/profiles/client.js";
 import { MessagingClient } from "../features/messaging/client.js";
@@ -16,8 +15,6 @@ import { toolDefs as didsDefs, getHandlers as getDidsHandlers } from "../feature
 import { toolDefs as credentialsDefs, getHandlers as getCredentialsHandlers } from "../features/credentials/index.js";
 import { toolDefs as presentationsDefs, getHandlers as getPresentationsHandlers } from "../features/presentations/index.js";
 import { components as presentationsComponents } from "../features/presentations/schemas.js";
-import { toolDefs as registriesDefs, getHandlers as getRegistriesHandlers } from "../features/registries/index.js";
-import { components as registriesComponents } from "../features/registries/schemas.js";
 import { toolDefs as schemasDefs, getHandlers as getSchemasHandlers } from "../features/schemas/index.js";
 import { components as schemasComponents } from "../features/schemas/schemas.js";
 import { toolDefs as profilesDefs, getHandlers as getProfilesHandlers } from "../features/profiles/index.js";
@@ -39,7 +36,6 @@ function mergeSchemas(): Record<string, any> {
     ...credentialsComponents.schemas,
     ...didsComponents.schemas,
     ...presentationsComponents.schemas,
-    ...registriesComponents.schemas,
     ...profilesComponents.schemas,
     ...messagingComponents.schemas,
     ...openidComponents.schemas,
@@ -102,7 +98,6 @@ export function buildToolList(): ToolDef[] {
     ...didsDefs,
     ...credentialsDefs,
     ...presentationsDefs,
-    ...registriesDefs,
     ...schemasDefs,
     ...profilesDefs,
     ...messagingDefs,
@@ -121,7 +116,6 @@ export function buildHandlerMap(clients: {
   dids: DidClient;
   credentials: CredentialsClient;
   presentations: PresentationsClient;
-  registries: RegistriesClient;
   schemas: SchemasClient;
   profiles: ProfilesClient;
   messaging: MessagingClient;
@@ -136,7 +130,6 @@ export function buildHandlerMap(clients: {
     getDidsHandlers(clients.dids),
     getCredentialsHandlers(clients.credentials),
     getPresentationsHandlers(clients.presentations),
-    getRegistriesHandlers(clients.registries),
     getSchemasHandlers(clients.schemas),
     getProfilesHandlers(clients.profiles),
     getMessagingHandlers(clients.messaging),
@@ -159,7 +152,6 @@ export function buildHandlerMapFromTruvera(truvera: TruveraClient) {
     dids: new DidClient(truvera),
     credentials: new CredentialsClient(truvera),
     presentations: new PresentationsClient(truvera),
-    registries: new RegistriesClient(truvera),
     schemas: new SchemasClient(truvera),
     profiles: new ProfilesClient(truvera),
     messaging: new MessagingClient(truvera),
