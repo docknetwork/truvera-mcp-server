@@ -26,5 +26,14 @@ jobs:
       - name: Build (TypeScript)
         run: npm run build
 
+      - name: Unit tests
+        run: npm run test -- --run 'src/**/*.test.ts'
+
+      - name: Integration tests
+        run: npm run test -- --run 'tests/integration/**/*.test.ts'
+
+      - name: E2E tests
+        run: npm run test -- --run 'tests/e2e/**/*.test.ts' 'src/features/**/tests/e2e/**/*.test.ts'
+
       - name: Smoke tests
         run: npm run smoke

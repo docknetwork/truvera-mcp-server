@@ -30,10 +30,11 @@ describe("presentations schema and tool definitions", () => {
     const handlers = getHandlers(fakeClient as any);
     const handler = handlers.get("create_proof_request")!;
 
-    fakeClient.createProofRequest.mockResolvedValue({ ok: true });
+    fakeClient.createProofRequest.mockResolvedValue({ success: true, data: { id: "proof-123" } });
     const res = await handler({ body: { template: "123e4567-e89b-12d3-a456-426614174000", attributes: {} } });
     expect(fakeClient.createProofRequest).toHaveBeenCalledWith("123e4567-e89b-12d3-a456-426614174000", { attributes: {} });
-    expect(res).toHaveProperty("isError", false);
+    expect(res.isError).not.toBe(true);
+    expect(res.content).toBeDefined();
   });
 
   it("handler accepts matching templateId and body.template", async () => {
@@ -43,10 +44,11 @@ describe("presentations schema and tool definitions", () => {
     const handlers = getHandlers(fakeClient as any);
     const handler = handlers.get("create_proof_request")!;
 
-    fakeClient.createProofRequest.mockResolvedValue({ ok: true });
+    fakeClient.createProofRequest.mockResolvedValue({ success: true, data: { id: "proof-456" } });
     const res = await handler({ templateId: "123e4567-e89b-12d3-a456-426614174000", body: { template: "123e4567-e89b-12d3-a456-426614174000", attributes: {} } });
     expect(fakeClient.createProofRequest).toHaveBeenCalledWith("123e4567-e89b-12d3-a456-426614174000", { attributes: {} });
-    expect(res).toHaveProperty("isError", false);
+    expect(res.isError).not.toBe(true);
+    expect(res.content).toBeDefined();
   });
 
   it("handler rejects mismatched templateId and body.template", async () => {

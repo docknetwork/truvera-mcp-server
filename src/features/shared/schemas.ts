@@ -22,6 +22,32 @@ export const components = {
     ISODateString: {
       type: "string",
       format: "date-time"
+    },
+    IntervalObject: {
+      type: "object",
+      required: ["amount", "unit"],
+      properties: {
+        amount: { type: "number" },
+        unit: { type: "string", enum: ["seconds", "minutes", "hours", "days", "weeks", "months", "years"] }
+      }
+    },
+    IndyProofReqAttrSpec: {
+      type: "object",
+      properties: {
+        name: {
+          type: "string",
+          example: "favouriteDrink",
+          description: "Attribute name"
+        },
+        names: {
+          type: "array",
+          description: "Attribute name group",
+          items: {
+            type: "string",
+            example: "age"
+          }
+        }
+      }
     }
   }
 };

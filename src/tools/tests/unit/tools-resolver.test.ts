@@ -109,7 +109,10 @@ describe("tool list resolver", () => {
 
         // We expect no unresolved $refs in the main schema structure
         // (oneOf/anyOf are allowed to have $refs since they represent alternatives)
-        expect(found).toBe(false);
+        if (found) {
+          console.error(`Tool "${tool.name}" has unresolved $refs:`, paths);
+        }
+        expect(found, `Tool "${tool.name}" should not have unresolved $refs: ${paths.join(", ")}`).toBe(false);
       }
     }
   });
