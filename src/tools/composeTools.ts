@@ -4,7 +4,6 @@ import { CredentialsClient } from "../features/credentials/client.js";
 import { PresentationsClient } from "../features/presentations/client.js";
 import { SchemasClient } from "../features/schemas/client.js";
 import { ProfilesClient } from "../features/profiles/client.js";
-import { MessagingClient } from "../features/messaging/client.js";
 import { OpenIdClient } from "../features/openid/client.js";
 import { VerifyClient } from "../features/verify/client.js";
 
@@ -19,8 +18,6 @@ import { toolDefs as schemasDefs, getHandlers as getSchemasHandlers } from "../f
 import { components as schemasComponents } from "../features/schemas/schemas.js";
 import { toolDefs as profilesDefs, getHandlers as getProfilesHandlers } from "../features/profiles/index.js";
 import { components as profilesComponents } from "../features/profiles/schemas.js";
-import { toolDefs as messagingDefs, getHandlers as getMessagingHandlers } from "../features/messaging/index.js";
-import { components as messagingComponents } from "../features/messaging/schemas.js";
 import { toolDefs as openidDefs, getHandlers as getOpenidHandlers } from "../features/openid/index.js";
 import { components as openidComponents } from "../features/openid/schemas.js";
 import { toolDefs as verifyDefs, getHandlers as getVerifyHandlers } from "../features/verify/index.js";
@@ -37,7 +34,6 @@ function mergeSchemas(): Record<string, any> {
     ...didsComponents.schemas,
     ...presentationsComponents.schemas,
     ...profilesComponents.schemas,
-    ...messagingComponents.schemas,
     ...openidComponents.schemas,
     ...verifyComponents.schemas,
   };
@@ -100,7 +96,6 @@ export function buildToolList(): ToolDef[] {
     ...presentationsDefs,
     ...schemasDefs,
     ...profilesDefs,
-    ...messagingDefs,
     ...openidDefs,
     ...verifyDefs,
   ];
@@ -118,7 +113,6 @@ export function buildHandlerMap(clients: {
   presentations: PresentationsClient;
   schemas: SchemasClient;
   profiles: ProfilesClient;
-  messaging: MessagingClient;
   openid: OpenIdClient;
   verify: VerifyClient;
 }) {
@@ -132,7 +126,6 @@ export function buildHandlerMap(clients: {
     getPresentationsHandlers(clients.presentations),
     getSchemasHandlers(clients.schemas),
     getProfilesHandlers(clients.profiles),
-    getMessagingHandlers(clients.messaging),
     getOpenidHandlers(clients.openid),
     getVerifyHandlers(clients.verify),
   ];
@@ -154,7 +147,6 @@ export function buildHandlerMapFromTruvera(truvera: TruveraClient) {
     presentations: new PresentationsClient(truvera),
     schemas: new SchemasClient(truvera),
     profiles: new ProfilesClient(truvera),
-    messaging: new MessagingClient(truvera),
     openid: new OpenIdClient(truvera),
     verify: new VerifyClient(truvera),
   };
