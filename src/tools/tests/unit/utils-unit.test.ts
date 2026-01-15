@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { liftProperties } from '../../utils';
 
-describe('utils tests', () => {
+describe('unit: utils tests', () => {
   it('liftProperties should pull contents of payload field up', { timeout: 30000 }, async () => {
     const input = {body: {
         payload: {

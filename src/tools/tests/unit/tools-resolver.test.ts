@@ -32,7 +32,7 @@ function hasUnresolvedRefs(obj: any, path = ""): { found: boolean; paths: string
   return { found: paths.length > 0, paths };
 }
 
-describe("tool list resolver", () => {
+describe("unit: tool list resolver", () => {
   it("resolves top-level $ref-only inputSchemas into component bodies", () => {
     const tools = buildToolList();
 

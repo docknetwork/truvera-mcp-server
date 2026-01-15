@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { components } from "../schemas.js";
-import { toolDefs, getHandlers } from "../tools.js";
+import { components } from "../../schemas.js";
+import { toolDefs, getHandlers } from "../../tools.js";
 
-describe("presentations schema and tool definitions", () => {
+describe("unit: presentations schema and tool definitions", () => {
   it("exposes 'template' property on ProofRequestPayload", () => {
     const props = (components as any).schemas.ProofRequestPayload.properties;
     expect(props.template).toBeDefined();

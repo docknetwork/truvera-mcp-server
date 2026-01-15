@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { components as messaging } from "../schemas.js";
 
-describe("messaging schema shapes", () => {
+describe("unit: messaging schema shapes", () => {
   it("send message request should require 'to' and 'message'", () => {
     const req = (messaging as any).schemas.SendMessageRequest;
     expect(req).toBeDefined();

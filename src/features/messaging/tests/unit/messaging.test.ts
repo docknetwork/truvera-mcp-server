@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { MessagingClient } from "../../client";
 
-describe("MessagingClient.listMessages", () => {
+describe("unit: MessagingClient.listMessages", () => {
   it("rejects with 404 when API returns not found", async () => {
     const fakeTruvera: any = {
       request: vi.fn(async () => {

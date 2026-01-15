@@ -27,13 +27,13 @@ jobs:
         run: npm run build
 
       - name: Unit tests
-        run: npm run test -- --run 'src/**/*.test.ts'
+        run: npm run test -- --run --testNamePattern "^unit:"
 
       - name: Integration tests
-        run: npm run test -- --run 'tests/integration/**/*.test.ts'
+        run: npm run test -- --run --testNamePattern "^integration:"
 
       - name: E2E tests
-        run: npm run test -- --run 'tests/e2e/**/*.test.ts' 'src/features/**/tests/e2e/**/*.test.ts'
+        run: npm run test -- --run --testNamePattern "^e2e:"
 
       - name: Smoke tests
         run: npm run smoke

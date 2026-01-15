@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { components as profiles } from "../schemas.js";
+import { components as profiles } from "../../schemas.js";
 
-describe("profiles schema shapes", () => {
+describe("unit: profiles schema shapes", () => {
   it("update profile should reference Profile in body", () => {
     const req = (profiles as any).schemas.UpdateProfileRequest;
     expect(req).toBeDefined();
