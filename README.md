@@ -43,6 +43,7 @@ npm start
 Notes:
 - `MCP_MODE` selects the transport: `stdio` (default) or `http`.
 - For HTTP mode set `MCP_MODE=http` and optionally `MCP_PORT` (default 3000).
+- HTTP mode uses HTTP streaming transport (replaces deprecated SSE).
 
 ## Running in Docker
 
@@ -69,6 +70,15 @@ docker run -e TRUVERA_API_KEY=your-api-key -e MCP_MODE=http -e MCP_PORT=3000 -p 
 ```bash
 curl http://localhost:3000/health
 # Expected: {"status":"ok","service":"truvera-mcp-service"}
+```
+
+### MCP HTTP Streaming endpoint:
+
+The MCP server uses HTTP streaming transport in HTTP mode:
+
+```bash
+# Connect to the MCP endpoint via mcp-remote
+npx mcp-remote http://localhost:3000/mcp --insecure
 ```
 
 ## How tools are organized
