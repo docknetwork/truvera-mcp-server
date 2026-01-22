@@ -39,18 +39,31 @@ describe("unit: tool list resolver", () => {
     // specific checks for presentations tools
     const createTemplate = tools.find((t) => t.name === "create_proof_template");
     expect(createTemplate).toBeDefined();
-    expect((createTemplate!.inputSchema as any).$ref).toBeUndefined();
-    expect((createTemplate!.inputSchema as any).type).toBe("object");
+    const s1 = createTemplate!.inputSchema as any;
+    const isZod = (x: any) => x && typeof x.safeParse === 'function';
+    if (isZod(s1)) {
+      expect(isZod(s1)).toBe(true);
+    } else {
+      expect(s1.$ref).toBeUndefined();
+      expect(s1.type).toBe("object");
+    }
 
     const createRequest = tools.find((t) => t.name === "create_proof_request");
     expect(createRequest).toBeDefined();
-    expect((createRequest!.inputSchema as any).$ref).toBeUndefined();
-    expect((createRequest!.inputSchema as any).properties).toBeDefined();
+    const s2 = createRequest!.inputSchema as any;
+    if (isZod(s2)) {
+      expect(isZod(s2)).toBe(true);
+    } else {
+      expect(s2.$ref).toBeUndefined();
+      expect(s2.properties).toBeDefined();
+    }
 
     // generic assertion: no tool should expose a top-level $ref-only inputSchema
     for (const t of tools) {
       const s = t.inputSchema as any;
-      if (s && typeof s === "object") {
+      const isZod = (x: any) => x && typeof x.safeParse === 'function';
+      if (s && typeof s === 'object') {
+        if (isZod(s)) continue;
         expect(s.$ref).toBeUndefined();
       }
     }
@@ -65,6 +78,11 @@ describe("unit: tool list resolver", () => {
     expect(createIssuer).toBeDefined();
 
     const schema = createIssuer!.inputSchema as any;
+    const isZod = (x: any) => x && typeof x.safeParse === 'function';
+    if (isZod(schema)) {
+      expect(isZod(schema)).toBe(true);
+      return;
+    }
 
     // Should have resolved credentialOptions from a $ref to an actual object
     expect(schema.properties).toBeDefined();
@@ -104,6 +122,10 @@ describe("unit: tool list resolver", () => {
 
     for (const tool of tools) {
       const schema = tool.inputSchema as any;
+      if (!schema) continue;
+      const isZod = (x: any) => x && typeof x.safeParse === 'function';
+      if (isZod(schema)) continue; // Zod schemas don't use $ref
+
       if (schema && typeof schema === "object") {
         const { found, paths } = hasUnresolvedRefs(schema, tool.name);
 

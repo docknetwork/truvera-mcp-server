@@ -13,80 +13,18 @@ import { toolDefs as truveraDefs, getHandlers as getTruveraHandlers } from "./tr
 import { toolDefs as didsDefs, getHandlers as getDidsHandlers } from "../features/dids/tools.js";
 import { toolDefs as credentialsDefs, getHandlers as getCredentialsHandlers } from "../features/credentials/index.js";
 import { toolDefs as presentationsDefs, getHandlers as getPresentationsHandlers } from "../features/presentations/index.js";
-import { components as presentationsComponents } from "../features/presentations/schemas.js";
 import { toolDefs as schemasDefs, getHandlers as getSchemasHandlers } from "../features/schemas/index.js";
-import { components as schemasComponents } from "../features/schemas/schemas.js";
-import { toolDefs as profilesDefs, getHandlers as getProfilesHandlers } from "../features/profiles/index.js";
-import { components as profilesComponents } from "../features/profiles/schemas.js";
-import { toolDefs as openidDefs, getHandlers as getOpenidHandlers } from "../features/openid/index.js";
-import { components as openidComponents } from "../features/openid/schemas.js";
-import { toolDefs as verifyDefs, getHandlers as getVerifyHandlers } from "../features/verify/index.js";
-import { components as verifyComponents } from "../features/verify/schemas.js";
+import { components as sharedComponents } from "../features/shared/schemas.js";
 import { components as credentialsComponents } from "../features/credentials/schemas.js";
 import { components as didsComponents } from "../features/dids/schemas.js";
-import { components as sharedComponents } from "../features/shared/schemas.js"; 
-
-function mergeSchemas(): Record<string, any> {
-  return {
-    ...sharedComponents.schemas,
-    ...schemasComponents.schemas,
-    ...credentialsComponents.schemas,
-    ...didsComponents.schemas,
-    ...presentationsComponents.schemas,
-    ...profilesComponents.schemas,
-    ...openidComponents.schemas,
-    ...verifyComponents.schemas,
-  };
-}
-
-function resolveAllRefs(obj: any, schemas: Record<string, any>): any {
-  if (!obj || typeof obj !== 'object') return obj;
-
-  if (Array.isArray(obj)) {
-    return obj.map((item) => resolveAllRefs(item, schemas));
-  }
-
-  // If this object is a $ref, resolve it and recursively resolve the result
-  if (obj.$ref && Object.keys(obj).length === 1 && typeof obj.$ref === 'string') {
-    const ref = obj.$ref as string;
-    const m = ref.match(/^#\/components\/schemas\/(.+)$/);
-    if (m) {
-      const name = m[1];
-      if (schemas && schemas[name]) {
-        return resolveAllRefs(JSON.parse(JSON.stringify(schemas[name])), schemas);
-      }
-    }
-    return obj;
-  }
-
-  // Otherwise, recursively resolve $refs within this object's properties
-  const result: any = {};
-  for (const [key, value] of Object.entries(obj)) {
-    result[key] = resolveAllRefs(value, schemas);
-  }
-  return result;
-}
-
-function resolveTopLevelRefs(tools: ToolDef[]) {
-  const schemas: Record<string, any> = mergeSchemas();
-  for (const t of tools) {
-    const s = t.inputSchema as any;
-    if (s && typeof s === 'object' && Object.keys(s).length === 1 && typeof s.$ref === 'string') {
-      const ref = s.$ref as string;
-      const m = ref.match(/^#\/components\/schemas\/(.+)$/);
-      if (m) {
-        const name = m[1];
-        if (schemas && schemas[name]) {
-          // shallow clone to avoid accidental mutation
-          t.inputSchema = resolveAllRefs(JSON.parse(JSON.stringify(schemas[name])), schemas);
-        }
-      }
-    } else if (s && typeof s === 'object') {
-      // For non-bare-$ref schemas, still resolve nested $refs
-      t.inputSchema = resolveAllRefs(s, schemas);
-    }
-  }
-}
+import { components as presentationsComponents } from "../features/presentations/schemas.js";
+import { components as schemasComponents } from "../features/schemas/schemas.js";
+import { components as profilesComponents } from "../features/profiles/schemas.js";
+import { components as openidComponents } from "../features/openid/schemas.js";
+import { components as verifyComponents } from "../features/verify/schemas.js";
+import { toolDefs as profilesDefs, getHandlers as getProfilesHandlers } from "../features/profiles/index.js";
+import { toolDefs as openidDefs, getHandlers as getOpenidHandlers } from "../features/openid/index.js";
+import { toolDefs as verifyDefs, getHandlers as getVerifyHandlers } from "../features/verify/index.js";
 
 export function buildToolList(): ToolDef[] {
   const tools = [
@@ -99,11 +37,58 @@ export function buildToolList(): ToolDef[] {
     ...openidDefs,
     ...verifyDefs,
   ];
+  // Merge all known component schemas so we can resolve $ref references
+  const mergedSchemas: Record<string, any> = {
+    ...(sharedComponents?.schemas || {}),
+    ...(credentialsComponents?.schemas || {}),
+    ...(didsComponents?.schemas || {}),
+    ...(presentationsComponents?.schemas || {}),
+    ...(schemasComponents?.schemas || {}),
+    ...(profilesComponents?.schemas || {}),
+    ...(openidComponents?.schemas || {}),
+    ...(verifyComponents?.schemas || {}),
+  };
 
-  // Resolve top-level $ref-only schemas into their referenced component bodies
-  resolveTopLevelRefs(tools);
+  function resolveRefObject(obj: any, parentKey?: string): any {
+    if (!obj || typeof obj !== "object") return obj;
+    // If this is a $ref object and not inside oneOf/anyOf/allOf arrays, replace it
+    if (obj.$ref && typeof obj.$ref === "string" && parentKey !== "oneOf" && parentKey !== "anyOf" && parentKey !== "allOf") {
+      const ref = obj.$ref as string;
+      const match = ref.match(/#\/components\/schemas\/(.+)$/);
+      if (match) {
+        const name = match[1];
+        const resolved = mergedSchemas[name];
+        if (resolved) {
+          // Deep clone then resolve inside
+          const clone = JSON.parse(JSON.stringify(resolved));
+          return resolveRefObject(clone);
+        }
+      }
+      return obj;
+    }
 
-  return tools;
+    if (Array.isArray(obj)) {
+      return obj.map((item) => resolveRefObject(item));
+    }
+
+    const out: any = {};
+    for (const [k, v] of Object.entries(obj)) {
+      out[k] = resolveRefObject(v, k);
+    }
+    return out;
+  }
+
+  // Resolve top-level $ref-only inputSchemas for inspector and tests
+  const resolvedTools = tools.map((t) => {
+    const copy: any = { ...t };
+    if (copy.inputSchema && typeof copy.inputSchema === "object") {
+      // If top-level is a $ref only, replace it; otherwise recursively resolve nested refs
+      copy.inputSchema = resolveRefObject(JSON.parse(JSON.stringify(copy.inputSchema)));
+    }
+    return copy;
+  });
+
+  return resolvedTools;
 }
 
 export function buildHandlerMap(clients: {

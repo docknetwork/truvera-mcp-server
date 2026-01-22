@@ -1,11 +1,13 @@
 export type ToolDef = {
   name: string;
   description: string;
-  inputSchema?: unknown;
+  inputSchema?: any;
+  outputSchema?: any;
+  title?: string;
 };
 
 export type ToolResult = {
-  content: Array<{ type: string; text: string }>; 
+  content: Array<{ type: "text"; text: string }>;
   isError?: boolean;
 };
 

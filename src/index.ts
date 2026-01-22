@@ -45,7 +45,6 @@ for (const tool of tools) {
         title: tool.title ?? tool.name,
         description: tool.description,
         inputSchema: tool.inputSchema ?? {},
-        outputSchema: tool.outputSchema ?? {},
       },
       handler
     );
@@ -55,11 +54,29 @@ for (const tool of tools) {
 }
 
 // Handler for listing available tools
+function serializeSchema(schema: any) {
+  if (!schema) return {};
+  // Assume canonical JSON Schema objects are provided by feature modules
+  if (typeof schema === "object") return schema;
+  return {};
+}
+
 server.server.setRequestHandler(ListToolsRequestSchema, async () => {
   console.error(`ListToolsRequest received [Build: ${BUILD_INFO.buildNumber}]`);
-  return {
-    tools,
-  };
+  const serialized = tools.map((t: any) => ({
+    name: t.name,
+    title: t.title ?? t.name,
+    description: t.description ?? null,
+    inputSchema: serializeSchema(t.inputSchema),
+  }));
+  // Emit the serialized tools payload for debugging (inspector clients will request ListTools)
+  try {
+    console.error("ListTools payload:", JSON.stringify({ tools: serialized }, null, 2));
+  } catch (err) {
+    console.error("Failed to stringify ListTools payload", err);
+  }
+
+  return { tools: serialized };
 });
 
 // Handler for tool calls

@@ -4,9 +4,44 @@ import { TruveraClient } from '../../src/clients/index.js';
 
 function constructArgsFromSchema(schema: any) {
   const args: any = {};
+  if (!schema) return args;
+
+  const isZod = (s: any) => s && typeof s.safeParse === 'function';
+  if (isZod(schema)) {
+    const shape = (schema as any)._def?.shape || (schema as any).shape || {};
+    for (const [key, val] of Object.entries(shape)) {
+      // determine if optional
+      const inner = (val as any)._def?.innerType || (val as any);
+      const isOptional = (val as any)?._def?.type === 'optional' || (val as any).isOptional;
+      if (isOptional) continue;
+      const t = inner?._def?.type || inner?._def?.typeName || typeof inner;
+      switch (t) {
+        case 'number':
+        case 'ZodNumber':
+          args[key] = 1;
+          break;
+        case 'ZodBoolean':
+        case 'boolean':
+          args[key] = true;
+          break;
+        case 'ZodObject':
+        case 'object':
+          args[key] = {};
+          break;
+        case 'ZodArray':
+        case 'array':
+          args[key] = [];
+          break;
+        default:
+          args[key] = 'test';
+      }
+    }
+    return args;
+  }
+
+  // Fallback: JSON Schema style
   if (!schema || !schema.required) return args;
   for (const key of schema.required) {
-    // Provide a simple default based on inferred type hints in `properties`
     const prop = schema.properties && schema.properties[key];
     if (!prop) {
       args[key] = 'test';
