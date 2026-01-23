@@ -14,7 +14,7 @@ export function formatResult(result: ApiResponse): ToolResult {
   };
 }
 
-export function liftProperties<T extends Record<string, any>>(obj: T): Omit<T, keyof T> & (T[keyof T] extends Record<string, any> ? T[keyof T] : {}) {
+export function liftProperties<T extends Record<string, any>>(obj: T): Omit<T, keyof T> & (T[keyof T] extends Record<string, any> ? T[keyof T] : Record<string, never>) {
     // Check if the input object has exactly one key and if the value is an object
     const keys = Object.keys(obj);
     if (keys.length !== 1 || typeof obj[keys[0]] !== 'object' || obj[keys[0]] === null || Array.isArray(obj[keys[0]])) {

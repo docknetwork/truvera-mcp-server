@@ -8,8 +8,6 @@ import { startStdioTransport } from "./transport/stdio/index.js";
 import { TruveraClient } from "./clients/index.js";
 import { buildToolList, buildHandlerMapFromTruvera } from "./tools/composeTools.js";
 import { BUILD_INFO } from "./build-info.js";
-import http from "http";
-import { randomUUID } from "crypto";
 
 // Configuration from environment variables
 const API_KEY = process.env.TRUVERA_API_KEY;
