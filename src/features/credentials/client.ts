@@ -1,5 +1,5 @@
 import { TruveraClient, ApiResponse } from "../../clients/truvera.js";
-import { IssueCredentialRequest } from "./types.js";
+import { IssueCredentialRequest, ListCredentialsQuery } from "./types.js";
 
 export class CredentialsClient {
   private truvera: TruveraClient;
@@ -8,7 +8,7 @@ export class CredentialsClient {
     this.truvera = truveraClient;
   }
 
-  async listCredentials(options?: { offset?: number; limit?: number; filter?: string }): Promise<ApiResponse> {
+  async listCredentials(options?: ListCredentialsQuery): Promise<ApiResponse> {
     const params = new URLSearchParams();
     if (options?.offset !== undefined) params.append("offset", String(options.offset));
     if (options?.limit !== undefined) params.append("limit", String(options.limit));

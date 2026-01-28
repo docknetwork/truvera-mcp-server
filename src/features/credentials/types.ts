@@ -33,7 +33,9 @@ export interface IssueCredentialResponse {
 /**
  * GET /credentials
  */
-export type ListCredentialsQuery = PaginationParams;
+export interface ListCredentialsQuery extends PaginationParams {
+  filter?: string;
+}
 
 export type ListCredentialsResponse =
   PaginatedResponse<VerifiableCredential>;

@@ -1,5 +1,6 @@
 import { TruveraClient, ApiResponse } from "../../clients/truvera.js";
 import { CreateProfileRequest, UpdateProfileRequest } from "./types.js";
+import { PaginationParams } from "../shared/pagination.js";
 
 export class ProfilesClient {
   private truvera: TruveraClient;
@@ -12,7 +13,7 @@ export class ProfilesClient {
     return this.truvera.request({ method: "POST", endpoint: "/profiles", body });
   }
 
-  async listProfiles(options?: { offset?: number; limit?: number }): Promise<ApiResponse> {
+  async listProfiles(options?: PaginationParams): Promise<ApiResponse> {
     const params = new URLSearchParams();
     if (options?.offset !== undefined) params.append("offset", String(options.offset));
     if (options?.limit !== undefined) params.append("limit", String(options.limit));

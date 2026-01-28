@@ -1,5 +1,6 @@
 import { TruveraClient, ApiResponse } from "../../clients/truvera.js";
 import { CreateSchemaRequest } from "./types.js";
+import { PaginationParams } from "../shared/pagination.js";
 
 export class SchemasClient {
   private truvera: TruveraClient;
@@ -12,7 +13,7 @@ export class SchemasClient {
     return this.truvera.request({ method: "POST", endpoint: "/schemas", body });
   }
 
-  async listSchemas(options?: { offset?: number; limit?: number }): Promise<ApiResponse> {
+  async listSchemas(options?: PaginationParams): Promise<ApiResponse> {
     const params = new URLSearchParams();
     if (options?.offset !== undefined) params.append("offset", String(options.offset));
     if (options?.limit !== undefined) params.append("limit", String(options.limit));
