@@ -38,7 +38,7 @@ export function buildToolList(): ToolDef[] {
     ...verifyDefs,
   ];
   // Merge all known component schemas so we can resolve $ref references
-  const mergedSchemas: Record<string, any> = {
+  const mergedSchemas: Record<string, any> = { // JSON Schema registry is intentionally dynamic
     ...(sharedComponents?.schemas || {}),
     ...(credentialsComponents?.schemas || {}),
     ...(didsComponents?.schemas || {}),
@@ -49,11 +49,12 @@ export function buildToolList(): ToolDef[] {
     ...(verifyComponents?.schemas || {}),
   };
 
-  function resolveRefObject(obj: any, parentKey?: string): any {
+  function resolveRefObject(obj: unknown, parentKey?: string): unknown {
     if (!obj || typeof obj !== "object") return obj;
+    const objRecord = obj as Record<string, unknown>;
     // If this is a $ref object and not inside oneOf/anyOf/allOf arrays, replace it
-    if (obj.$ref && typeof obj.$ref === "string" && parentKey !== "oneOf" && parentKey !== "anyOf" && parentKey !== "allOf") {
-      const ref = obj.$ref as string;
+    if (objRecord.$ref && typeof objRecord.$ref === "string" && parentKey !== "oneOf" && parentKey !== "anyOf" && parentKey !== "allOf") {
+      const ref = objRecord.$ref as string;
       const match = ref.match(/#\/components\/schemas\/(.+)$/);
       if (match) {
         const name = match[1];
@@ -71,8 +72,8 @@ export function buildToolList(): ToolDef[] {
       return obj.map((item) => resolveRefObject(item));
     }
 
-    const out: any = {};
-    for (const [k, v] of Object.entries(obj)) {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(objRecord)) {
       out[k] = resolveRefObject(v, k);
     }
     return out;
@@ -80,7 +81,7 @@ export function buildToolList(): ToolDef[] {
 
   // Resolve top-level $ref-only inputSchemas for inspector and tests
   const resolvedTools = tools.map((t) => {
-    const copy: any = { ...t };
+    const copy: ToolDef = { ...t };
     if (copy.inputSchema && typeof copy.inputSchema === "object") {
       // If top-level is a $ref only, replace it; otherwise recursively resolve nested refs
       copy.inputSchema = resolveRefObject(JSON.parse(JSON.stringify(copy.inputSchema)));

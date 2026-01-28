@@ -1,4 +1,5 @@
 import { TruveraClient, ApiResponse } from "../../clients/truvera.js";
+import { CreateSchemaRequest } from "./types.js";
 
 export class SchemasClient {
   private truvera: TruveraClient;
@@ -7,7 +8,7 @@ export class SchemasClient {
     this.truvera = truveraClient;
   }
 
-  async createSchema(body: unknown): Promise<ApiResponse> {
+  async createSchema(body: CreateSchemaRequest): Promise<ApiResponse> {
     return this.truvera.request({ method: "POST", endpoint: "/schemas", body });
   }
 

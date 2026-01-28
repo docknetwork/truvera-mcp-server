@@ -52,7 +52,7 @@ for (const tool of tools) {
 }
 
 // Handler for listing available tools
-function serializeSchema(schema: any) {
+function serializeSchema(schema: unknown) {
   if (!schema) return {};
   // Assume canonical JSON Schema objects are provided by feature modules
   if (typeof schema === "object") return schema;
@@ -61,7 +61,7 @@ function serializeSchema(schema: any) {
 
 server.server.setRequestHandler(ListToolsRequestSchema, async () => {
   console.error(`ListToolsRequest received [Build: ${BUILD_INFO.buildNumber}]`);
-  const serialized = tools.map((t: any) => ({
+  const serialized = tools.map((t) => ({
     name: t.name,
     title: t.title ?? t.name,
     description: t.description ?? null,
@@ -78,7 +78,7 @@ server.server.setRequestHandler(ListToolsRequestSchema, async () => {
 });
 
 // Handler for tool calls
-server.server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
+server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { params } = request;
   const { name, arguments: args } = params;
   console.error(`CallToolRequest received: params=${JSON.stringify(params)}`);

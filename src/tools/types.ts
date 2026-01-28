@@ -1,8 +1,8 @@
 export type ToolDef = {
   name: string;
   description: string;
-  inputSchema?: any;
-  outputSchema?: any;
+  inputSchema?: any; // JSON Schema is inherently dynamic
+  outputSchema?: any; // JSON Schema is inherently dynamic
   title?: string;
 };
 
@@ -11,4 +11,4 @@ export type ToolResult = {
   isError?: boolean;
 };
 
-export type ToolHandler = (args: any) => Promise<ToolResult>;
+export type ToolHandler = (args: unknown) => Promise<ToolResult>;

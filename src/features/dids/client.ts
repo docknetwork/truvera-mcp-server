@@ -1,4 +1,6 @@
 import { TruveraClient, ApiResponse } from "../../clients/truvera.js";
+import { PaginationParams } from "../shared/pagination.js";
+import { CreateDidRequest } from "./types.js";
 
 export class DidClient {
   private truvera: TruveraClient;
@@ -7,7 +9,7 @@ export class DidClient {
     this.truvera = truveraClient;
   }
 
-  async createDid(body: { method: string; document?: unknown; metadata?: unknown }): Promise<ApiResponse> {
+  async createDid(body: CreateDidRequest): Promise<ApiResponse> {
     return this.truvera.request({ method: "POST", endpoint: `/dids`, body });
   }
 
@@ -15,9 +17,8 @@ export class DidClient {
     return this.truvera.request({ method: "GET", endpoint: `/dids/${encodeURIComponent(did)}` });
   }
 
-  async listDids(options?: { method?: string; offset?: number; limit?: number }): Promise<ApiResponse> {
+  async listDids(options?: PaginationParams): Promise<ApiResponse> {
     const params = new URLSearchParams();
-    if (options?.method) params.append("method", options.method);
     if (options?.offset !== undefined) params.append("offset", String(options.offset));
     if (options?.limit !== undefined) params.append("limit", String(options.limit));
     const endpoint = `/dids${params.toString() ? `?${params.toString()}` : ""}`;

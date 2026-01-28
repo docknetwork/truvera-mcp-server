@@ -36,7 +36,7 @@ export class TruveraClient {
     const { method, endpoint, body } = options;
 
     const url = `${this.apiEndpoint}${endpoint}`;
-    console.error(`TruveraClient request -> ${method} ${url} body=${body ? JSON.stringify(body) : '<none>'}`);
+    console.log(`TruveraClient request -> ${method} ${url} body=${body ? JSON.stringify(body) : '<none>'}`);
 
     try {
       const fetchOptions: RequestInit = {
@@ -50,7 +50,7 @@ export class TruveraClient {
       let reqBody = body;
       if (body && (method === "POST" || method === "PUT" || method === "PATCH")) {
         if (typeof body === "object" && (body.hasOwnProperty('payload') || body.hasOwnProperty('body'))) {
-          reqBody = liftProperties(body);
+          reqBody = liftProperties(body as Record<string, unknown>);
         }
         fetchOptions.body = JSON.stringify(reqBody);
       }

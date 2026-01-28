@@ -55,7 +55,7 @@ export function startHTTPTransport({
         buildNumber: BUILD_INFO.buildNumber,
         buildTime: BUILD_INFO.timestamp,
         toolCount: tools.length,
-        tools: tools.map((t: any) => ({ name: t.name, description: t.description ?? null })),
+        tools: tools.map((t) => ({ name: t.name, description: t.description ?? null })),
       }));
       return;
     }

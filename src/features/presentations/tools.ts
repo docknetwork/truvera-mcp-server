@@ -46,22 +46,22 @@ export function getHandlers(presentations: PresentationsClient): Map<string, Too
   const handlers = new Map<string, ToolHandler>();
 
   handlers.set("list_proof_templates", async (args) => formatResult(await presentations.listProofTemplates(args || {})));
-  handlers.set("create_proof_template", async (args) => formatResult(await presentations.createProofTemplate(args)));
+  handlers.set("create_proof_template", async (args) => formatResult(await presentations.createProofTemplate(args as import("./types.js").CreateProofTemplateRequest)));
   handlers.set("get_proof_template", async (args) => {
-    const { id } = args as any;
+    const { id } = args as { id?: string };
     if (!id) return { content: [{ type: "text", text: "Error: 'id' is required" }], isError: true };
     return formatResult(await presentations.getProofTemplate(id));
   });
   handlers.set("create_proof_request", async (args) => {
-    let { templateId, body } = args as any;
+    let { templateId, body } = args as { templateId?: string; body?: Record<string, unknown> };
     if (!body) return { content: [{ type: "text", text: "Error: 'body' is required" }], isError: true };
 
     // If templateId is missing but body contains `template`, use it as the templateId.
     if (!templateId && Object.prototype.hasOwnProperty.call(body, "template")) {
-      templateId = body.template;
+      templateId = body.template as string;
       // remove the template property from the body before forwarding
       body = { ...body };
-      delete (body as any).template;
+      delete body.template;
     }
 
     // If both are present, they must match or it's an error.
@@ -71,7 +71,7 @@ export function getHandlers(presentations: PresentationsClient): Map<string, Too
       }
       // if they match, remove duplicate from body
       body = { ...body };
-      delete (body as any).template;
+      delete body.template;
     }
 
     if (!templateId) return { content: [{ type: "text", text: "Error: 'templateId' is required (either path param or body.template)" }], isError: true };

@@ -2,6 +2,7 @@ import type { OpenIdClient } from "./client.js";
 import type { ToolDef, ToolHandler } from "../../tools/types.js";
 import { formatResult } from "../../tools/utils.js";
 import { components } from "./schemas.js";
+import type { CreateIssuerRequest, CreateCredentialOfferRequest } from "./types.js";
 
 export const toolDefs: ToolDef[] = [
   { name: "list_issuers", description: "Gets a list of OpenID issuers. GET /openid/issuers. Supports offset and limit pagination. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml", inputSchema: components.schemas.ListIssuersOptions },
@@ -83,14 +84,14 @@ export const toolDefs: ToolDef[] = [
 export function getHandlers(openid: OpenIdClient): Map<string, ToolHandler> {
   const handlers = new Map<string, ToolHandler>();
 
-  handlers.set("create_credential_offer", async (args) => formatResult(await openid.createCredentialOffer(args)));
+  handlers.set("create_credential_offer", async (args) => formatResult(await openid.createCredentialOffer(args as CreateCredentialOfferRequest)));
   handlers.set("get_credential_offer", async (args) => {
-    const { id } = args as any;
+    const { id } = args as { id?: string };
     if (!id) return { content: [{ type: "text", text: "Error: 'id' is required" }], isError: true };
     return formatResult(await openid.getCredentialOffer(id));
   });
   handlers.set("list_issuers", async (args) => formatResult(await openid.listIssuers(args || {})));
-  handlers.set("create_issuer", async (args) => formatResult(await openid.createIssuer(args)));
+  handlers.set("create_issuer", async (args) => formatResult(await openid.createIssuer(args as CreateIssuerRequest)));
 
   return handlers;
 }

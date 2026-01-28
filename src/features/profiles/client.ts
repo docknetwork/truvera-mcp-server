@@ -1,4 +1,5 @@
 import { TruveraClient, ApiResponse } from "../../clients/truvera.js";
+import { CreateProfileRequest, UpdateProfileRequest } from "./types.js";
 
 export class ProfilesClient {
   private truvera: TruveraClient;
@@ -7,7 +8,7 @@ export class ProfilesClient {
     this.truvera = truveraClient;
   }
 
-  async createProfile(body: unknown): Promise<ApiResponse> {
+  async createProfile(body: CreateProfileRequest): Promise<ApiResponse> {
     return this.truvera.request({ method: "POST", endpoint: "/profiles", body });
   }
 
@@ -23,7 +24,7 @@ export class ProfilesClient {
     return this.truvera.request({ method: "GET", endpoint: `/profiles/${encodeURIComponent(id)}` });
   }
 
-  async updateProfile(did: string, body: unknown): Promise<ApiResponse> {
+  async updateProfile(did: string, body: UpdateProfileRequest): Promise<ApiResponse> {
     return this.truvera.request({ method: "PATCH", endpoint: `/profiles/${encodeURIComponent(did)}`, body });
   }
 

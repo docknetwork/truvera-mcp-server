@@ -1,18 +1,53 @@
 /**
- * POST /openid/credential-offer
+ * OpenID Authentication Provider Configuration
  */
-export interface OpenIdCredentialOfferRequest {
-  credentialType: string;
+export interface OpenIDAuthProviderOptions {
+  url: string;
+  scope?: string[];
+  clientId: string;
+  clientSecret: string;
+  claimsSource?: string;
+  requestParameters?: Record<string, unknown>;
+}
 
-  /**
-   * @default false
-   */
-  preAuthorized?: boolean;
+/**
+ * POST /openid/issuers
+ * Create an OpenID issuer configuration
+ */
+export interface CreateIssuerRequest {
+  credentialOptions: {
+    credential: {
+      context?: string | Array<string | Record<string, unknown>>;
+      id?: string;
+      previousCredentialId?: string;
+      rootCredentialId?: string;
+      name?: string;
+      description?: string;
+      issuanceDate?: string;
+      expirationDate?: string;
+      issuer: string | Record<string, unknown>;
+      subject: Record<string, unknown> | Array<Record<string, unknown>>;
+      type?: string[];
+      schema?: string | Record<string, unknown>;
+      status?: Record<string, unknown> | string;
+    };
+    algorithm?: 'ed25519' | 'dockbbs' | 'bbdt16';
+    distribute?: boolean;
+    format?: 'jsonld' | 'jwt' | 'sdjwt';
+    revocable?: boolean;
+  };
+  authProvider?: OpenIDAuthProviderOptions;
+  claimMap?: Record<string, string>;
+  singleUse?: boolean;
+}
 
-  /**
-   * @default true
-   */
-  userPinRequired?: boolean;
+/**
+ * POST /openid/credential-offers
+ * Create a credential offer from an issuer
+ */
+export interface CreateCredentialOfferRequest {
+  id: string;
+  requestParameters?: Record<string, unknown>;
 }
 
 export interface OpenIdCredentialOfferResponse {
@@ -20,19 +55,4 @@ export interface OpenIdCredentialOfferResponse {
     credential_issuer: string;
     credentials: string[];
   };
-}
-
-/**
- * POST /openid/token
- */
-export interface OpenIdTokenRequest {
-  grant_type: string;
-  pre_authorized_code?: string;
-  user_pin?: string;
-}
-
-export interface OpenIdTokenResponse {
-  access_token: string;
-  token_type: 'Bearer';
-  expires_in: number;
 }
