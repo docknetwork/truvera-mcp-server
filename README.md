@@ -15,25 +15,35 @@ A Model Context Protocol (MCP) server that exposes Truvera API functionality as 
 
 - `TRUVERA_API_KEY` (required): Truvera API key
 - `TRUVERA_API_ENDPOINT` (optional): Base API URL (default: `https://api.truvera.com`)
+  - For testnet: `https://api-testnet.truvera.io`
 - `MCP_MODE` (optional): `stdio` or `http` (default `stdio`)
 - `MCP_PORT` (optional): HTTP port (default `3000` when `MCP_MODE=http`)
 
 ## Quickstart
 
-1) Install dependencies
+1) Set up environment variables
+
+Copy the example environment file and configure your API key:
+
+```bash
+cp .env.example .env
+# Edit .env and set your TRUVERA_API_KEY
+```
+
+2) Install dependencies
 
 ```bash
 npm install
 ```
 
-2) Development (stdio mode)
+3) Development (stdio mode)
 
 ```bash
 # run with hot-reload (tsx)
 npm run dev
 ```
 
-3) Build & run
+4) Build & run
 
 ```bash
 npm run build
@@ -47,6 +57,35 @@ Notes:
 
 ## Running in Docker
 
+### Using Docker Compose (Recommended)
+
+1) Create a `.env` file with your API key:
+
+```bash
+cp .env.example .env
+# Edit .env and set your TRUVERA_API_KEY
+```
+
+2) Start the service:
+
+```bash
+docker-compose up -d
+```
+
+3) View logs:
+
+```bash
+docker-compose logs -f
+```
+
+4) Stop the service:
+
+```bash
+docker-compose down
+```
+
+### Using Docker directly
+
 Build image:
 
 ```bash
@@ -56,10 +95,10 @@ docker build -t truvera-mcp-service:latest .
 Run container (stdio mode):
 
 ```bash
-docker run -e TRUVERA_API_KEY=your-api-key -e TRUVERA_API_ENDPOINT=https://api.truvera.com truvera-mcp-service:latest
+docker run -e TRUVERA_API_KEY=your-api-key truvera-mcp-service:latest
 ```
 
-Run in HTTP mode (useful for remote MCP transports like Claude Desktop + mcp-remote):
+Run in HTTP mode:
 
 ```bash
 docker run -e TRUVERA_API_KEY=your-api-key -e MCP_MODE=http -e MCP_PORT=3000 -p 3000:3000 truvera-mcp-service:latest
@@ -121,7 +160,22 @@ npm run build
 Test with Claude Desktop or using The MCP Inspector
 
 ### Claude Desktop
-Configure the MCP server in the Claude `claude_desktop_config.json` file (located on Windows in `~\AppData\Roaming\Claude\claude_desktop_config.json`).
+Configure the MCP server in the Claude `claude_desktop_config.json` file:
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+
+Make sure the server is running in HTTP mode first:
+
+```bash
+# Terminal 1: Start the server
+MCP_MODE=http npm run dev
+
+# Terminal 2: Verify it's running
+curl http://localhost:3000/health
+```
+
+Then configure Claude Desktop:
 
 ```json
 {
@@ -131,7 +185,7 @@ Configure the MCP server in the Claude `claude_desktop_config.json` file (locate
       "args": [
         "-y",
         "mcp-remote",
-        "http://localhost:3000/sse",
+        "http://localhost:3000/mcp",
         "--insecure"
       ]
     }
@@ -140,11 +194,20 @@ Configure the MCP server in the Claude `claude_desktop_config.json` file (locate
 ```
 
 ### VS Code Copilot
-1. Configure the MCP Server in the [mcp.json](./.vscode/mcp.json) file.
-2. Click the `Configure tools...` icon in the Copilot chat pane.
-3. Click `Update tools` under the `truvera-mcp-service-vs-code` MCP server.
-4. Click the checkbox beside the tools you want to enable.
-5. Click `OK`
+
+1. Make sure the server is running in HTTP mode:
+
+```bash
+MCP_MODE=http npm run dev
+```
+
+2. The VS Code MCP configuration is already set up in [.vscode/mcp.json](./.vscode/mcp.json)
+3. Click the `Configure tools...` icon in the Copilot chat pane.
+4. Click `Update tools` under the `truvera-mcp-service-vs-code` MCP server.
+5. Click the checkbox beside the tools you want to enable.
+6. Click `OK`
+
+The configuration in `.vscode/mcp.json`:
 
 ```json
 {
@@ -154,17 +217,16 @@ Configure the MCP server in the Claude `claude_desktop_config.json` file (locate
       "args": [
         "-y",
         "mcp-remote",
-        "http://localhost:3000/sse",
+        "http://localhost:3000/mcp",
         "--insecure"
       ]
     }
-
   }
 }
 ```
 
 ### MCP Inspector
-The MCP Inspector is an open source tool that provides a GUI client for interacting with the MCP server tools.
+The [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector) is an open source tool that provides a GUI client for interacting with the MCP server tools.
 
 ```bash
 docker run --rm \
