@@ -42,9 +42,11 @@ for (const tool of tools) {
       {
         title: tool.title ?? tool.name,
         description: tool.description,
-        inputSchema: tool.inputSchema ?? {},
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        inputSchema: (tool.inputSchema ?? {}) as any,
       },
-      handler
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      handler as any
     );
   } else {
     console.error(`No handler found for tool: ${tool.name}`);

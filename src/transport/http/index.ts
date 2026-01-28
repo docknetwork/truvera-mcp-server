@@ -22,7 +22,7 @@ export function startHTTPTransport({
   const transports: { [key: string]: StreamableHTTPServerTransport } = {};
 
   function isInitializeRequest(body: unknown): boolean {
-    return !!body && typeof body === "object" && (body as any).method === "initialize";
+    return !!body && typeof body === "object" && "method" in body && (body as Record<string, unknown>).method === "initialize";
   }
 
   const httpServer = http.createServer(async (req, res) => {

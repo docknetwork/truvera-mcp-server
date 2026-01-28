@@ -1,8 +1,8 @@
 export type ToolDef = {
   name: string;
   description: string;
-  inputSchema?: any; // JSON Schema is inherently dynamic
-  outputSchema?: any; // JSON Schema is inherently dynamic
+  inputSchema?: Record<string, unknown>; // JSON Schema is inherently dynamic
+  outputSchema?: Record<string, unknown>; // JSON Schema is inherently dynamic
   title?: string;
 };
 

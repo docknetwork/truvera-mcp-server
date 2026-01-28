@@ -84,7 +84,7 @@ export function buildToolList(): ToolDef[] {
     const copy: ToolDef = { ...t };
     if (copy.inputSchema && typeof copy.inputSchema === "object") {
       // If top-level is a $ref only, replace it; otherwise recursively resolve nested refs
-      copy.inputSchema = resolveRefObject(JSON.parse(JSON.stringify(copy.inputSchema)));
+      copy.inputSchema = resolveRefObject(JSON.parse(JSON.stringify(copy.inputSchema))) as Record<string, unknown>;
     }
     return copy;
   });
