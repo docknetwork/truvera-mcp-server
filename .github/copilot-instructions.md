@@ -1,39 +1,69 @@
-# Truvera MCP Service - Copilot Instructions
+# Truvera MCP Servers - Copilot Instructions
 
-This is a Model Context Protocol (MCP) server built with TypeScript/Node.js for integrating with the Truvera REST API.
+This is a monorepo containing multiple Model Context Protocol (MCP) servers built with TypeScript/Node.js for integrating with various APIs.
 
-## Project Overview
+## Repository Structure
 
-- **Type**: MCP Server (Model Context Protocol)
+- **Type**: Monorepo with multiple MCP Servers
 - **Language**: TypeScript/JavaScript
 - **Runtime**: Node.js 18+
 - **Deployment**: Docker & Docker Compose
-- **Primary Purpose**: Enable Claude to make authenticated REST API calls to Truvera
+- **Primary Purpose**: Enable Claude to make authenticated REST API calls to various services
 
-## Key Features
+## Apps Structure
+
+This repository uses an `apps/` directory to organize multiple MCP servers:
+
+- `apps/truvera-api/` - Main Truvera MCP Server for verifiable credentials and DIDs
+
+Each app is a self-contained MCP server with its own:
+- `package.json` - Dependencies and scripts
+- `tsconfig.json` - TypeScript configuration
+- `src/` - Source code
+- `tests/` - Test suites
+- `Dockerfile` - Container build configuration
+- `README.md` - App-specific documentation
+
+## Truvera MCP Server (apps/truvera-api)
+
+### Key Features
 
 - Configurable API endpoint via `TRUVERA_API_ENDPOINT` environment variable
 - Secure API key management via `TRUVERA_API_KEY` environment variable
-- Built-in tool: `call_truvera_api` for making HTTP requests to Truvera API
+- Feature-based architecture: each API area in `src/features/<feature>/`
+- Built-in tools for credentials, DIDs, presentations, schemas, profiles, and verification
 - Multi-stage Docker build for optimized production images
 - Development and debugging support via VS Code
 
-## Environment Variables
+### Environment Variables
 
 - **TRUVERA_API_KEY** (required): Authentication key for Truvera API
 - **TRUVERA_API_ENDPOINT** (optional): Base URL for Truvera API (defaults to `https://api.truvera.com`)
 
-## Documentation
+### Documentation
 
-- See `README.md` for comprehensive setup and usage instructions
-- See `Dockerfile` for production container build configuration
-- See `docker-compose.yml` for local deployment
-- See `.vscode/mcp.json` for MCP server configuration
+- See `apps/truvera-api/README.md` for comprehensive setup and usage instructions
+- See `apps/truvera-api/Dockerfile` for production container build configuration
+- See `docker-compose.yml` for multi-service deployment
+- See `.vscode/tasks.json` for VS Code task configuration
 - See `.vscode/launch.json` for VS Code debugging setup
 
 ## Development Commands
 
+### Root Level (All Apps)
+
 ```bash
+npm install          # Install dependencies for all workspaces
+npm run build        # Build all apps
+npm run test         # Run tests for all apps
+npm run typecheck    # Type check all apps
+npm run lint         # Lint all apps
+```
+
+### Truvera Server Specific
+
+```bash
+cd apps/truvera-api
 npm install          # Install dependencies
 npm run dev         # Development mode with hot reload
 npm run build       # Build TypeScript to JavaScript
@@ -41,22 +71,48 @@ npm start           # Run production build
 npm run typecheck   # Run TypeScript type checking
 ```
 
+Or from root:
+
+```bash
+npm run build:truvera
+npm run dev:truvera
+npm run test:truvera
+```
+
 ## Docker Commands
 
 ```bash
-docker build -t truvera-mcp-service:latest .    # Build image
-docker-compose up -d                            # Start service with Docker Compose
+docker-compose up -d                            # Start all services
 docker-compose logs -f                          # View logs
-docker-compose down                             # Stop service
+docker-compose down                             # Stop all services
+
+# Build specific service
+docker build -t truvera-mcp-service:latest ./apps/truvera-api
 ```
 
-## MCP Configuration
+## VS Code Configuration
 
-The MCP server is configured in `.vscode/mcp.json` to run as a stdio-based server. It can be debugged locally in VS Code using the configuration in `.vscode/launch.json`.
+VS Code tasks and launch configurations are set up at the workspace root level:
+- Tasks reference `apps/truvera-api` directory
+- Launch configurations use correct paths to each app's build output
+- Each app can be debugged independently
+
+## Adding New MCP Servers
+
+1. Create new directory: `apps/<new-server>/`
+2. Add package.json with appropriate dependencies
+3. Set up TypeScript configuration
+4. Create src/, tests/, and scripts/ structure
+5. Add Dockerfile for containerization
+6. Update `docker-compose.yml` to include new service
+7. Add build tasks to `.vscode/tasks.json`
+8. Add CI steps to `.github/workflows/ci.yml`
+9. Create README.md with server-specific documentation
 
 ## Security Notes
 
 - API keys should be stored securely (never commit `.env` files)
 - Always use HTTPS endpoints in production
-- Docker container runs as non-root user for security
+- Docker containers run as non-root user for security
 - Input validation is performed on API requests
+

@@ -1,0 +1,37 @@
+{
+  "name": "truvera-mcp-service",
+  "version": "1.0.0",
+  "description": "MCP service for Truvera API integration with Docker support",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "prebuild": "node scripts/update-build-version.js",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "smoke": "tsx tests/smoke-list-tools.ts",
+    "test": "vitest",
+    "e2e": "vitest tests/e2e --run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.2",
+    "qrcode": "^1.5.4",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.53.1",
+    "@typescript-eslint/parser": "^8.53.1",
+    "dotenv": "^16.6.1",
+    "eslint": "^9.39.2",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0",
+    "vitest": "^4.0.16"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -2,10 +2,13 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "build",
+      "label": "build:truvera",
       "type": "shell",
       "command": "npm",
       "args": ["run", "build"],
+      "options": {
+        "cwd": "${workspaceFolder}/apps/truvera-api"
+      },
       "group": {
         "kind": "build",
         "isDefault": true
@@ -13,10 +16,13 @@
       "problemMatcher": ["$tsc"]
     },
     {
-      "label": "dev",
+      "label": "dev:truvera",
       "type": "shell",
       "command": "npm",
       "args": ["run", "dev"],
+      "options": {
+        "cwd": "${workspaceFolder}/apps/truvera-api"
+      },
       "isBackground": true,
       "problemMatcher": []
     }

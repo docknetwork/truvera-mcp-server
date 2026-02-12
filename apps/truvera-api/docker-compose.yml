@@ -3,7 +3,7 @@ version: '3.8'
 services:
   truvera-mcp-service:
     build:
-      context: ./apps/truvera-api
+      context: .
       dockerfile: Dockerfile
     container_name: truvera-mcp-service
     environment:
