@@ -9,7 +9,6 @@ import { VerifyClient } from "../features/verify/client.js";
 
 import type { ToolDef, ToolHandler } from "@truvera/mcp-shared/tools";
 
-import { toolDefs as truveraDefs, getHandlers as getTruveraHandlers } from "./truveraTool.js";
 import { toolDefs as didsDefs, getHandlers as getDidsHandlers } from "../features/dids/tools.js";
 import { toolDefs as credentialsDefs, getHandlers as getCredentialsHandlers } from "../features/credentials/index.js";
 import { toolDefs as presentationsDefs, getHandlers as getPresentationsHandlers } from "../features/presentations/index.js";
@@ -28,7 +27,6 @@ import { toolDefs as verifyDefs, getHandlers as getVerifyHandlers } from "../fea
 
 export function buildToolList(): ToolDef[] {
   const tools = [
-    ...truveraDefs,
     ...didsDefs,
     ...credentialsDefs,
     ...presentationsDefs,
@@ -106,7 +104,6 @@ export function buildHandlerMap(clients: {
 
   // Merge all handler maps from per-client modules
   const sources: Map<string, ToolHandler>[] = [
-    getTruveraHandlers(clients.truvera),
     getDidsHandlers(clients.dids),
     getCredentialsHandlers(clients.credentials),
     getPresentationsHandlers(clients.presentations),
