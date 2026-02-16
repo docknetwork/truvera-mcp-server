@@ -3,14 +3,15 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { randomUUID } from "crypto";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ToolDef } from "@truvera/mcp-shared/tools";
-import type { BuildInfo } from "@truvera/mcp-shared/types";
+import type { ToolDef } from "../../tools/types.js";
+import type { BuildInfo } from "../../types/build-info.js";
 
 export interface HTTPTransportArgs {
   server: McpServer;
   MCP_PORT: number;
   BUILD_INFO: BuildInfo;
   tools: ToolDef[];
+  serviceName?: string;
 }
 
 export function startHTTPTransport({
@@ -18,6 +19,7 @@ export function startHTTPTransport({
   MCP_PORT,
   BUILD_INFO,
   tools,
+  serviceName = "MCP service",
 }: HTTPTransportArgs) {
   const transports: { [key: string]: StreamableHTTPServerTransport } = {};
 
@@ -50,7 +52,7 @@ export function startHTTPTransport({
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({
         status: "ok",
-        service: "truvera-mcp-service",
+        service: serviceName,
         version: BUILD_INFO.version,
         buildNumber: BUILD_INFO.buildNumber,
         buildTime: BUILD_INFO.timestamp,
@@ -157,7 +159,7 @@ export function startHTTPTransport({
   });
 
   httpServer.listen(MCP_PORT, "0.0.0.0", () => {
-    console.error(`Truvera MCP service started (HTTP streaming mode on port ${MCP_PORT})`);
+    console.error(`${serviceName} started (HTTP streaming mode on port ${MCP_PORT})`);
     console.error(`  - Build: ${BUILD_INFO.buildNumber} (${BUILD_INFO.timestamp})`);
     console.error(`  - MCP endpoint: POST http://localhost:${MCP_PORT}/mcp`);
     console.error(`  - Health check: GET http://localhost:${MCP_PORT}/health`);

@@ -5,7 +5,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "npm run build --workspace=apps/truvera-api",
+    "build": "npm run build --workspace=packages/mcp-shared && npm run build --workspace=apps/truvera-api",
+    "build:shared": "npm run build --workspace=packages/mcp-shared",
     "build:api": "npm run build --workspace=apps/truvera-api",
     "dev:api": "npm run dev --workspace=apps/truvera-api",
     "test": "npm run test --workspaces",
@@ -15,6 +16,7 @@
     "lint:fix": "npm run lint:fix --workspaces"
   },
   "workspaces": [
+    "packages/*",
     "apps/*"
   ],
   "engines": {

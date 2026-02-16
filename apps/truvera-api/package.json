@@ -17,6 +17,7 @@
     "e2e": "vitest tests/e2e --run"
   },
   "dependencies": {
+    "@truvera/mcp-shared": "file:../../packages/mcp-shared",
     "@modelcontextprotocol/sdk": "^1.25.2",
     "qrcode": "^1.5.4",
     "uuid": "^11.1.0"

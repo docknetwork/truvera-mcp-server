@@ -1,7 +1,18 @@
-import type { ApiResponse } from "../clients/truvera.js";
-import type { ToolResult } from "@truvera/mcp-shared/tools";
+import type { ToolResult } from "./types.js";
 
-export function formatResult(result: ApiResponse): ToolResult {
+/**
+ * Generic response type for formatResult
+ */
+export type GenericApiResponse = {
+  success: boolean;
+  data?: unknown;
+  error?: string;
+};
+
+/**
+ * Format an API response as a ToolResult
+ */
+export function formatResult(result: GenericApiResponse): ToolResult {
   if (!result.success) {
     return {
       content: [{ type: "text", text: result.error || "Unknown error" }],
@@ -14,6 +25,9 @@ export function formatResult(result: ApiResponse): ToolResult {
   };
 }
 
+/**
+ * Lift properties from a nested object structure
+ */
 export function liftProperties<T extends Record<string, unknown>>(obj: T): Omit<T, keyof T> & (T[keyof T] extends Record<string, unknown> ? T[keyof T] : Record<string, never>) {
     // Check if the input object has exactly one key and if the value is an object
     const keys = Object.keys(obj);

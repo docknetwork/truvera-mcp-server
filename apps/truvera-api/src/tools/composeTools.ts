@@ -7,7 +7,7 @@ import { ProfilesClient } from "../features/profiles/client.js";
 import { OpenIdClient } from "../features/openid/client.js";
 import { VerifyClient } from "../features/verify/client.js";
 
-import type { ToolDef, ToolHandler } from "./types.js";
+import type { ToolDef, ToolHandler } from "@truvera/mcp-shared/tools";
 
 import { toolDefs as truveraDefs, getHandlers as getTruveraHandlers } from "./truveraTool.js";
 import { toolDefs as didsDefs, getHandlers as getDidsHandlers } from "../features/dids/tools.js";

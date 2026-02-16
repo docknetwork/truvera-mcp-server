@@ -1,5 +1,5 @@
 import type { VerifyClient } from "./client.js";
-import type { ToolDef, ToolHandler } from "../../tools/types.js";
+import type { ToolDef, ToolHandler } from "@truvera/mcp-shared/tools";
 import { formatResult } from "../../tools/utils.js";
 import { components } from "./schemas.js";
 import type { VerifyRequest } from "./types.js";

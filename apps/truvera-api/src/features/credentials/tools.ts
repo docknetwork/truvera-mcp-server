@@ -1,5 +1,5 @@
 import type { CredentialsClient } from "./client.js";
-import type { ToolDef, ToolHandler } from "../../tools/types.js";
+import type { ToolDef, ToolHandler } from "@truvera/mcp-shared/tools";
 import type { IssueCredentialRequest } from "./types.js";
 import { formatResult } from "../../tools/utils.js";
 import { components } from "./schemas.js";
