@@ -20,28 +20,24 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
-          cache-dependency-path: 'apps/truvera-api/package-lock.json'
+          cache-dependency-path: 'package-lock.json'
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install dependencies (monorepo)
+        run: npm ci --workspaces
+
+      - name: Build shared package
+        run: npm run build:shared
+
+      - name: Build truvera-api
+        run: npm run build:api
+
+      - name: Build wallet-server
+        run: npm run build --workspace=apps/wallet-server
+
+      - name: Run tests (truvera-api)
+        run: npm run test -- --run
         working-directory: apps/truvera-api
 
-      - name: Build (TypeScript)
-        run: npm run build
-        working-directory: apps/truvera-api
-
-      - name: Unit tests
-        run: npm run test -- --run --testNamePattern "^unit:"
-        working-directory: apps/truvera-api
-
-      - name: Integration tests
-        run: npm run test -- --run --testNamePattern "^integration:"
-        working-directory: apps/truvera-api
-
-      - name: E2E tests
-        run: npm run test -- --run --testNamePattern "^e2e:"
-        working-directory: apps/truvera-api
-
-      - name: Smoke tests
-        run: npm run smoke
-        working-directory: apps/truvera-api
+      - name: Run tests (mcp-shared)
+        run: npm run test -- --run
+        working-directory: packages/mcp-shared
