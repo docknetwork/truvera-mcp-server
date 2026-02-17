@@ -7,7 +7,7 @@ import type { ToolDef } from "../../tools/types.js";
 import type { BuildInfo } from "../../types/build-info.js";
 
 export interface HTTPTransportArgs {
-  server: McpServer;
+  serverFactory: () => McpServer;
   MCP_PORT: number;
   BUILD_INFO: BuildInfo;
   tools: ToolDef[];
@@ -15,13 +15,13 @@ export interface HTTPTransportArgs {
 }
 
 export function startHTTPTransport({
-  server,
+  serverFactory,
   MCP_PORT,
   BUILD_INFO,
   tools,
   serviceName = "MCP service",
 }: HTTPTransportArgs) {
-  const transports: { [key: string]: StreamableHTTPServerTransport } = {};
+  const transports: { [key: string]: { transport: StreamableHTTPServerTransport; server: McpServer } } = {};
 
   function isInitializeRequest(body: unknown): boolean {
     return !!body && typeof body === "object" && "method" in body && (body as Record<string, unknown>).method === "initialize";
@@ -99,17 +99,21 @@ export function startHTTPTransport({
       const sessionId = Array.isArray(sessionIdRaw) ? sessionIdRaw[0] : sessionIdRaw;
 
       let transport: StreamableHTTPServerTransport | undefined;
+      let server: McpServer | undefined;
       let initializedSessionId: string | undefined;
       if (sessionId && typeof sessionId === "string" && transports[sessionId]) {
-        // Existing session: reuse transport
-        transport = transports[sessionId];
+        // Existing session: reuse transport and server
+        const session = transports[sessionId];
+        transport = session.transport;
+        server = session.server;
       } else if (!sessionId && isInitializeRequest(body)) {
-        // New session: create transport
+        // New session: create transport and server instance
+        server = serverFactory();
         transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: randomUUID,
           onsessioninitialized: (newSessionId: string) => {
             console.error(`[DEBUG] Session initialized with ID: ${newSessionId}`);
-            transports[newSessionId] = transport!;
+            transports[newSessionId] = { transport: transport!, server: server! };
             initializedSessionId = newSessionId;
           }
         });

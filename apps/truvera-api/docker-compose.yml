@@ -3,8 +3,8 @@ version: '3.8'
 services:
   truvera-mcp-service:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/truvera-api/Dockerfile
     container_name: truvera-mcp-service
     environment:
       - TRUVERA_API_KEY=${TRUVERA_API_KEY}
