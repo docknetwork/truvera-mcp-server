@@ -4,6 +4,7 @@ import { bootstrapMCPServer } from "@truvera/mcp-shared/server";
 import { BUILD_INFO } from "./build-info.js";
 import { WalletClient } from "./wallet-client.js";
 import { DIDClient, didToolDefs, getDIDHandlers } from "./features/dids/index.js";
+import { CredentialClient, credentialToolDefs, getCredentialHandlers } from "./features/credentials/index.js";
 
 // Configuration from environment variables
 const MCP_PORT = parseInt(process.env.MCP_PORT || "3001", 10);
@@ -25,8 +26,9 @@ async function initializeClients() {
   
   const wallet = walletClient.getWallet();
   const didClient = new DIDClient(wallet);
+  const credentialClient = new CredentialClient(wallet);
   
-  return { walletClient, didClient };
+  return { walletClient, didClient, credentialClient };
 }
 
 // Start server using bootstrap
@@ -34,11 +36,14 @@ async function main() {
   console.error("Starting Wallet MCP Server...");
   console.error(`  - Mode: ${MCP_MODE}`);
   
-  const { didClient } = await initializeClients();
+  const { didClient, credentialClient } = await initializeClients();
   
   // Build tools and handlers
-  const tools = [...didToolDefs];
-  const toolHandlers = new Map([...getDIDHandlers(didClient)]);
+  const tools = [...didToolDefs, ...credentialToolDefs];
+  const toolHandlers = new Map([
+    ...getDIDHandlers(didClient),
+    ...getCredentialHandlers(credentialClient),
+  ]);
   
   console.error(`  - Tools available: ${tools.length}`);
   
