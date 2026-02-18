@@ -1,27 +1,45 @@
+import "./polyfills.js"; // Must be first - sets up browser globals for wallet-sdk-web
 import "dotenv/config";
 import { bootstrapMCPServer } from "@truvera/mcp-shared/server";
 import { BUILD_INFO } from "./build-info.js";
-import { toolDefs, getHandlers } from "./tools/placeholder.js";
+import { WalletClient } from "./wallet-client.js";
+import { DIDClient, didToolDefs, getDIDHandlers } from "./features/dids/index.js";
 
 // Configuration from environment variables
 const MCP_PORT = parseInt(process.env.MCP_PORT || "3001", 10);
 const MCP_MODE = process.env.MCP_MODE || "stdio"; // "stdio" or "http"
+const WALLET_NAME = process.env.WALLET_NAME || "mcp-wallet";
+const CHEQD_NETWORK = process.env.CHEQD_NETWORK || "testnet"; // "testnet" or "mainnet"
 
 // Validate required environment variables
 const WALLET_MASTER_KEY = process.env.WALLET_MASTER_KEY;
 if (!WALLET_MASTER_KEY) {
-  console.error("Warning: WALLET_MASTER_KEY not set. Wallet operations will fail.");
-  console.error("Set WALLET_MASTER_KEY environment variable to continue.");
+  console.error("Warning: WALLET_MASTER_KEY not set. Wallet operations may be limited.");
+  console.error("Set WALLET_MASTER_KEY environment variable for full functionality.");
 }
 
-// Build tools and handlers
-const tools = toolDefs;
-const toolHandlers = getHandlers();
+// Initialize wallet and clients
+async function initializeClients() {
+  const walletClient = new WalletClient(WALLET_NAME, CHEQD_NETWORK);
+  await walletClient.initialize();
+  
+  const wallet = walletClient.getWallet();
+  const didClient = new DIDClient(wallet);
+  
+  return { walletClient, didClient };
+}
 
 // Start server using bootstrap
 async function main() {
   console.error("Starting Wallet MCP Server...");
   console.error(`  - Mode: ${MCP_MODE}`);
+  
+  const { didClient } = await initializeClients();
+  
+  // Build tools and handlers
+  const tools = [...didToolDefs];
+  const toolHandlers = new Map([...getDIDHandlers(didClient)]);
+  
   console.error(`  - Tools available: ${tools.length}`);
   
   await bootstrapMCPServer(

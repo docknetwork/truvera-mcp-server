@@ -4,16 +4,23 @@ Model Context Protocol (MCP) server for interacting with Truvera Wallet SDK.
 
 ## Status
 
-🚧 **Early Development** - Currently a minimal scaffold for testing MCP connection. Wallet SDK integration coming soon.
+✅ **Phase 1 Complete** - DID management tools implemented and functional!
 
 ## Current Features
 
 - ✅ MCP server transport (stdio/http)
-- ✅ Basic connection testing
-- ✅ Placeholder tools for validation
-- ⏳ Wallet SDK integration (coming soon)
-- ⏳ DID management (coming soon)
-- ⏳ Credential management (coming soon)
+- ✅ Wallet SDK integration (@docknetwork/wallet-sdk-web v0.0.10)
+- ✅ Browser polyfills for Node.js environment
+- ✅ DID management (3 tools)
+  - `get_default_did` - Get wallet's default DID
+  - `create_did` - Create new Decentralized Identifiers
+  - `list_dids` - List all DIDs in wallet
+- ⏳ Credential management (coming next)
+- ⏳ DIDComm messaging (coming later)
+
+## Important Notes
+
+⚠️ **Browser SDK in Node.js**: The `@docknetwork/wallet-sdk-web` package is designed for browsers. We use polyfills ([src/polyfills.ts](src/polyfills.ts)) to provide browser globals (`window`, `self`, `document`, `localStorage`) in Node.js. This works but is not ideal for production.
 
 ## Quick Start
 
@@ -27,7 +34,10 @@ npm install
 
 ```bash
 cp .env.example .env
-# Edit .env and set WALLET_MASTER_KEY
+# Edit .env and set:
+# - WALLET_MASTER_KEY (required for wallet operations)
+# - MCP_MODE (http or stdio)
+# - MCP_PORT (default: 3010 for http mode)
 ```
 
 ### 3. Build
@@ -36,10 +46,16 @@ cp .env.example .env
 npm run build
 ```
 
-### 4. Run (stdio mode)
+### 4. Run
 
+**stdio mode** (for Claude Desktop direct connection):
 ```bash
-npm start
+MCP_MODE=stdio npm start
+```
+
+**http mode** (for development/testing):
+```bash
+MCP_MODE=http npm start
 ```
 
 ### 5. Development Mode
@@ -48,10 +64,13 @@ npm start
 npm run dev
 ```
 
-## Available Tools (Placeholder)
+## Available Tools
 
-- `get_wallet_info` - Get basic wallet information
-- `wallet_status` - Check wallet initialization status
+### DID Management (3 tools)
+
+- **`get_default_did`** - Retrieve the wallet's default DID used for credentials and messaging
+- **`create_did`** - Generate a new Decentralized Identifier with optional key type
+- **`list_dids`** - List all DIDs stored in the wallet
 
 ## Environment Variables
 
@@ -59,9 +78,10 @@ npm run dev
 |----------|----------|---------|-------------|
 | `WALLET_MASTER_KEY` | Yes | - | Master encryption key for wallet |
 | `MCP_MODE` | No | `stdio` | Transport mode: `stdio` or `http` |
-| `MCP_PORT` | No | `3001` | HTTP port (only used if `MCP_MODE=http`) |
-| `EDV_STORAGE_URL` | No | `https://edv.dock.io` | EDV storage endpoint |
-| `WALLET_NAME` | No | `my-wallet` | Wallet name/label |
+| `MCP_PORT` | No | `3010` | HTTP port (only used if `MCP_MODE=http`) |
+| `CHEQD_NETWORK` | No | `testnet` | Cheqd network: `testnet` or `mainnet` |
+| `EDV_STORAGE_URL` | No | `https://edv.dock.io` | EDV storage endpoint (for cloud wallet) |
+| `WALLET_NAME` | No | `mcp-wallet` | Wallet name/label |
 
 ## Testing the Connection
 
