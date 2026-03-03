@@ -13,7 +13,9 @@
     "test:api": "npm run test --workspace=apps/truvera-api",
     "typecheck": "npm run typecheck --workspaces",
     "lint": "npm run lint --workspaces",
-    "lint:fix": "npm run lint:fix --workspaces"
+    "lint:fix": "npm run lint:fix --workspaces",
+    "docker:build:api": "docker build --build-arg BUILD_NUMBER=\"$(cat apps/truvera-api/.buildnumber)\" -t docknetwork/truvera-api-mcp:latest -t docknetwork/truvera-api-mcp:$(cat apps/truvera-api/.buildnumber) -f apps/truvera-api/Dockerfile .",
+    "docker:run:api": "docker rm -f truvera-api-mcp || true && docker run -d --name truvera-api-mcp --env-file apps/truvera-api/.env -e MCP_MODE=http -e MCP_PORT=3000 -p 3000:3000 docknetwork/truvera-api-mcp:latest"
   },
   "workspaces": [
     "packages/*",

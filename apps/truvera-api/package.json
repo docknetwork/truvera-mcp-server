@@ -15,7 +15,8 @@
     "smoke": "tsx tests/smoke-list-tools.ts",
     "test": "vitest",
     "e2e": "vitest tests/e2e --run",
-    "docker:build": "docker build --build-arg BUILD_NUMBER=\"$(<./.buildnumber)\" -t truvera-api-mcp:latest -t truvera-api-mcp:build-$(<./.buildnumber) ."
+    "docker:build": "cd ../.. && docker build --build-arg BUILD_NUMBER=\"$(cat apps/truvera-api/.buildnumber)\" -t truvera-api-mcp:latest -t truvera-api-mcp:$(cat apps/truvera-api/.buildnumber) -f apps/truvera-api/Dockerfile .",
+    "docker:run": "docker rm -f truvera-api-mcp || true && docker run -d --name truvera-api-mcp --env-file ./.env -e MCP_MODE=http -e MCP_PORT=3000 -p 3000:3000 truvera-api-mcp:latest"
   },
   "dependencies": {
     "@truvera/mcp-shared": "file:../../packages/mcp-shared",
