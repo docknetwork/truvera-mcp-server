@@ -1,11 +1,15 @@
 # Multi-stage build for Truvera MCP Service
 ARG BUILD_NUMBER=1
 
-FROM node:22-alpine3.20 AS builder
+FROM node:22-alpine3.21 AS builder
 
 ARG BUILD_NUMBER
 
 WORKDIR /app
+
+# Upgrade system packages to fix security vulnerabilities
+RUN apk update && apk upgrade --no-cache && \
+    apk add --no-cache openssl
 
 # Upgrade npm
 RUN npm install -g npm@11.6.4 --no-fund --no-audit
@@ -35,9 +39,13 @@ COPY apps/truvera-api/tsconfig.json ./apps/truvera-api/
 RUN BUILD_NUMBER=$BUILD_NUMBER npm run build --workspace=apps/truvera-api
 
 # Runtime stage
-FROM node:22-alpine3.20
+FROM node:22-alpine3.21
 
 WORKDIR /app
+
+# Upgrade system packages to fix security vulnerabilities
+RUN apk update && apk upgrade --no-cache && \
+    apk add --no-cache openssl
 
 # Upgrade npm in the runtime image too (keeps logs consistent)
 RUN npm install -g npm@11.6.4 --no-fund --no-audit
