@@ -14,7 +14,8 @@
     "lint:fix": "eslint . --ext .ts --fix",
     "smoke": "tsx tests/smoke-list-tools.ts",
     "test": "vitest",
-    "e2e": "vitest tests/e2e --run"
+    "e2e": "vitest tests/e2e --run",
+    "docker:build": "docker build --build-arg BUILD_NUMBER=\"$(<./.buildnumber)\" -t truvera-api-mcp:latest -t truvera-api-mcp:build-$(<./.buildnumber) ."
   },
   "dependencies": {
     "@truvera/mcp-shared": "file:../../packages/mcp-shared",

@@ -18,7 +18,8 @@
     "@docknetwork/wallet-sdk-web": "^0.0.10",
     "@docknetwork/wallet-sdk-core": "^1.7.0",
     "@docknetwork/wallet-sdk-data-store-web": "^1.7.0",
-    "dotenv": "^16.6.1"
+    "dotenv": "^16.6.1",
+    "xhr2": "^0.2.1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

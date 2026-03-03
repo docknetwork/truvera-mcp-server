@@ -9,16 +9,18 @@ describe("unit: Credential tools", () => {
     // Create a fresh mock client for each test
     mockClient = {
       listCredentials: vi.fn(),
+      importCredential: vi.fn(),
       ensureProvider: vi.fn(),
     } as any;
   });
 
   describe("Tool Definitions", () => {
     it("exports correct tool definitions", () => {
-      expect(credentialToolDefs).toHaveLength(1);
+      expect(credentialToolDefs).toHaveLength(2);
       
       const toolNames = credentialToolDefs.map((t) => t.name);
       expect(toolNames).toContain("list_credentials");
+      expect(toolNames).toContain("import_credential");
     });
 
     it("each tool has required properties", () => {
@@ -104,11 +106,12 @@ describe("unit: Credential tools", () => {
   });
 
   describe("Handler registration", () => {
-    it("registers list_credentials handler", () => {
+    it("registers all credential handlers", () => {
       const handlers = getCredentialHandlers(mockClient);
       
-      expect(handlers.size).toBe(1);
+      expect(handlers.size).toBe(2);
       expect(handlers.has("list_credentials")).toBe(true);
+      expect(handlers.has("import_credential")).toBe(true);
     });
 
     it("handler returns MCP-compliant response format", async () => {
@@ -125,6 +128,127 @@ describe("unit: Credential tools", () => {
       const result = await handler({});
       
       expect(result).toHaveProperty("content");
+      expect(Array.isArray(result.content)).toBe(true);
+      expect(result.content.length).toBeGreaterThan(0);
+      expect(result.content[0]).toHaveProperty("type", "text");
+      expect(result.content[0]).toHaveProperty("text");
+      
+      // Verify it's valid JSON
+      expect(() => JSON.parse(result.content[0].text)).not.toThrow();
+    });
+  });
+
+  describe("import_credential handler", () => {
+    it("successfully imports credential from OpenID offer URI", async () => {
+      const handlers = getCredentialHandlers(mockClient);
+      const handler = handlers.get("import_credential")!;
+      expect(handler).toBeDefined();
+
+      const mockCredential = {
+        id: "urn:uuid:456",
+        type: ["VerifiableCredential", "EmployeeCredential"],
+        issuer: "did:key:z6Mk...",
+        issuanceDate: "2023-02-01T00:00:00Z",
+        credentialSubject: { employeeId: "12345" },
+      };
+
+      vi.mocked(mockClient.importCredential).mockResolvedValue({
+        success: true,
+        credential: mockCredential,
+        message: "Credential imported successfully",
+      });
+
+      const result = await handler({ uri: "openid-credential-offer://?credential_offer_uri=https://example.com" });
+
+      expect(mockClient.importCredential).toHaveBeenCalledWith("openid-credential-offer://?credential_offer_uri=https://example.com");
+      expect(result).toHaveProperty("content");
+      expect(Array.isArray(result.content)).toBe(true);
+      expect(result.isError).toBeUndefined();
+
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(true);
+      expect(response.credential).toEqual(mockCredential);
+    });
+
+    it("returns error when URI parameter is missing", async () => {
+      const handlers = getCredentialHandlers(mockClient);
+      const handler = handlers.get("import_credential")!;
+
+      const result = await handler({});
+
+      expect(mockClient.importCredential).not.toHaveBeenCalled();
+      expect(result.isError).toBe(true);
+      
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(false);
+      expect(response.error).toContain("URI parameter is required");
+    });
+
+    it("returns error when URI parameter is not a string", async () => {
+      const handlers = getCredentialHandlers(mockClient);
+      const handler = handlers.get("import_credential")!;
+
+      const result = await handler({ uri: 123 });
+
+      expect(mockClient.importCredential).not.toHaveBeenCalled();
+      expect(result.isError).toBe(true);
+      
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(false);
+      expect(response.error).toContain("URI parameter is required");
+    });
+
+    it("handles import failure from client", async () => {
+      const handlers = getCredentialHandlers(mockClient);
+      const handler = handlers.get("import_credential")!;
+
+      vi.mocked(mockClient.importCredential).mockResolvedValue({
+        success: false,
+        message: "Invalid credential offer URI",
+      });
+
+      const result = await handler({ uri: "invalid-uri" });
+
+      expect(mockClient.importCredential).toHaveBeenCalledWith("invalid-uri");
+      expect(result.isError).toBe(true);
+      
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(false);
+      expect(response.error).toBe("Invalid credential offer URI");
+    });
+
+    it("handles unexpected errors during import", async () => {
+      const handlers = getCredentialHandlers(mockClient);
+      const handler = handlers.get("import_credential")!;
+
+      vi.mocked(mockClient.importCredential).mockRejectedValue(new Error("Network error"));
+
+      const result = await handler({ uri: "openid-credential-offer://?credential_offer_uri=https://example.com" });
+
+      expect(result.isError).toBe(true);
+      
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(false);
+      expect(response.error).toBe("Network error");
+    });
+
+    it("returns properly structured MCP response", async () => {
+      const handlers = getCredentialHandlers(mockClient);
+      const handler = handlers.get("import_credential")!;
+
+      vi.mocked(mockClient.importCredential).mockResolvedValue({
+        success: true,
+        credential: {
+          id: "urn:uuid:789",
+          type: ["VerifiableCredential"],
+          issuer: "did:key:z6Mk...",
+          issuanceDate: "2023-03-01T00:00:00Z",
+          credentialSubject: {},
+        },
+      });
+
+      const result = await handler({ uri: "openid-credential-offer://?credential_offer_uri=https://example.com" });
+
       expect(Array.isArray(result.content)).toBe(true);
       expect(result.content.length).toBeGreaterThan(0);
       expect(result.content[0]).toHaveProperty("type", "text");

@@ -16,3 +16,9 @@ export interface CredentialListResult {
   credentials: CredentialInfo[];
   count: number;
 }
+
+export interface ImportCredentialResult {
+  success: boolean;
+  credential?: CredentialInfo;
+  message?: string;
+}
