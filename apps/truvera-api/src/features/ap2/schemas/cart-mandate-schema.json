@@ -1,0 +1,288 @@
+{
+  "$schema":"http://json-schema.org/draft-07/schema#",
+  "title": "Cart Mandate",
+  "description": "AP2 Cart Mandate for human-present payment authorization with exact cart details",
+  "type": "object",
+  "required": ["contents", "merchantSignature", "timestamp"],
+  "properties": {
+    "contents": {
+      "description": "The cart contents signed by the merchant",
+      "type": "object",
+      "required": ["id", "paymentRequest"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for this cart"
+        },
+        "userCartConfirmationRequired": {
+          "type": "boolean",
+          "description": "Whether user must explicitly confirm cart before payment",
+          "default": false
+        },
+        "paymentRequest": {
+          "description": "W3C Payment Request API structure",
+          "type": "object",
+          "required": ["methodData", "details"],
+          "properties": {
+            "methodData": {
+              "type": "array",
+              "description": "Supported payment methods",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["supportedMethods"],
+                "properties": {
+                  "supportedMethods": {
+                    "type": "string",
+                    "description": "Payment method identifier (e.g., 'basic-card', 'https://google.com/pay')"
+                  },
+                  "data": {
+                    "type": "object",
+                    "description": "Payment method specific data",
+                    "additionalProperties": true
+                  }
+                }
+              }
+            },
+            "details": {
+              "description": "Payment details including items and total",
+              "type": "object",
+              "required": ["total"],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Unique identifier for these payment details"
+                },
+                "displayItems": {
+                  "type": "array",
+                  "description": "Line items in the cart",
+                  "items": {
+                    "type": "object",
+                    "required": ["label", "amount"],
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                        "description": "Human-readable description of the item"
+                      },
+                      "amount": {
+                        "description": "Price of the item",
+                        "type": "object",
+                        "required": ["currency", "value"],
+                        "properties": {
+                          "currency": {
+                            "type": "string",
+                            "description": "ISO 4217 currency code",
+                            "pattern": "^[A-Z]{3}$",
+                            "examples": ["USD", "EUR", "GBP"]
+                          },
+                          "value": {
+                            "type": "string",
+                            "description": "Decimal amount as string",
+                            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                            "examples": ["10.00", "99.99", "1234.56"]
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "total": {
+                  "description": "Total amount to be paid",
+                  "type": "object",
+                  "required": ["label", "amount"],
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "description": "Human-readable description of the item"
+                    },
+                    "amount": {
+                      "description": "Price of the item",
+                      "type": "object",
+                      "required": ["currency", "value"],
+                      "properties": {
+                        "currency": {
+                          "type": "string",
+                          "description": "ISO 4217 currency code",
+                          "pattern": "^[A-Z]{3}$",
+                          "examples": ["USD", "EUR", "GBP"]
+                        },
+                        "value": {
+                          "type": "string",
+                          "description": "Decimal amount as string",
+                          "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                          "examples": ["10.00", "99.99", "1234.56"]
+                        }
+                      }
+                    }
+                  }
+                },
+                "shippingOptions": {
+                  "type": "array",
+                  "description": "Available shipping options",
+                  "items": {
+                    "type": "object",
+                    "required": ["id", "label", "amount"],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "amount": {
+                        "type": "object",
+                        "required": ["currency", "value"],
+                        "properties": {
+                          "currency": {
+                            "type": "string",
+                            "description": "ISO 4217 currency code",
+                            "pattern": "^[A-Z]{3}$",
+                            "examples": ["USD", "EUR", "GBP"]
+                          },
+                          "value": {
+                            "type": "string",
+                            "description": "Decimal amount as string",
+                            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                            "examples": ["10.00", "99.99", "1234.56"]
+                          }
+                        }
+                      },
+                      "selected": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                },
+                "modifiers": {
+                  "type": "array",
+                  "description": "Payment details modifiers",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "supportedMethods": {
+                        "type": "string"
+                      },
+                      "total": {
+                        "type": "object",
+                        "required": ["label", "amount"],
+                        "properties": {
+                          "label": {
+                            "type": "string",
+                            "description": "Human-readable description of the item"
+                          },
+                          "amount": {
+                            "description": "Price of the item",
+                            "type": "object",
+                            "required": ["currency", "value"],
+                            "properties": {
+                              "currency": {
+                                "type": "string",
+                                "description": "ISO 4217 currency code",
+                                "pattern": "^[A-Z]{3}$",
+                                "examples": ["USD", "EUR", "GBP"]
+                              },
+                              "value": {
+                                "type": "string",
+                                "description": "Decimal amount as string",
+                                "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                                "examples": ["10.00", "99.99", "1234.56"]
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "additionalDisplayItems": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": ["label", "amount"],
+                          "properties": {
+                            "label": {
+                              "type": "string",
+                              "description": "Human-readable description of the item"
+                            },
+                            "amount": {
+                              "description": "Price of the item",
+                              "type": "object",
+                              "required": ["currency", "value"],
+                              "properties": {
+                                "currency": {
+                                  "type": "string",
+                                  "description": "ISO 4217 currency code",
+                                  "pattern": "^[A-Z]{3}$",
+                                  "examples": ["USD", "EUR", "GBP"]
+                                },
+                                "value": {
+                                  "type": "string",
+                                  "description": "Decimal amount as string",
+                                  "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                                  "examples": ["10.00", "99.99", "1234.56"]
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "data": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "options": {
+              "description": "Payment options (shipping, payer info, etc.)",
+              "type": "object",
+              "properties": {
+                "requestPayerName": {
+                  "type": "boolean",
+                  "description": "Request payer's name",
+                  "default": false
+                },
+                "requestPayerEmail": {
+                  "type": "boolean",
+                  "description": "Request payer's email",
+                  "default": false
+                },
+                "requestPayerPhone": {
+                  "type": "boolean",
+                  "description": "Request payer's phone",
+                  "default": false
+                },
+                "requestShipping": {
+                  "type": "boolean",
+                  "description": "Request shipping address",
+                  "default": false
+                },
+                "shippingType": {
+                  "type": "string",
+                  "enum": ["shipping", "delivery", "pickup"],
+                  "description": "Type of shipping"
+                }
+              }
+            }
+          }
+        },
+        "cartExpiry": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this cart expires"
+        },
+        "merchantName": {
+          "type": "string",
+          "description": "Display name of the merchant"
+        }
+      }
+    },
+    "merchantSignature": {
+      "type": "string",
+      "description": "Merchant's cryptographic signature over the cart contents"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the mandate was created"
+    }
+  }
+}

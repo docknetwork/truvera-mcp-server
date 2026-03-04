@@ -1,0 +1,153 @@
+{
+  "$schema":"http://json-schema.org/draft-07/schema#",
+  "title": "Intent Mandate",
+  "description": "AP2 Intent Mandate for human-not-present payment authorization with constraints",
+  "type": "object",
+  "required": ["contents", "userSignature", "timestamp"],
+  "properties": {
+    "contents": {
+      "description": "The intent mandate contents signed by the user",
+      "type": "object",
+      "required": ["id", "payerId", "shoppingIntent", "paymentMethods", "ttl", "timestamp"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for this intent mandate"
+        },
+        "payerId": {
+          "type": "string",
+          "description": "Identifier of the payer (user)"
+        },
+        "payeeId": {
+          "type": "string",
+          "description": "Identifier of the payee (merchant), if known upfront"
+        },
+        "shoppingIntent": {
+          "description": "The shopping intent with constraints",
+          "type": "object",
+          "required": ["prompt"],
+          "properties": {
+            "prompt": {
+              "type": "string",
+              "description": "Natural language shopping intent",
+              "examples": [
+                "Buy concert tickets when available, budget $1000",
+                "Purchase running shoes, prefer Nike, max $200"
+              ]
+            },
+            "productCategories": {
+              "type": "array",
+              "description": "Allowed product categories",
+              "items": {
+                "type": "string"
+              },
+              "examples": [["electronics", "computers"]]
+            },
+            "specificSkus": {
+              "type": "array",
+              "description": "Specific product SKUs to purchase",
+              "items": {
+                "type": "string"
+              }
+            },
+            "budgetMax": {
+              "description": "Maximum budget constraint",
+              "type": "object",
+              "required": ["currency", "value"],
+              "properties": {
+                "currency": {
+                  "type": "string",
+                  "description": "ISO 4217 currency code",
+                  "pattern": "^[A-Z]{3}$",
+                  "examples": ["USD", "EUR", "GBP"]
+                },
+                "value": {
+                  "type": "string",
+                  "description": "Decimal amount as string",
+                  "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                  "examples": ["10.00", "99.99", "1234.56"]
+                }
+              }
+            },
+            "merchantPreference": {
+              "type": "string",
+              "description": "Preferred merchant",
+              "examples": ["Amazon", "Best Buy"]
+            },
+            "refundable": {
+              "type": "boolean",
+              "description": "Whether purchases must be refundable",
+              "default": false
+            }
+          }
+        },
+        "paymentMethods": {
+          "type": "array",
+          "description": "Allowed payment methods",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "examples": [["basic-card", "https://google.com/pay"]]
+        },
+        "promptPlayback": {
+          "type": "string",
+          "description": "Original natural language prompt from user for audit trail"
+        },
+        "ttl": {
+          "type": "integer",
+          "description": "Time-to-live in seconds for this mandate",
+          "minimum": 1,
+          "examples": [3600, 86400]
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this mandate was created"
+        },
+        "userCartConfirmationRequired": {
+          "type": "boolean",
+          "description": "Whether user must confirm cart before payment",
+          "default": false
+        },
+        "naturalLanguageDescription": {
+          "type": "string",
+          "description": "Human-readable description of the mandate"
+        },
+        "merchants": {
+          "type": "array",
+          "description": "Allowed merchants",
+          "items": {
+            "type": "string"
+          }
+        },
+        "skus": {
+          "type": "array",
+          "description": "Allowed product SKUs",
+          "items": {
+            "type": "string"
+          }
+        },
+        "requiresRefundability": {
+          "type": "boolean",
+          "description": "Whether purchases must be refundable",
+          "default": false
+        },
+        "intentExpiry": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Absolute expiry time for this intent"
+        }
+      }
+    },
+    "userSignature": {
+      "type": "string",
+      "description": "User's cryptographic signature over the intent contents"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the mandate was created"
+    }
+  }
+}

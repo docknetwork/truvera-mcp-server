@@ -13,11 +13,33 @@ A Model Context Protocol (MCP) server that exposes Truvera API functionality as 
 
 ## Environment variables
 
+### Core Configuration
+
 - `TRUVERA_API_KEY` (required): Truvera API key
 - `TRUVERA_API_ENDPOINT` (optional): Base API URL (default: `https://api.truvera.com`)
   - For testnet: `https://api-testnet.truvera.io`
 - `MCP_MODE` (optional): `stdio` or `http` (default `stdio`)
 - `MCP_PORT` (optional): HTTP port (default `3000` when `MCP_MODE=http`)
+
+### AP2 (Agent Payments Protocol) Configuration
+
+The server includes support for AP2 mandate issuance and verification. See [src/features/ap2/README.md](src/features/ap2/README.md) for detailed documentation.
+
+- `AP2_ENABLED` (optional): Enable/disable AP2 support (default: `true`)
+- `AP2_DEFAULT_TTL_SECONDS` (optional): Default time-to-live for Intent Mandates (default: `3600`)
+- `AP2_CART_MANDATE_SCHEMA_URL` (optional): JSON-LD schema URL for Cart Mandates (placeholder - not yet published)
+- `AP2_INTENT_MANDATE_SCHEMA_URL` (optional): JSON-LD schema URL for Intent Mandates (placeholder - not yet published)
+- `AP2_PAYMENT_MANDATE_SCHEMA_URL` (optional): JSON-LD schema URL for Payment Mandates (placeholder - not yet published)
+
+**Note**: As of March 2026, the AP2 protocol does not publish JSON-LD schemas at the URLs above. The system handles this gracefully - schema URLs are passed to Truvera's credential API for future compatibility but fetch failures are non-blocking.
+
+**AP2 Features:**
+- **Cart Mandate**: Issue mandates for human-present payment authorization with exact cart details
+- **Intent Mandate**: Issue mandates for human-not-present purchases with constraints (budget, products, TTL)
+- **Payment Mandate**: Issue mandates for payment network visibility into agent transactions
+- **Verification**: Verify any AP2 mandate credential
+
+AP2 mandates are issued as Verifiable Credentials via the Truvera API and can be stored/presented using the wallet-server.
 
 ## Quickstart
 
@@ -129,6 +151,25 @@ npx mcp-remote http://localhost:3000/mcp --insecure
 To see available tools at runtime, call the `ListTools` endpoint (MCP ListToolsRequest) — the server returns the merged tool definitions.
 
 ## Supported Tools
+
+The server exposes Truvera API functionality plus AP2 (Agent Payments Protocol) mandate tools:
+
+### Truvera API Tools
+- Credential operations (issue, list, get, delete)
+- DID operations (create, list, get, delete)
+- Presentation operations (create, list, get, delete)
+- Schema operations (list, get)
+- Profile operations (create, update, get, delete, list)
+- Verification operations
+
+### AP2 Payment Protocol Tools
+- `issue_cart_mandate`: Issue Cart Mandate for human-present transactions
+- `issue_intent_mandate`: Issue Intent Mandate for human-not-present transactions
+- `issue_payment_mandate`: Issue Payment Mandate for network visibility
+- `verify_mandate`: Verify AP2 mandate credentials
+
+For complete AP2 documentation including types, examples, and usage, see [src/features/ap2/README.md](src/features/ap2/README.md).
+
 Not all Truvera API endpoints are exposed via the MCP server. The supported tool names and input schemas are provided in the tool listing returned by the server.
 
 ## Development tips

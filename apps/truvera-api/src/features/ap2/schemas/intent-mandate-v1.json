@@ -1,0 +1,139 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "@protected": true,
+    "ap2": "https://ap2-protocol.org/ns/v1#",
+    "schema": "https://schema.org/",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    
+    "IntentMandate": {
+      "@id": "ap2:IntentMandate",
+      "@context": {
+        "contents": {
+          "@id": "ap2:contents",
+          "@type": "@id"
+        },
+        "userSignature": {
+          "@id": "ap2:userSignature",
+          "@type": "xsd:string"
+        },
+        "timestamp": {
+          "@id": "ap2:timestamp",
+          "@type": "xsd:dateTime"
+        }
+      }
+    },
+    
+    "IntentMandateContents": {
+      "@id": "ap2:IntentMandateContents",
+      "@context": {
+        "id": {
+          "@id": "ap2:intentId",
+          "@type": "xsd:string"
+        },
+        "payerId": {
+          "@id": "ap2:payerId",
+          "@type": "xsd:string"
+        },
+        "payeeId": {
+          "@id": "ap2:payeeId",
+          "@type": "xsd:string"
+        },
+        "shoppingIntent": {
+          "@id": "ap2:shoppingIntent",
+          "@type": "@id"
+        },
+        "paymentMethods": {
+          "@id": "ap2:paymentMethods",
+          "@type": "xsd:string",
+          "@container": "@list"
+        },
+        "promptPlayback": {
+          "@id": "ap2:promptPlayback",
+          "@type": "xsd:string"
+        },
+        "ttl": {
+          "@id": "ap2:timeToLive",
+          "@type": "xsd:integer"
+        },
+        "timestamp": {
+          "@id": "ap2:timestamp",
+          "@type": "xsd:dateTime"
+        }
+      }
+    },
+    
+    "ShoppingIntent": {
+      "@id": "ap2:ShoppingIntent",
+      "@context": {
+        "prompt": {
+          "@id": "ap2:naturalLanguagePrompt",
+          "@type": "xsd:string"
+        },
+        "productCategories": {
+          "@id": "ap2:productCategories",
+          "@type": "xsd:string",
+          "@container": "@list"
+        },
+        "specificSkus": {
+          "@id": "ap2:specificSkus",
+          "@type": "xsd:string",
+          "@container": "@list"
+        },
+        "budgetMax": {
+          "@id": "ap2:budgetMaximum",
+          "@type": "@id"
+        },
+        "merchantPreference": {
+          "@id": "ap2:merchantPreference",
+          "@type": "xsd:string"
+        },
+        "refundable": {
+          "@id": "ap2:requiresRefundability",
+          "@type": "xsd:boolean"
+        }
+      }
+    },
+    
+    "MonetaryAmount": {
+      "@id": "ap2:MonetaryAmount",
+      "@context": {
+        "currency": {
+          "@id": "schema:currency",
+          "@type": "xsd:string"
+        },
+        "value": {
+          "@id": "schema:price",
+          "@type": "xsd:decimal"
+        }
+      }
+    },
+    
+    "userCartConfirmationRequired": {
+      "@id": "ap2:userCartConfirmationRequired",
+      "@type": "xsd:boolean"
+    },
+    "naturalLanguageDescription": {
+      "@id": "ap2:naturalLanguageDescription",
+      "@type": "xsd:string"
+    },
+    "merchants": {
+      "@id": "ap2:allowedMerchants",
+      "@type": "xsd:string",
+      "@container": "@list"
+    },
+    "skus": {
+      "@id": "ap2:allowedSkus",
+      "@type": "xsd:string",
+      "@container": "@list"
+    },
+    "requiresRefundability": {
+      "@id": "ap2:requiresRefundability",
+      "@type": "xsd:boolean"
+    },
+    "intentExpiry": {
+      "@id": "ap2:intentExpiry",
+      "@type": "xsd:dateTime"
+    }
+  }
+}
