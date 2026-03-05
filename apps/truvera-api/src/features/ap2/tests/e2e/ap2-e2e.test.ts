@@ -3,9 +3,10 @@
  * End-to-end tests for issuing and verifying AP2 mandates using real Truvera API
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { TruveraClient } from '../../../../clients/index.js';
 import { AP2Client } from '../../client.js';
+import { CredentialsClient } from '../../../credentials/client.js';
 import dotenv from 'dotenv';
 
 // Load environment variables from .env (default location)
@@ -28,11 +29,39 @@ const shouldRunE2E = !!API_KEY;
 describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
   let ap2Client: AP2Client;
   let truveraClient: TruveraClient;
+  let credentialsClient: CredentialsClient;
   const issuedCredentialIds: string[] = [];
 
   beforeAll(() => {
     truveraClient = new TruveraClient(API_KEY as string, API_ENDPOINT);
     ap2Client = new AP2Client(truveraClient);
+    credentialsClient = new CredentialsClient(truveraClient);
+  });
+
+  afterAll(async () => {
+    // Clean up all created credentials
+    console.log('\n=== Cleaning up test credentials ===');
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const credentialId of issuedCredentialIds) {
+      try {
+        const result = await credentialsClient.deleteCredential(credentialId);
+        if (result.success) {
+          successCount++;
+          console.log(`✓ Deleted credential: ${credentialId}`);
+        } else {
+          failCount++;
+          console.log(`✗ Failed to delete credential: ${credentialId}`, result.error);
+        }
+      } catch (error) {
+        failCount++;
+        console.log(`✗ Error deleting credential: ${credentialId}`, error);
+      }
+    }
+    
+    console.log(`Cleanup complete: ${successCount} deleted, ${failCount} failed`);
+    console.log('=====================================\n');
   });
 
   describe('Cart Mandate (Human-Present)', () => {
@@ -279,6 +308,11 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
 
       console.log('Issued credential for verification:', credential.id);
 
+      // Track this credential for cleanup
+      if (credential.id) {
+        issuedCredentialIds.push(credential.id);
+      }
+
       // Now verify it - pass the full credential document
       const verifyResponse = await ap2Client.verifyMandate(credential);
 
@@ -302,7 +336,7 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
         console.log('\n=== AP2 E2E Test Summary ===');
         console.log(`Total credentials issued: ${issuedCredentialIds.length}`);
         console.log('Credential IDs:', issuedCredentialIds);
-        console.log('Note: These credentials remain in the system for future reference');
+        console.log('Note: These credentials will be cleaned up after tests complete');
         console.log('============================\n');
         expect(issuedCredentialIds.length).toBeGreaterThan(0);
       });
