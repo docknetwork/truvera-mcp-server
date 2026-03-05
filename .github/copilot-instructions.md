@@ -43,6 +43,7 @@ Each app is a self-contained MCP server with its own:
 ### Documentation
 
 - See `apps/truvera-api/README.md` for comprehensive setup and usage instructions
+- **See `apps/truvera-api/copilot-instructions.md` for detailed development guidelines**
 - See `apps/truvera-api/Dockerfile` for production container build configuration
 - See `docker-compose.yml` for multi-service deployment
 - See `.vscode/tasks.json` for VS Code task configuration
@@ -115,4 +116,27 @@ VS Code tasks and launch configurations are set up at the workspace root level:
 - Always use HTTPS endpoints in production
 - Docker containers run as non-root user for security
 - Input validation is performed on API requests
+
+## Best Practices
+
+### Testing
+- Write E2E tests for all API integrations (they catch real bugs!)
+- Always clean up resources (credentials, DIDs) in `afterAll` hooks
+- Use TDD: write tests first, let them reveal API requirements
+- Load `.env` first, then `.env.test` for test-specific overrides
+
+### API Integration
+- Follow W3C Verifiable Credentials format for all credentials
+- Always wrap credentials in `{ credential: { ... } }` for POST /credentials
+- Use `encodeURIComponent()` for all URL parameters
+- Pass full VC documents to verification, not metadata
+
+### Code Quality
+- Enable TypeScript strict mode
+- Use feature-based architecture in `src/features/<feature>/`
+- Share common types in `src/features/shared/`
+- Document with inline JSDoc comments
+- Follow SOLID, DRY, and KISS principles for maintainable code
+- Follow TDD practices
+
 
