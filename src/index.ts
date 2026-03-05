@@ -1,3 +1,4 @@
+import dotenv from "dotenv";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   ListToolsRequestSchema,
@@ -10,6 +11,7 @@ import { buildToolList, buildHandlerMapFromTruvera } from "./tools/composeTools.
 import { BUILD_INFO } from "./build-info.js";
 
 // Configuration from environment variables
+dotenv.config();
 const API_KEY = process.env.TRUVERA_API_KEY;
 const API_ENDPOINT = process.env.TRUVERA_API_ENDPOINT || "https://api.truvera.com";
 const MCP_PORT = parseInt(process.env.MCP_PORT || "3000", 10);
