@@ -3,8 +3,11 @@ import { buildToolList, buildHandlerMapFromTruvera } from '../../src/tools/compo
 import { TruveraClient } from '../../src/clients/index.js';
 import dotenv from 'dotenv';
 
-// Load test environment variables if present
-dotenv.config({ path: '.env.tests' });
+// Load environment variables from .env (default location)
+dotenv.config();
+// Optionally override with test-specific values from .env.test or .env.tests
+dotenv.config({ path: '.env.test', override: true });
+dotenv.config({ path: '.env.tests', override: true });
 
 const API_KEY = process.env.TRUVERA_API_KEY;
 const API_ENDPOINT = process.env.TRUVERA_API_ENDPOINT || 'https://api.truvera.com';

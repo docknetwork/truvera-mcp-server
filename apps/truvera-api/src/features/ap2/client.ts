@@ -132,25 +132,30 @@ export class AP2Client {
       timestamp: new Date().toISOString(),
     };
 
-    // Issue credential via Truvera API
-    const credentialRequest = {
-      schema: schemaUrls.cart,
-      type: ["VerifiableCredential", "CartMandate"],
-      issuer: request.issuer_did,
-      subject: {
-        id: request.subject_did,
-        mandateId: request.mandate_id,
-        mandateType: "CartMandate",
-        cartMandate,
-        merchantId: request.merchant_id,
-        payerId: request.payer_id,
-      },
-    };
-
+    // Issue credential via Truvera API (W3C Verifiable Credential format)
     return this.truveraClient.request({
       method: "POST",
       endpoint: "/credentials",
-      body: credentialRequest,
+      body: {
+        credential: {
+          "@context": [
+            "https://www.w3.org/2018/credentials/v1",
+            schemaUrls.cart,
+          ],
+          type: ["VerifiableCredential", "CartMandate"],
+          issuer: {
+            id: request.issuer_did,
+          },
+          credentialSubject: {
+            id: request.subject_did,
+            mandateId: request.mandate_id,
+            mandateType: "CartMandate",
+            cartMandate,
+            merchantId: request.merchant_id,
+            payerId: request.payer_id,
+          },
+        },
+      },
     });
   }
 
@@ -196,25 +201,30 @@ export class AP2Client {
       timestamp: new Date().toISOString(),
     };
 
-    // Issue credential via Truvera API
-    const credentialRequest = {
-      schema: schemaUrls.intent,
-      type: ["VerifiableCredential", "IntentMandate"],
-      issuer: request.issuer_did,
-      subject: {
-        id: request.subject_did,
-        mandateId: request.mandate_id,
-        mandateType: "IntentMandate",
-        intentMandate,
-        payerId: request.payer_id,
-        payeeId: request.payee_id,
-      },
-    };
-
+    // Issue credential via Truvera API (W3C Verifiable Credential format)
     return this.truveraClient.request({
       method: "POST",
       endpoint: "/credentials",
-      body: credentialRequest,
+      body: {
+        credential: {
+          "@context": [
+            "https://www.w3.org/2018/credentials/v1",
+            schemaUrls.intent,
+          ],
+          type: ["VerifiableCredential", "IntentMandate"],
+          issuer: {
+            id: request.issuer_did,
+          },
+          credentialSubject: {
+            id: request.subject_did,
+            mandateId: request.mandate_id,
+            mandateType: "IntentMandate",
+            intentMandate,
+            payerId: request.payer_id,
+            payeeId: request.payee_id,
+          },
+        },
+      },
     });
   }
 
@@ -248,48 +258,42 @@ export class AP2Client {
       },
     };
 
-    // Issue credential via Truvera API
-    const credentialRequest = {
-      schema: schemaUrls.payment,
-      type: ["VerifiableCredential", "PaymentMandate"],
-      issuer: request.issuer_did,
-      subject: {
-        id: request.subject_did,
-        mandateId: request.payment_mandate_id,
-        mandateType: "PaymentMandate",
-        paymentMandate,
-        humanPresent: request.human_present,
-      },
-    };
-
+    // Issue credential via Truvera API (W3C Verifiable Credential format)
     return this.truveraClient.request({
       method: "POST",
       endpoint: "/credentials",
-      body: credentialRequest,
+      body: {
+        credential: {
+          "@context": [
+            "https://www.w3.org/2018/credentials/v1",
+            schemaUrls.payment,
+          ],
+          type: ["VerifiableCredential", "PaymentMandate"],
+          issuer: {
+            id: request.issuer_did,
+          },
+          credentialSubject: {
+            id: request.subject_did,
+            mandateId: request.payment_mandate_id,
+            mandateType: "PaymentMandate",
+            paymentMandate,
+            humanPresent: request.human_present,
+          },
+        },
+      },
     });
   }
 
   /**
    * Verify a mandate credential
+   * @param credential - The full W3C Verifiable Credential document (not just the ID)
    */
-  async verifyMandate(credentialId: string) {
-    // Get the credential first
-    const getResult = await this.truveraClient.request({
-      method: "GET",
-      endpoint: `/credentials/${credentialId}`,
-    });
-
-    if (!getResult.success) {
-      return getResult;
-    }
-
-    // Verify the credential
+  async verifyMandate(credential: unknown) {
+    // Verify the credential directly
     return this.truveraClient.request({
       method: "POST",
       endpoint: "/verify",
-      body: {
-        credential: getResult.data,
-      },
+      body: credential,
     });
   }
 }
