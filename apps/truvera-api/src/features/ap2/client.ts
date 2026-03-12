@@ -1,9 +1,11 @@
 /**
  * AP2 Client
  * Handles AP2 mandate issuance and verification using Truvera API
+ * Supports both direct issuance (with subject_did) and credential offer flow (without subject_did)
  */
 
 import type { TruveraClient } from "../../clients/truvera.js";
+import type { OpenIdClient } from "../openid/client.js";
 import type {
   CartMandate,
   IntentMandate,
@@ -26,7 +28,12 @@ export interface IssueCartMandateRequest {
   payer_id: string;
   payment_processor_url?: string;
   issuer_did: string;
-  subject_did: string;
+  /**
+   * Optional: Subject DID (holder/payer).
+   * - If provided: Issues credential immediately and binds it to this DID
+   * - If omitted: Creates a credential offer that can be claimed later via QR code
+   */
+  subject_did?: string;
 }
 
 /**
@@ -46,7 +53,12 @@ export interface IssueIntentMandateRequest {
   payer_id: string;
   payee_id?: string;
   issuer_did: string;
-  subject_did: string;
+  /**
+   * Optional: Subject DID (holder/payer).
+   * - If provided: Issues credential immediately and binds it to this DID
+   * - If omitted: Creates a credential offer that can be claimed later via QR code
+   */
+  subject_did?: string;
 }
 
 /**
@@ -63,14 +75,42 @@ export interface IssuePaymentMandateRequest {
   human_present: boolean;
   refund_period_days?: number;
   issuer_did: string;
-  subject_did: string;
+  /**
+   * Optional: Subject DID (holder/payer).
+   * - If provided: Issues credential immediately and binds it to this DID
+   * - If omitted: Creates a credential offer that can be claimed later via QR code
+   */
+  subject_did?: string;
+}
+
+/**
+ * Response for mandate issuance - either a credential or an offer
+ */
+export interface MandateIssuanceResponse {
+  /** Type of response: 'credential' for direct issuance, 'offer' for QR code flow */
+  type: 'credential' | 'offer';
+  /** Issued credential (when type is 'credential') */
+  credential?: any;
+  /** Offer details (when type is 'offer') */
+  offer?: {
+    /** OpenID issuer ID */
+    issuerId: string;
+    /** Full credential offer URL for QR code (openid-credential-offer://...) */
+    offerUrl: string;
+    /** Credential offer URI for API access */
+    offerUri?: string;
+  };
 }
 
 /**
  * AP2 Client for mandate operations
+ * Supports both direct credential issuance and credential offer flows
  */
 export class AP2Client {
-  constructor(private truveraClient: TruveraClient) {}
+  constructor(
+    private truveraClient: TruveraClient,
+    private openIdClient: OpenIdClient
+  ) {}
 
   /**
    * Get schema URLs from environment
@@ -84,7 +124,84 @@ export class AP2Client {
   }
 
   /**
+   * Helper: Issue credential directly (when subject_did is provided)
+   */
+  private async issueCredentialDirect(credentialData: any) {
+    const result = await this.truveraClient.request({
+      method: "POST",
+      endpoint: "/credentials",
+      body: { credential: credentialData },
+    });
+
+    if (result.success) {
+      return {
+        success: true,
+        data: {
+          type: 'credential' as const,
+          credential: result.data,
+        },
+      };
+    }
+    return result;
+  }
+
+  /**
+   * Helper: Create credential offer (when subject_did is omitted)
+   */
+  private async createCredentialOffer(credentialData: any, mandateType: string) {
+    // Step 1: Create OpenID issuer with mandate template
+    const issuerResult = await this.openIdClient.createIssuer({
+      credentialOptions: {
+        credential: {
+          ...credentialData,
+          // Use placeholder for subject - will be filled when claimed
+          credentialSubject: {
+            ...credentialData.credentialSubject,
+            id: "{{holder_did}}", // Template variable for wallet claiming
+          },
+        },
+        format: 'jsonld',
+        algorithm: 'ed25519',
+      },
+      singleUse: true, // One-time use offer
+    });
+
+    if (!issuerResult.success) {
+      return issuerResult;
+    }
+
+    const issuerId = (issuerResult.data as any).id;
+
+    // Step 2: Create credential offer from issuer
+    const offerResult = await this.openIdClient.createCredentialOffer({
+      id: issuerId,
+    });
+
+    if (!offerResult.success) {
+      return offerResult;
+    }
+
+    const offerData = offerResult.data as any;
+    
+    return {
+      success: true,
+      data: {
+        type: 'offer' as const,
+        offer: {
+          issuerId,
+          offerUrl: offerData.offerUrl || offerData.qrUrl,
+          offerUri: offerData.offerUri,
+        },
+      },
+    };
+  }
+
+  /**
    * Issue a Cart Mandate (Human-Present)
+   * 
+   * Two modes:
+   * - With subject_did: Issues credential immediately
+   * - Without subject_did: Creates credential offer for QR code claiming
    */
   async issueCartMandate(request: IssueCartMandateRequest) {
     const schemaUrls = this.getSchemaUrls();
@@ -132,35 +249,42 @@ export class AP2Client {
       timestamp: new Date().toISOString(),
     };
 
-    // Issue credential via Truvera API (W3C Verifiable Credential format)
-    return this.truveraClient.request({
-      method: "POST",
-      endpoint: "/credentials",
-      body: {
-        credential: {
-          "@context": [
-            "https://www.w3.org/2018/credentials/v1",
-            schemaUrls.cart,
-          ],
-          type: ["VerifiableCredential", "CartMandate"],
-          issuer: {
-            id: request.issuer_did,
-          },
-          credentialSubject: {
-            id: request.subject_did,
-            mandateId: request.mandate_id,
-            mandateType: "CartMandate",
-            cartMandate,
-            merchantId: request.merchant_id,
-            payerId: request.payer_id,
-          },
-        },
+    // Build W3C Verifiable Credential structure
+    const credentialData = {
+      "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        schemaUrls.cart,
+      ],
+      type: ["VerifiableCredential", "CartMandate"],
+      issuer: {
+        id: request.issuer_did,
       },
-    });
+      credentialSubject: {
+        id: request.subject_did || "{{holder_did}}", // Placeholder if no subject_did
+        mandateId: request.mandate_id,
+        mandateType: "CartMandate",
+        cartMandate,
+        merchantId: request.merchant_id,
+        payerId: request.payer_id,
+      },
+    };
+
+    // Route based on whether subject_did is provided
+    if (request.subject_did) {
+      // Direct issuance flow
+      return this.issueCredentialDirect(credentialData);
+    } else {
+      // Credential offer flow
+      return this.createCredentialOffer(credentialData, "CartMandate");
+    }
   }
 
   /**
    * Issue an Intent Mandate (Human-Not-Present)
+   * 
+   * Two modes:
+   * - With subject_did: Issues credential immediately
+   * - Without subject_did: Creates credential offer for QR code claiming
    */
   async issueIntentMandate(request: IssueIntentMandateRequest) {
     const schemaUrls = this.getSchemaUrls();
@@ -201,35 +325,42 @@ export class AP2Client {
       timestamp: new Date().toISOString(),
     };
 
-    // Issue credential via Truvera API (W3C Verifiable Credential format)
-    return this.truveraClient.request({
-      method: "POST",
-      endpoint: "/credentials",
-      body: {
-        credential: {
-          "@context": [
-            "https://www.w3.org/2018/credentials/v1",
-            schemaUrls.intent,
-          ],
-          type: ["VerifiableCredential", "IntentMandate"],
-          issuer: {
-            id: request.issuer_did,
-          },
-          credentialSubject: {
-            id: request.subject_did,
-            mandateId: request.mandate_id,
-            mandateType: "IntentMandate",
-            intentMandate,
-            payerId: request.payer_id,
-            payeeId: request.payee_id,
-          },
-        },
+    // Build W3C Verifiable Credential structure
+    const credentialData = {
+      "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        schemaUrls.intent,
+      ],
+      type: ["VerifiableCredential", "IntentMandate"],
+      issuer: {
+        id: request.issuer_did,
       },
-    });
+      credentialSubject: {
+        id: request.subject_did || "{{holder_did}}", // Placeholder if no subject_did
+        mandateId: request.mandate_id,
+        mandateType: "IntentMandate",
+        intentMandate,
+        payerId: request.payer_id,
+        payeeId: request.payee_id,
+      },
+    };
+
+    // Route based on whether subject_did is provided
+    if (request.subject_did) {
+      // Direct issuance flow
+      return this.issueCredentialDirect(credentialData);
+    } else {
+      // Credential offer flow
+      return this.createCredentialOffer(credentialData, "IntentMandate");
+    }
   }
 
   /**
    * Issue a Payment Mandate (Network Visibility)
+   * 
+   * Two modes:
+   * - With subject_did: Issues credential immediately
+   * - Without subject_did: Creates credential offer for QR code claiming
    */
   async issuePaymentMandate(request: IssuePaymentMandateRequest) {
     const schemaUrls = this.getSchemaUrls();
@@ -258,30 +389,33 @@ export class AP2Client {
       },
     };
 
-    // Issue credential via Truvera API (W3C Verifiable Credential format)
-    return this.truveraClient.request({
-      method: "POST",
-      endpoint: "/credentials",
-      body: {
-        credential: {
-          "@context": [
-            "https://www.w3.org/2018/credentials/v1",
-            schemaUrls.payment,
-          ],
-          type: ["VerifiableCredential", "PaymentMandate"],
-          issuer: {
-            id: request.issuer_did,
-          },
-          credentialSubject: {
-            id: request.subject_did,
-            mandateId: request.payment_mandate_id,
-            mandateType: "PaymentMandate",
-            paymentMandate,
-            humanPresent: request.human_present,
-          },
-        },
+    // Build W3C Verifiable Credential structure
+    const credentialData = {
+      "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        schemaUrls.payment,
+      ],
+      type: ["VerifiableCredential", "PaymentMandate"],
+      issuer: {
+        id: request.issuer_did,
       },
-    });
+      credentialSubject: {
+        id: request.subject_did || "{{holder_did}}", // Placeholder if no subject_did
+        mandateId: request.payment_mandate_id,
+        mandateType: "PaymentMandate",
+        paymentMandate,
+        humanPresent: request.human_present,
+      },
+    };
+
+    // Route based on whether subject_did is provided
+    if (request.subject_did) {
+      // Direct issuance flow
+      return this.issueCredentialDirect(credentialData);
+    } else {
+      // Credential offer flow
+      return this.createCredentialOffer(credentialData, "PaymentMandate");
+    }
   }
 
   /**

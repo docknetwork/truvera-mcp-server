@@ -7,6 +7,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { TruveraClient } from '../../../../clients/index.js';
 import { AP2Client } from '../../client.js';
 import { CredentialsClient } from '../../../credentials/client.js';
+import { OpenIdClient } from '../../../openid/client.js';
 import dotenv from 'dotenv';
 
 // Load environment variables from .env (default location)
@@ -29,12 +30,14 @@ const shouldRunE2E = !!API_KEY;
 describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
   let ap2Client: AP2Client;
   let truveraClient: TruveraClient;
+  let openIdClient: OpenIdClient;
   let credentialsClient: CredentialsClient;
   const issuedCredentialIds: string[] = [];
 
   beforeAll(() => {
     truveraClient = new TruveraClient(API_KEY as string, API_ENDPOINT);
-    ap2Client = new AP2Client(truveraClient);
+    openIdClient = new OpenIdClient(truveraClient);
+    ap2Client = new AP2Client(truveraClient, openIdClient);
     credentialsClient = new CredentialsClient(truveraClient);
   });
 
@@ -90,7 +93,11 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
       expect(response.success).toBe(true);
       expect(response.data).toBeDefined();
 
-      const credential = response.data as any;
+      // Extract credential from dual-flow response structure
+      const responseData = response.data as any;
+      expect(responseData.type).toBe('credential'); // Should be direct issuance since subject_did provided
+      const credential = responseData.credential;
+      
       expect(credential.type).toContain('VerifiableCredential');
       expect(credential.type).toContain('CartMandate');
       expect(credential.credentialSubject).toBeDefined();
@@ -141,7 +148,11 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
       expect(response.success).toBe(true);
       expect(response.data).toBeDefined();
 
-      const credential = response.data as any;
+      // Extract credential from dual-flow response structure
+      const responseData = response.data as any;
+      expect(responseData.type).toBe('credential'); // Should be direct issuance since subject_did provided
+      const credential = responseData.credential;
+      
       expect(credential.type).toContain('VerifiableCredential');
       expect(credential.type).toContain('IntentMandate');
       expect(credential.credentialSubject).toBeDefined();
@@ -186,7 +197,11 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
       expect(response.success).toBe(true);
       expect(response.data).toBeDefined();
 
-      const credential = response.data as any;
+      // Extract credential from dual-flow response structure
+      const responseData = response.data as any;
+      expect(responseData.type).toBe('credential'); // Should be direct issuance since subject_did provided
+      const credential = responseData.credential;
+      
       expect(credential.type).toContain('IntentMandate');
       expect(credential.credentialSubject.mandateId).toBe(mandateId);
       expect(credential.credentialSubject.intentMandate.contents.shopping_intent.budget_max.value).toBe(50);
@@ -224,7 +239,11 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
       expect(response.success).toBe(true);
       expect(response.data).toBeDefined();
 
-      const credential = response.data as any;
+      // Extract credential from dual-flow response structure
+      const responseData = response.data as any;
+      expect(responseData.type).toBe('credential'); // Should be direct issuance since subject_did provided
+      const credential = responseData.credential;
+      
       expect(credential.type).toContain('VerifiableCredential');
       expect(credential.type).toContain('PaymentMandate');
       expect(credential.credentialSubject).toBeDefined();
@@ -269,7 +288,11 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
       expect(response.success).toBe(true);
       expect(response.data).toBeDefined();
 
-      const credential = response.data as any;
+      // Extract credential from dual-flow response structure
+      const responseData = response.data as any;
+      expect(responseData.type).toBe('credential'); // Should be direct issuance since subject_did provided
+      const credential = responseData.credential;
+      
       expect(credential.type).toContain('PaymentMandate');
       expect(credential.credentialSubject.paymentMandate.payment_mandate_contents.human_present).toBe(false);
       expect(credential.credentialSubject.paymentMandate.payment_mandate_contents.merchant_agent).toBe('AutonomousMerchant_v3.0');
@@ -304,7 +327,11 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
       });
 
       expect(issueResponse.success).toBe(true);
-      const credential = issueResponse.data as any;
+      
+      // Extract credential from dual-flow response structure
+      const issueResponseData = issueResponse.data as any;
+      expect(issueResponseData.type).toBe('credential');
+      const credential = issueResponseData.credential;
 
       console.log('Issued credential for verification:', credential.id);
 
@@ -326,6 +353,52 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
       // Note: verification result doesn't include the credential, just the verification status
       
       console.log('✓ Mandate verified successfully');
+    });
+  });
+
+  describe('Credential Offer Flow (QR Code)', () => {
+    it('should create a credential offer when subject_did is omitted', { timeout: 30000 }, async () => {
+      console.log('Starting credential offer flow e2e test');
+      
+      const mandateId = `cart_offer_${Date.now()}`;
+      // Omit subject_did to trigger credential offer flow
+      const response = await ap2Client.issueCartMandate({
+        mandate_id: mandateId,
+        cart_items: [
+          { label: 'QR Code Test Product', currency: 'USD', value: 99.99 },
+        ],
+        total_amount: { currency: 'USD', value: 99.99 },
+        payment_method: 'digital_wallet',
+        merchant_id: 'merchant_qr_test',
+        payer_id: 'payer_qr_test',
+        issuer_did: ISSUER_DID,
+        // subject_did intentionally omitted
+      });
+
+      console.log('Credential Offer Response:', JSON.stringify(response, null, 2));
+
+      expect(response.success).toBe(true);
+      expect(response.data).toBeDefined();
+
+      // Verify it's an offer response, not a credential
+      const responseData = response.data as any;
+      expect(responseData.type).toBe('offer');
+      expect(responseData.offer).toBeDefined();
+      expect(responseData.offer.issuerId).toBeDefined();
+      // offerUrl or offerUri should be present (API may return either/both)
+      expect(responseData.offer.offerUrl || responseData.offer.offerUri).toBeDefined();
+
+      console.log('✓ Credential offer created successfully');
+      console.log('  Issuer ID:', responseData.offer.issuerId);
+      if (responseData.offer.offerUrl) {
+        console.log('  Offer URL (for QR code):', responseData.offer.offerUrl);
+      }
+      if (responseData.offer.offerUri) {
+        console.log('  Offer URI:', responseData.offer.offerUri);
+      }
+      
+      // Note: The credential won't exist until someone claims it via the QR code
+      // So we don't track it for cleanup
     });
   });
 

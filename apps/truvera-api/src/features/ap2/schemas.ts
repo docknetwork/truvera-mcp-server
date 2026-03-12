@@ -66,7 +66,7 @@ export const components = {
         },
         subject_did: {
           type: "string",
-          description: "DID of the credential subject (recipient/holder)",
+          description: "Optional: DID of the credential subject (recipient/holder). If provided, credential is issued immediately. If omitted, creates a credential offer for QR code claiming.",
         },
       },
       required: [
@@ -77,7 +77,6 @@ export const components = {
         "merchant_id",
         "payer_id",
         "issuer_did",
-        "subject_did",
       ],
     },
 
@@ -146,7 +145,7 @@ export const components = {
         },
         subject_did: {
           type: "string",
-          description: "DID of the credential subject (recipient/holder)",
+          description: "Optional: DID of the credential subject (recipient/holder). If provided, credential is issued immediately. If omitted, creates a credential offer for QR code claiming.",
         },
       },
       required: [
@@ -156,7 +155,6 @@ export const components = {
         "budget_max_value",
         "payer_id",
         "issuer_did",
-        "subject_did",
       ],
     },
 
@@ -209,7 +207,7 @@ export const components = {
         },
         subject_did: {
           type: "string",
-          description: "DID of the credential subject (recipient/holder)",
+          description: "Optional: DID of the credential subject (recipient/holder). If provided, credential is issued immediately. If omitted, creates a credential offer for QR code claiming.",
         },
       },
       required: [
@@ -220,7 +218,6 @@ export const components = {
         "payment_method",
         "human_present",
         "issuer_did",
-        "subject_did",
       ],
     },
 

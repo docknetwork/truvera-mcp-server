@@ -8,6 +8,7 @@ import { TruveraClient } from "./clients/index.js";
 import { buildToolList, buildHandlerMapFromTruvera } from "./tools/composeTools.js";
 import { BUILD_INFO } from "./build-info.js";
 import { AP2Client, getAP2ToolDefs, getAP2Handlers, initializeAP2Schemas } from "./features/ap2/index.js";
+import { OpenIdClient } from "./features/openid/index.js";
 
 // Configuration from environment variables
 dotenv.config();
@@ -47,8 +48,9 @@ async function main() {
         console.error("[AP2] AP2 tools will function using schema URLs as references for Truvera API");
       }
       
-      // Create AP2 client and add tools
-      const ap2Client = new AP2Client(truveraClient);
+      // Create AP2 client with both Truvera and OpenID clients for dual-flow support
+      const openIdClient = new OpenIdClient(truveraClient);
+      const ap2Client = new AP2Client(truveraClient, openIdClient);
       const ap2Tools = getAP2ToolDefs();
       const ap2Handlers = getAP2Handlers(ap2Client);
       

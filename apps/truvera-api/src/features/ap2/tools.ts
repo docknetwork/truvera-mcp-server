@@ -22,17 +22,17 @@ export function getAP2ToolDefs(): ToolDef[] {
   return [
     {
       name: "issue_cart_mandate",
-      description: `Issue a Cart Mandate for human-present payment authorization. Cart Mandates contain exact cart details that the user explicitly approves with cryptographic signature. Schema: ${schemaUrls.cart}. This mandate is signed by the merchant first, then by the user's device. Required for human-present transactions where the user sees and approves the final cart.`,
+      description: `Issue a Cart Mandate for human-present payment authorization. Cart Mandates contain exact cart details that the user explicitly approves with cryptographic signature. Schema: ${schemaUrls.cart}. This mandate is signed by the merchant first, then by the user's device. Required for human-present transactions where the user sees and approves the final cart. DUAL FLOW: If 'subject_did' is provided, the credential is issued immediately. If 'subject_did' is omitted, a credential offer is created for QR code claiming.`,
       inputSchema: components.schemas.IssueCartMandateRequest,
     },
     {
       name: "issue_intent_mandate",
-      description: `Issue an Intent Mandate for human-not-present payment authorization. Intent Mandates contain shopping constraints (budget, products, merchant preferences) that authorize an agent to make purchases on the user's behalf within defined limits. Schema: ${schemaUrls.intent}. The user signs this mandate to pre-authorize purchases that may happen later when they're not present. Use for scenarios like "buy these shoes when the price drops below $100" or "buy concert tickets as soon as they go on sale".`,
+      description: `Issue an Intent Mandate for human-not-present payment authorization. Intent Mandates contain shopping constraints (budget, products, merchant preferences) that authorize an agent to make purchases on the user's behalf within defined limits. Schema: ${schemaUrls.intent}. The user signs this mandate to pre-authorize purchases that may happen later when they're not present. Use for scenarios like "buy these shoes when the price drops below $100" or "buy concert tickets as soon as they go on sale". DUAL FLOW: If 'subject_did' is provided, the credential is issued immediately. If 'subject_did' is omitted, a credential offer is created for QR code claiming.`,
       inputSchema: components.schemas.IssueIntentMandateRequest,
     },
     {
       name: "issue_payment_mandate",
-      description: `Issue a Payment Mandate for payment network visibility into agent involvement. Payment Mandates are separate VDCs sent to payment networks and issuers (alongside cart/intent mandates) to signal AI agent participation and transaction modality. Schema: ${schemaUrls.payment}. This helps networks assess risk and ensure proper accountability for agentic transactions.`,
+      description: `Issue a Payment Mandate for payment network visibility into agent involvement. Payment Mandates are separate VDCs sent to payment networks and issuers (alongside cart/intent mandates) to signal AI agent participation and transaction modality. Schema: ${schemaUrls.payment}. This helps networks assess risk and ensure proper accountability for agentic transactions. DUAL FLOW: If 'subject_did' is provided, the credential is issued immediately. If 'subject_did' is omitted, a credential offer is created for QR code claiming.`,
       inputSchema: components.schemas.IssuePaymentMandateRequest,
     },
     {
