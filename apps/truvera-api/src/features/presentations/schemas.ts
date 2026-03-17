@@ -31,6 +31,13 @@ export const components = {
     CreateProofTemplateRequest: { $ref: '#/components/schemas/ProofTemplatePayload' },
     GetProofTemplateRequest: { type: "object", required: ["id"], properties: { id: { type: "string" } } },
     CreateProofRequest: { $ref: '#/components/schemas/ProofRequestPayload' },
+    GetProofRequestResultRequest: {
+      type: "object",
+      required: ["id"],
+      properties: {
+        id: { type: "string", format: "uuid" }
+      }
+    },
     // Input arguments for POST /proof-templates/{templateId}/request
     CreateProofRequestArgs: {
       type: "object",

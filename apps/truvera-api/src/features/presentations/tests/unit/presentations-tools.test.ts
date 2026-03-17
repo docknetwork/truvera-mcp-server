@@ -64,4 +64,37 @@ describe("unit: presentations schema and tool definitions", () => {
     expect(res).toHaveProperty("isError", true);
     expect(fakeClient.createProofRequest).not.toHaveBeenCalled();
   });
+
+  it("defines get_proof_request_result tool with id input schema", () => {
+    const tool = (toolDefs as any).find((t: any) => t.name === "get_proof_request_result");
+    expect(tool).toBeDefined();
+    expect(tool.inputSchema).toBe((components as any).schemas.GetProofRequestResultRequest);
+  });
+
+  it("get_proof_request_result handler requires id", async () => {
+    const fakeClient = {
+      getProofRequestResult: vi.fn()
+    } as any;
+    const handlers = getHandlers(fakeClient as any);
+    const handler = handlers.get("get_proof_request_result")!;
+
+    const res = await handler({});
+    expect(res).toHaveProperty("isError", true);
+    expect(fakeClient.getProofRequestResult).not.toHaveBeenCalled();
+  });
+
+  it("get_proof_request_result handler calls client with provided id", async () => {
+    const fakeClient = {
+      getProofRequestResult: vi.fn()
+    } as any;
+    const handlers = getHandlers(fakeClient as any);
+    const handler = handlers.get("get_proof_request_result")!;
+
+    fakeClient.getProofRequestResult.mockResolvedValue({ success: true, data: { id: "proof-123", verified: true } });
+    const res = await handler({ id: "123e4567-e89b-12d3-a456-426614174000" });
+
+    expect(fakeClient.getProofRequestResult).toHaveBeenCalledWith("123e4567-e89b-12d3-a456-426614174000");
+    expect(res.isError).not.toBe(true);
+    expect(res.content).toBeDefined();
+  });
 });

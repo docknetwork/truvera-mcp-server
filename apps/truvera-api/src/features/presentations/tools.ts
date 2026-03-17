@@ -40,6 +40,12 @@ Behavior rules:
 The body must conform to the CreateProofRequest schema. The template's request provides default values; values provided in the body will override the template defaults. If you only have a template ID, call GET /proof-templates/{id} to inspect the template before composing the request. ⚠️ IMPORTANT: Truvera's proof request structure may differ from standard Indy/W3C conventions. ALWAYS check the Truvera API spec for exact field names and formats: https://swagger-api.truvera.io/openapi.yaml`,
     inputSchema: components.schemas.CreateProofRequestArgs,
   },
+  {
+    name: "get_proof_request_result",
+    description:
+      "Get proof request result and presentation state by ID. GET /proof-requests/{id}. Returns the current proof request status, including verification outcome and submitted presentation details when available. For schema details, refer to the Truvera API spec: https://swagger-api.truvera.io/openapi.yaml",
+    inputSchema: components.schemas.GetProofRequestResultRequest,
+  },
 ];
 
 export function getHandlers(presentations: PresentationsClient): Map<string, ToolHandler> {
@@ -77,6 +83,12 @@ export function getHandlers(presentations: PresentationsClient): Map<string, Too
     if (!templateId) return { content: [{ type: "text", text: "Error: 'templateId' is required (either path param or body.template)" }], isError: true };
 
     return formatResult(await presentations.createProofRequest(templateId, body));
+  });
+
+  handlers.set("get_proof_request_result", async (args) => {
+    const { id } = args as { id?: string };
+    if (!id) return { content: [{ type: "text", text: "Error: 'id' is required" }], isError: true };
+    return formatResult(await presentations.getProofRequestResult(id));
   });
 
   return handlers;

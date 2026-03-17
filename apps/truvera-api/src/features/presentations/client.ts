@@ -28,4 +28,8 @@ export class PresentationsClient {
   async createProofRequest(templateId: string, body: CreateProofRequest): Promise<ApiResponse> {
     return this.truvera.request({ method: "POST", endpoint: `/proof-templates/${encodeURIComponent(templateId)}/request`, body });
   }
+
+  async getProofRequestResult(id: string): Promise<ApiResponse> {
+    return this.truvera.request({ method: "GET", endpoint: `/proof-requests/${encodeURIComponent(id)}` });
+  }
 }

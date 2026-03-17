@@ -49,3 +49,11 @@ export interface CreateProofRequestArgs {
   templateId?: string;
   body: CreateProofRequest;
 }
+
+/**
+ * GET /proof-requests/{id}
+ * Retrieve proof request state and presentation result details
+ */
+export interface GetProofRequestResultRequest {
+  id: string;
+}

@@ -4,6 +4,7 @@ export type {
   CreateProofTemplateRequest,
   CreateProofRequest,
   CreateProofRequestArgs,
+  GetProofRequestResultRequest,
   IntervalObject,
   IndyProofReqAttrSpec
 } from "./types.js";

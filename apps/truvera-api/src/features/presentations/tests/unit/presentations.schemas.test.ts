@@ -8,4 +8,11 @@ describe("unit: presentations schema shapes", () => {
     expect(payload.properties.request).toBeDefined();
     expect(payload.properties.request.additionalProperties).toBe(true);
   });
+
+  it("get proof request result request requires id", () => {
+    const request = (presentations as any).schemas.GetProofRequestResultRequest;
+    expect(request).toBeDefined();
+    expect(request.required).toContain("id");
+    expect(request.properties.id).toBeDefined();
+  });
 });
