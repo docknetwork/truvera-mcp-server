@@ -201,6 +201,10 @@ export const components = {
           type: "number",
           description: "Number of days for refund eligibility",
         },
+        user_authorization: {
+          type: "string",
+          description: "Optional user authorization signature or token. If omitted, the server uses a placeholder string to satisfy the current Payment Mandate schema.",
+        },
         issuer_did: {
           type: "string",
           description: "DID of the credential issuer (must exist in Truvera)",

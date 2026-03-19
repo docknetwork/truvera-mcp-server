@@ -96,10 +96,16 @@ if (!isValid) {
 
 **Payment network visibility** showing AI agent involvement.
 
+Note: The Payment Mandate schema and JSON-LD context in this directory are currently an interim Truvera-compatible profile. They are internally consistent, but they may differ from examples shown in the public AP2 specification until the AP2 project publishes a definitive schema set.
+
 **Validation Schema**: `payment-mandate-schema.json`
 - Required: `paymentMandateContents`, `userAuthorization`
 - Contains: `PaymentMandateContents`, `PaymentResponse`
 - Features: Agent identifiers, human presence flag, payment details
+
+Field naming note:
+- Local schema/context: camelCase fields such as `paymentMandateContents`, `paymentMandateId`, `paymentResponse`, `humanPresent`, `userAuthorization`
+- Current AP2 public examples: snake_case fields such as `payment_mandate_contents`, `payment_mandate_id`, `payment_response`, `human_present`, `user_authorization`
 
 **JSON-LD Context**: `payment-mandate-v1.json`
 - Maps payment details and agent info

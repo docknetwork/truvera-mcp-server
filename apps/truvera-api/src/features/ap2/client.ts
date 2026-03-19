@@ -15,6 +15,7 @@ import type {
   ShoppingIntent,
 } from "./types.js";
 import { getCachedSchema } from "./schema-fetcher.js";
+import { getSubjectIdFromCredential, isDid } from "../../tools/utils.js";
 
 /**
  * Request to issue a Cart Mandate
@@ -74,6 +75,7 @@ export interface IssuePaymentMandateRequest {
   shopping_agent?: string;
   human_present: boolean;
   refund_period_days?: number;
+  user_authorization?: string;
   issuer_did: string;
   /**
    * Optional: Subject DID (holder/payer).
@@ -113,6 +115,29 @@ export class AP2Client {
   ) {}
 
   /**
+   * Resolve JSON-LD context URL from a schema URL.
+   *
+   * Truvera schema documents expose `$metadata.uris.jsonLdContext`.
+   * When present, use it in VC `@context`; otherwise fall back to the schema URL.
+   */
+  private resolveContextUrl(schemaUrl: string): string {
+    const cached = getCachedSchema(schemaUrl) as
+      | {
+          $metadata?: {
+            uris?: {
+              jsonLdContext?: unknown;
+            };
+          };
+        }
+      | undefined;
+
+    const jsonLdContext = cached?.$metadata?.uris?.jsonLdContext;
+    return typeof jsonLdContext === "string" && jsonLdContext.length > 0
+      ? jsonLdContext
+      : schemaUrl;
+  }
+
+  /**
    * Get schema URLs from environment
    */
   private getSchemaUrls() {
@@ -127,10 +152,16 @@ export class AP2Client {
    * Helper: Issue credential directly (when subject_did is provided)
    */
   private async issueCredentialDirect(credentialData: any) {
+    const subjectId = getSubjectIdFromCredential(credentialData);
+    const distribute = isDid(subjectId);
+
     const result = await this.truveraClient.request({
       method: "POST",
       endpoint: "/credentials",
-      body: { credential: credentialData },
+      body: {
+        credential: credentialData,
+        ...(distribute ? { distribute: true } : {}),
+      },
     });
 
     if (result.success) {
@@ -146,17 +177,35 @@ export class AP2Client {
   }
 
   /**
+   * Routes issuance: issues directly when subjectDid is provided, otherwise creates a credential offer.
+   */
+  private async routeIssuance(credentialData: any, subjectDid?: string) {
+    if (subjectDid) {
+      return this.issueCredentialDirect(credentialData);
+    } else {
+      return this.createCredentialOffer(credentialData);
+    }
+  }
+
+  /**
    * Helper: Create credential offer (when subject_did is omitted)
    */
-  private async createCredentialOffer(credentialData: any, mandateType: string) {
+  private async createCredentialOffer(credentialData: any) {
+    // The /openid/issuers endpoint uses Truvera's own field names:
+    //   `context`  (not `@context`)
+    //   `subject`  (not `credentialSubject`)
+    // Destructure the W3C-shaped credentialData and remap before sending.
+    const { "@context": context, credentialSubject, ...restCredential } = credentialData;
+
     // Step 1: Create OpenID issuer with mandate template
     const issuerResult = await this.openIdClient.createIssuer({
       credentialOptions: {
         credential: {
-          ...credentialData,
+          ...restCredential,
+          context,
           // Use placeholder for subject - will be filled when claimed
-          credentialSubject: {
-            ...credentialData.credentialSubject,
+          subject: {
+            ...credentialSubject,
             id: "{{holder_did}}", // Template variable for wallet claiming
           },
         },
@@ -189,7 +238,7 @@ export class AP2Client {
         type: 'offer' as const,
         offer: {
           issuerId,
-          offerUrl: offerData.offerUrl || offerData.qrUrl,
+          offerUrl: offerData.url, // API returns `url` field (openid-credential-offer://...)
           offerUri: offerData.offerUri,
         },
       },
@@ -205,6 +254,7 @@ export class AP2Client {
    */
   async issueCartMandate(request: IssueCartMandateRequest) {
     const schemaUrls = this.getSchemaUrls();
+    const cartContextUrl = this.resolveContextUrl(schemaUrls.cart);
     
     // Build cart mandate structure
     const displayItems: DisplayItem[] = request.cart_items.map((item) => ({
@@ -253,7 +303,7 @@ export class AP2Client {
     const credentialData = {
       "@context": [
         "https://www.w3.org/2018/credentials/v1",
-        schemaUrls.cart,
+        cartContextUrl,
       ],
       type: ["VerifiableCredential", "CartMandate"],
       issuer: {
@@ -269,14 +319,7 @@ export class AP2Client {
       },
     };
 
-    // Route based on whether subject_did is provided
-    if (request.subject_did) {
-      // Direct issuance flow
-      return this.issueCredentialDirect(credentialData);
-    } else {
-      // Credential offer flow
-      return this.createCredentialOffer(credentialData, "CartMandate");
-    }
+    return this.routeIssuance(credentialData, request.subject_did);
   }
 
   /**
@@ -288,6 +331,7 @@ export class AP2Client {
    */
   async issueIntentMandate(request: IssueIntentMandateRequest) {
     const schemaUrls = this.getSchemaUrls();
+    const intentContextUrl = this.resolveContextUrl(schemaUrls.intent);
     const defaultTTL = parseInt(process.env.AP2_DEFAULT_TTL_SECONDS || "3600", 10);
 
     const shoppingIntent: ShoppingIntent = {
@@ -329,7 +373,7 @@ export class AP2Client {
     const credentialData = {
       "@context": [
         "https://www.w3.org/2018/credentials/v1",
-        schemaUrls.intent,
+        intentContextUrl,
       ],
       type: ["VerifiableCredential", "IntentMandate"],
       issuer: {
@@ -345,14 +389,7 @@ export class AP2Client {
       },
     };
 
-    // Route based on whether subject_did is provided
-    if (request.subject_did) {
-      // Direct issuance flow
-      return this.issueCredentialDirect(credentialData);
-    } else {
-      // Credential offer flow
-      return this.createCredentialOffer(credentialData, "IntentMandate");
-    }
+    return this.routeIssuance(credentialData, request.subject_did);
   }
 
   /**
@@ -364,36 +401,41 @@ export class AP2Client {
    */
   async issuePaymentMandate(request: IssuePaymentMandateRequest) {
     const schemaUrls = this.getSchemaUrls();
+    const paymentContextUrl = this.resolveContextUrl(schemaUrls.payment);
+    const timestamp = new Date().toISOString();
 
     const paymentMandate: PaymentMandate = {
-      payment_mandate_contents: {
-        payment_mandate_id: request.payment_mandate_id,
-        payment_details_id: request.payment_details_id,
-        payment_details_total: {
+      paymentMandateContents: {
+        paymentMandateId: request.payment_mandate_id,
+        paymentDetailsId: request.payment_details_id,
+        paymentDetailsTotal: {
           label: "Total",
           amount: {
             currency: request.total_currency,
-            value: request.total_value,
+            value: String(request.total_value),
           },
-          refund_period: request.refund_period_days,
+          ...(request.refund_period_days !== undefined
+            ? { refundPeriod: request.refund_period_days }
+            : {}),
         },
-        payment_response: {
-          request_id: request.payment_details_id,
-          method_name: request.payment_method,
+        paymentResponse: {
+          requestId: request.payment_details_id,
+          methodName: request.payment_method,
           details: {},
         },
-        merchant_agent: request.merchant_agent,
-        shopping_agent: request.shopping_agent,
-        human_present: request.human_present,
-        timestamp: new Date().toISOString(),
+        ...(request.merchant_agent ? { merchantAgent: request.merchant_agent } : {}),
+        ...(request.shopping_agent ? { shoppingAgent: request.shopping_agent } : {}),
+        humanPresent: request.human_present,
+        timestamp,
       },
+      userAuthorization: request.user_authorization ?? "pending-user-authorization",
     };
 
     // Build W3C Verifiable Credential structure
     const credentialData = {
       "@context": [
         "https://www.w3.org/2018/credentials/v1",
-        schemaUrls.payment,
+        paymentContextUrl,
       ],
       type: ["VerifiableCredential", "PaymentMandate"],
       issuer: {
@@ -401,21 +443,11 @@ export class AP2Client {
       },
       credentialSubject: {
         id: request.subject_did || "{{holder_did}}", // Placeholder if no subject_did
-        mandateId: request.payment_mandate_id,
-        mandateType: "PaymentMandate",
-        paymentMandate,
-        humanPresent: request.human_present,
+        ...paymentMandate,
       },
     };
 
-    // Route based on whether subject_did is provided
-    if (request.subject_did) {
-      // Direct issuance flow
-      return this.issueCredentialDirect(credentialData);
-    } else {
-      // Credential offer flow
-      return this.createCredentialOffer(credentialData, "PaymentMandate");
-    }
+    return this.routeIssuance(credentialData, request.subject_did);
   }
 
   /**

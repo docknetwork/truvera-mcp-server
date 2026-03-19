@@ -93,6 +93,8 @@ Defines the structure for payment network visibility showing AI agent involvemen
 }
 ```
 
+Note: This example reflects the local bundled Payment Mandate profile used by the MCP server today. The public AP2 specification currently shows Payment Mandate examples in snake_case, while this local profile uses camelCase so it stays consistent with the bundled JSON-LD context and validation schema. Treat this as an interim profile pending definitive upstream AP2 schemas.
+
 ## Schema Design Principles
 
 ### 1. W3C Compatibility

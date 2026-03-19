@@ -96,30 +96,31 @@ describe("AP2 Types", () => {
   describe("PaymentMandate", () => {
     it("should accept valid payment mandate structure", () => {
       const mandate: PaymentMandate = {
-        payment_mandate_contents: {
-          payment_mandate_id: "pm_123",
-          payment_details_id: "order_123",
-          payment_details_total: {
+        paymentMandateContents: {
+          paymentMandateId: "pm_123",
+          paymentDetailsId: "order_123",
+          paymentDetailsTotal: {
             label: "Total",
             amount: {
               currency: "USD",
-              value: 100,
+              value: "100.00",
             },
           },
-          payment_response: {
-            request_id: "order_123",
-            method_name: "CARD",
+          paymentResponse: {
+            requestId: "order_123",
+            methodName: "CARD",
             details: {
               token: "tok_123",
             },
           },
-          human_present: true,
+          humanPresent: true,
           timestamp: new Date().toISOString(),
         },
+        userAuthorization: "auth_123",
       };
 
-      expect(mandate.payment_mandate_contents.payment_mandate_id).toBe("pm_123");
-      expect(mandate.payment_mandate_contents.human_present).toBe(true);
+      expect(mandate.paymentMandateContents.paymentMandateId).toBe("pm_123");
+      expect(mandate.paymentMandateContents.humanPresent).toBe(true);
     });
   });
 });

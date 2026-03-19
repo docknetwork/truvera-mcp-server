@@ -247,13 +247,11 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
       expect(credential.type).toContain('VerifiableCredential');
       expect(credential.type).toContain('PaymentMandate');
       expect(credential.credentialSubject).toBeDefined();
-      expect(credential.credentialSubject.mandateType).toBe('PaymentMandate');
-      expect(credential.credentialSubject.mandateId).toBe(paymentMandateId);
-      expect(credential.credentialSubject.paymentMandate).toBeDefined();
-      expect(credential.credentialSubject.paymentMandate.payment_mandate_contents).toBeDefined();
-      expect(credential.credentialSubject.paymentMandate.payment_mandate_contents.payment_mandate_id).toBe(paymentMandateId);
-      expect(credential.credentialSubject.paymentMandate.payment_mandate_contents.human_present).toBe(true);
-      expect(credential.credentialSubject.paymentMandate.payment_mandate_contents.payment_details_total.amount.value).toBe(299.99);
+      expect(credential.credentialSubject.paymentMandateContents).toBeDefined();
+      expect(credential.credentialSubject.paymentMandateContents.paymentMandateId).toBe(paymentMandateId);
+      expect(credential.credentialSubject.paymentMandateContents.humanPresent).toBe(true);
+      expect(credential.credentialSubject.paymentMandateContents.paymentDetailsTotal.amount.value).toBe('299.99');
+      expect(credential.credentialSubject.userAuthorization).toBeDefined();
       expect(credential.id).toBeDefined();
       expect(credential.issuanceDate).toBeDefined();
       expect(credential.proof).toBeDefined();
@@ -294,9 +292,9 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
       const credential = responseData.credential;
       
       expect(credential.type).toContain('PaymentMandate');
-      expect(credential.credentialSubject.paymentMandate.payment_mandate_contents.human_present).toBe(false);
-      expect(credential.credentialSubject.paymentMandate.payment_mandate_contents.merchant_agent).toBe('AutonomousMerchant_v3.0');
-      expect(credential.credentialSubject.paymentMandate.payment_mandate_contents.shopping_agent).toBe('AIShopperPro_v4.2');
+      expect(credential.credentialSubject.paymentMandateContents.humanPresent).toBe(false);
+      expect(credential.credentialSubject.paymentMandateContents.merchantAgent).toBe('AutonomousMerchant_v3.0');
+      expect(credential.credentialSubject.paymentMandateContents.shoppingAgent).toBe('AIShopperPro_v4.2');
 
       // Store credential ID for potential cleanup
       if (credential.id) {

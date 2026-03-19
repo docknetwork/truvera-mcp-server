@@ -91,6 +91,8 @@ AP2_PAYMENT_MANDATE_SCHEMA_URL=https://ap2-protocol.org/schemas/payment-mandate/
 
 **Important**: The AP2 protocol specification exists but JSON-LD schemas are not yet published at the URLs above. The system will attempt to fetch them at startup but handles 404 errors gracefully. The schema URLs are passed to Truvera's credential issuance API for future compatibility but are not currently validated. You can configure custom schema URLs when they become available.
 
+**Schema status note**: The local schemas currently bundled in this repository should be treated as interim Truvera-compatible profiles derived from the AP2 documentation, not as definitive upstream AP2 schemas. In particular, the current Payment Mandate schema/context uses camelCase field names such as `paymentMandateContents` and `userAuthorization`, while the AP2 public specification samples currently show snake_case names such as `payment_mandate_contents` and `user_authorization`. When the AP2 community publishes a definitive schema set, this implementation should be reviewed and adjusted to match it.
+
 ## Available MCP Tools
 
 ### `issue_cart_mandate`
@@ -130,6 +132,8 @@ Issue an Intent Mandate for human-not-present transactions.
 ### `issue_payment_mandate`
 Issue a Payment Mandate for network visibility.
 
+Note: This tool currently emits the repository's bundled Payment Mandate profile, which matches the local JSON-LD context and validation schema. That profile may differ in field naming from examples in the current AP2 public spec.
+
 **Required Parameters:**
 - `payment_mandate_id`: Unique identifier
 - `payment_details_id`: Reference to cart/intent mandate
@@ -144,6 +148,7 @@ Issue a Payment Mandate for network visibility.
 - `merchant_agent`: Merchant agent identifier
 - `shopping_agent`: Shopping agent identifier
 - `refund_period_days`: Refund eligibility period
+- `user_authorization`: Optional user authorization signature/token. If omitted, the server currently inserts a placeholder string so the credential matches the published Payment Mandate schema.
 
 ### `verify_mandate`
 Verify an AP2 mandate credential.

@@ -35,3 +35,38 @@ export function liftProperties<T extends Record<string, unknown>>(obj: T): Omit<
     // Use object spread to merge the properties
     return liftedObject as ReturnType<typeof liftProperties<T>>;
 }
+
+function extractIdFromSubject(subject: unknown): string | undefined {
+  if (Array.isArray(subject)) {
+    for (const item of subject) {
+      if (item && typeof item === "object" && typeof (item as { id?: unknown }).id === "string") {
+        return (item as { id: string }).id;
+      }
+    }
+    return undefined;
+  }
+
+  if (subject && typeof subject === "object" && typeof (subject as { id?: unknown }).id === "string") {
+    return (subject as { id: string }).id;
+  }
+
+  return undefined;
+}
+
+export function isDid(value: unknown): value is string {
+  return typeof value === "string" && value.trim().startsWith("did:");
+}
+
+export function getSubjectIdFromCredential(credential: unknown): string | undefined {
+  if (!credential || typeof credential !== "object") {
+    return undefined;
+  }
+
+  const asRecord = credential as Record<string, unknown>;
+  const fromTruveraShape = extractIdFromSubject(asRecord.subject);
+  if (fromTruveraShape) {
+    return fromTruveraShape;
+  }
+
+  return extractIdFromSubject(asRecord.credentialSubject);
+}

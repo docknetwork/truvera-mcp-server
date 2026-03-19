@@ -129,17 +129,28 @@ export interface IntentMandate {
  * Payment Response structure
  */
 export interface PaymentResponse {
-  request_id: string;
-  method_name: string;
+  requestId: string;
+  methodName: string;
   details: {
     token?: string;
     [key: string]: unknown;
   };
-  shipping_address?: unknown;
-  shipping_option?: unknown;
-  payer_name?: string | null;
-  payer_email?: string | null;
-  payer_phone?: string | null;
+  shippingAddress?: unknown;
+  shippingOption?: unknown;
+  payerName?: string | null;
+  payerEmail?: string | null;
+  payerPhone?: string | null;
+}
+
+export interface PaymentMandateAmount {
+  currency: string;
+  value: string;
+}
+
+export interface PaymentMandateTotal {
+  label: string;
+  amount: PaymentMandateAmount;
+  refundPeriod?: number;
 }
 
 /**
@@ -147,13 +158,13 @@ export interface PaymentResponse {
  * For visibility to payment networks about agent involvement
  */
 export interface PaymentMandateContents {
-  payment_mandate_id: string;
-  payment_details_id: string;
-  payment_details_total: Total & { refund_period?: number };
-  payment_response: PaymentResponse;
-  merchant_agent?: string;
-  shopping_agent?: string;
-  human_present: boolean; // Human-Present vs Human-Not-Present signal
+  paymentMandateId: string;
+  paymentDetailsId: string;
+  paymentDetailsTotal: PaymentMandateTotal;
+  paymentResponse: PaymentResponse;
+  merchantAgent?: string;
+  shoppingAgent?: string;
+  humanPresent: boolean; // Human-Present vs Human-Not-Present signal
   timestamp: string;
 }
 
@@ -161,8 +172,8 @@ export interface PaymentMandateContents {
  * Payment Mandate
  */
 export interface PaymentMandate {
-  payment_mandate_contents: PaymentMandateContents;
-  user_authorization?: string; // JWT or similar cryptographic proof
+  paymentMandateContents: PaymentMandateContents;
+  userAuthorization: string; // JWT or similar cryptographic proof
 }
 
 /**

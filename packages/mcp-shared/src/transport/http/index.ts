@@ -97,17 +97,28 @@ export function startHTTPTransport({
       // Get session ID from header and normalize to string
       const sessionIdRaw = req.headers["mcp-session-id"];
       const sessionId = Array.isArray(sessionIdRaw) ? sessionIdRaw[0] : sessionIdRaw;
+      const initializeRequest = isInitializeRequest(body);
+
+      console.error("[DEBUG] MCP session resolution:", {
+        method: req.method,
+        hasSessionHeader: typeof sessionId === "string" && sessionId.length > 0,
+        sessionId: typeof sessionId === "string" ? sessionId : null,
+        isInitializeRequest: initializeRequest,
+        knownSessionCount: Object.keys(transports).length,
+      });
 
       let transport: StreamableHTTPServerTransport | undefined;
       let server: McpServer | undefined;
       let initializedSessionId: string | undefined;
       if (sessionId && typeof sessionId === "string" && transports[sessionId]) {
         // Existing session: reuse transport and server
+        console.error(`[DEBUG] Reusing existing MCP session: ${sessionId}`);
         const session = transports[sessionId];
         transport = session.transport;
         server = session.server;
-      } else if (!sessionId && isInitializeRequest(body)) {
+      } else if (!sessionId && initializeRequest) {
         // New session: create transport and server instance
+        console.error("[DEBUG] Creating new MCP session for initialize request");
         server = serverFactory();
         transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: randomUUID,
@@ -128,6 +139,17 @@ export function startHTTPTransport({
         await server.connect(transport);
       } else {
         // Invalid request: no session or not initialize
+        const knownSessions = Object.keys(transports);
+        console.error("[DEBUG] Rejecting MCP request due to invalid session state", {
+          method: req.method,
+          sessionId: typeof sessionId === "string" ? sessionId : null,
+          isInitializeRequest: initializeRequest,
+          knownSessionCount: knownSessions.length,
+          knownSessionsSample: knownSessions.slice(0, 5),
+          reason: !sessionId
+            ? "Missing mcp-session-id header for non-initialize request"
+            : "Unknown or expired mcp-session-id",
+        });
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(JSON.stringify({
           jsonrpc: "2.0",
@@ -141,8 +163,9 @@ export function startHTTPTransport({
       }
 
       // If this is an initialize request, forcibly set the session ID header as 'Mcp-Session-Id'
-      if (isInitializeRequest(body) && initializedSessionId) {
+      if (initializeRequest && initializedSessionId) {
         res.setHeader('Mcp-Session-Id', initializedSessionId);
+        console.error(`[DEBUG] Returning initialized session header Mcp-Session-Id: ${initializedSessionId}`);
       }
 
       try {

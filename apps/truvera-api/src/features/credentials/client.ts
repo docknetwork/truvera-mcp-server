@@ -1,5 +1,6 @@
 import { TruveraClient, ApiResponse } from "../../clients/truvera.js";
 import { IssueCredentialRequest, ListCredentialsQuery } from "./types.js";
+import { getSubjectIdFromCredential, isDid } from "../../tools/utils.js";
 
 export class CredentialsClient {
   private truvera: TruveraClient;
@@ -19,7 +20,9 @@ export class CredentialsClient {
 
   async issueCredential(body: IssueCredentialRequest): Promise<ApiResponse> {
     console.log("Issuing credential with body:", body);
-    return this.truvera.request({ method: "POST", endpoint: "/credentials", body });
+    const subjectId = getSubjectIdFromCredential(body?.credential);
+    const requestBody = isDid(subjectId) ? { ...body, distribute: true } : body;
+    return this.truvera.request({ method: "POST", endpoint: "/credentials", body: requestBody });
   }
 
   async getCredential(id: string, password?: string): Promise<ApiResponse> {
