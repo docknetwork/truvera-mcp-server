@@ -1,0 +1,17 @@
+architecture-beta
+    group api(cloud)[Truvera MCP Servers]
+
+    service agent(cloud)[Agent] in api
+    service truvera(cloud)[Truvera API] in api
+    service api-mcp(server)[API MCP Server] in api
+    service wallet-mcp(server)[Wallet MCP Server] in api
+    service wallet2(disk)[Wallet Storage] in api
+    junction walletJunction in api
+    junction truveraJunction in api
+
+    agent:T -- B:truveraJunction
+    truveraJunction:R --> L:api-mcp
+    agent:B -- T:walletJunction
+    walletJunction:R --> L:wallet-mcp
+    api-mcp:R --> L:truvera
+    wallet-mcp:R --> L:wallet2
