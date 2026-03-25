@@ -14,7 +14,7 @@
     "lint:fix": "eslint . --ext .ts --fix",
     "smoke": "tsx tests/smoke-list-tools.ts",
     "test": "vitest",
-    "e2e": "vitest tests/e2e --run",
+    "e2e": "npm run docker:build && vitest --run tests/e2e/tools-e2e.test.ts",
     "docker:build": "cd ../.. && docker build --build-arg BUILD_NUMBER=\"$(cat apps/truvera-api/.buildnumber)\" -t truvera-api-mcp:latest -t truvera-api-mcp:$(cat apps/truvera-api/.buildnumber) -f apps/truvera-api/Dockerfile .",
     "docker:run": "docker rm -f truvera-api-mcp || true && docker run -d --name truvera-api-mcp --env-file ./.env -e MCP_MODE=http -e MCP_PORT=3000 -p 3000:3000 truvera-api-mcp:latest"
   },

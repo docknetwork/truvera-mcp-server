@@ -1,6 +1,5 @@
 /**
- * AP2 E2E Tests
- * End-to-end tests for issuing and verifying AP2 mandates using real Truvera API
+ * AP2 live integration tests against the real Truvera API.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -8,26 +7,23 @@ import { TruveraClient } from '../../../../clients/index.js';
 import { AP2Client } from '../../client.js';
 import { CredentialsClient } from '../../../credentials/client.js';
 import { OpenIdClient } from '../../../openid/client.js';
-import dotenv from 'dotenv';
+import {
+  API_ENDPOINT,
+  ISSUER_DID,
+  SUBJECT_DID,
+  liveApiKey,
+  liveTestSkipReason,
+  shouldRunLiveIntegrationTests,
+} from '../../../../../tests/helpers/live-test-gate.js';
 
-// Load environment variables from .env (default location)
-dotenv.config();
-// Optionally override with test-specific values from .env.test
-dotenv.config({ path: '.env.test', override: true });
+console.log('AP2 Live Integration Test - Truvera API Endpoint:', API_ENDPOINT || 'Not Provided');
+console.log('AP2 Live Integration Test - Truvera API Key:', liveApiKey ? 'Provided' : 'Not Provided');
+console.log('AP2 Live Integration Test - Issuer DID:', ISSUER_DID);
+if (liveTestSkipReason) {
+  console.log('AP2 Live Integration Test - Skipping:', liveTestSkipReason);
+}
 
-const API_KEY = process.env.TRUVERA_API_KEY;
-const API_ENDPOINT = process.env.TRUVERA_API_ENDPOINT;
-const ISSUER_DID = process.env.TRUVERA_API_ISSUER_DID ?? 'did:example:issuer';
-const SUBJECT_DID = process.env.TRUVERA_API_SUBJECT_DID ?? 'did:example:subject';
-
-console.log('AP2 E2E Test - Truvera API Endpoint:', API_ENDPOINT || 'Not Provided');
-console.log('AP2 E2E Test - Truvera API Key:', API_KEY ? 'Provided' : 'Not Provided');
-console.log('AP2 E2E Test - Issuer DID:', ISSUER_DID);
-
-// Skip the suite if no API key is provided
-const shouldRunE2E = !!API_KEY;
-
-describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
+describe.skipIf(!shouldRunLiveIntegrationTests)('integration: AP2Client live mandate tests', () => {
   let ap2Client: AP2Client;
   let truveraClient: TruveraClient;
   let openIdClient: OpenIdClient;
@@ -35,7 +31,7 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
   const issuedCredentialIds: string[] = [];
 
   beforeAll(() => {
-    truveraClient = new TruveraClient(API_KEY as string, API_ENDPOINT);
+    truveraClient = new TruveraClient(liveApiKey as string, API_ENDPOINT);
     openIdClient = new OpenIdClient(truveraClient);
     ap2Client = new AP2Client(truveraClient, openIdClient);
     credentialsClient = new CredentialsClient(truveraClient);
@@ -68,8 +64,8 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
   }, 60000);
 
   describe('Cart Mandate (Human-Present)', () => {
-    it('should issue a cart mandate successfully', { timeout: 30000 }, async () => {
-      console.log('Starting issue Cart Mandate e2e test');
+    it('should issue a cart mandate successfully', { timeout: 120000 }, async () => {
+      console.log('Starting issue Cart Mandate live integration test');
       
       const mandateId = `cart_${Date.now()}`;
       const response = await ap2Client.issueCartMandate({
@@ -122,8 +118,8 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
   });
 
   describe('Intent Mandate (Human-Not-Present)', () => {
-    it('should issue an intent mandate successfully', { timeout: 30000 }, async () => {
-      console.log('Starting issue Intent Mandate e2e test');
+    it('should issue an intent mandate successfully', { timeout: 120000 }, async () => {
+      console.log('Starting issue Intent Mandate live integration test');
       
       const mandateId = `intent_${Date.now()}`;
       const response = await ap2Client.issueIntentMandate({
@@ -178,8 +174,8 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
       console.log('✓ Intent Mandate issued successfully:', credential.id);
     });
 
-    it('should issue a minimal intent mandate successfully', { timeout: 30000 }, async () => {
-      console.log('Starting issue minimal Intent Mandate e2e test');
+    it('should issue a minimal intent mandate successfully', { timeout: 120000 }, async () => {
+      console.log('Starting issue minimal Intent Mandate live integration test');
       
       const mandateId = `intent_minimal_${Date.now()}`;
       const response = await ap2Client.issueIntentMandate({
@@ -216,8 +212,8 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
   });
 
   describe('Payment Mandate (Network Visibility)', () => {
-    it('should issue a payment mandate for human-present transaction', { timeout: 90000 }, async () => {
-      console.log('Starting issue Payment Mandate (human-present) e2e test');
+    it('should issue a payment mandate for human-present transaction', { timeout: 180000 }, async () => {
+      console.log('Starting issue Payment Mandate (human-present) live integration test');
       
       const paymentMandateId = `payment_${Date.now()}`;
       const response = await ap2Client.issuePaymentMandate({
@@ -264,8 +260,8 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
       console.log('✓ Payment Mandate (human-present) issued successfully:', credential.id);
     });
 
-    it('should issue a payment mandate for human-not-present transaction', { timeout: 90000 }, async () => {
-      console.log('Starting issue Payment Mandate (human-not-present) e2e test');
+    it('should issue a payment mandate for human-not-present transaction', { timeout: 180000 }, async () => {
+      console.log('Starting issue Payment Mandate (human-not-present) live integration test');
       
       const paymentMandateId = `payment_autonomous_${Date.now()}`;
       const response = await ap2Client.issuePaymentMandate({
@@ -306,8 +302,8 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
   });
 
   describe('Mandate Verification', () => {
-    it('should verify an issued mandate successfully', { timeout: 30000 }, async () => {
-      console.log('Starting verify mandate e2e test');
+    it('should verify an issued mandate successfully', { timeout: 120000 }, async () => {
+      console.log('Starting verify mandate live integration test');
 
       // First issue a simple cart mandate to verify
       const mandateId = `cart_verify_${Date.now()}`;
@@ -355,8 +351,8 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
   });
 
   describe('Credential Offer Flow (QR Code)', () => {
-    it('should create a credential offer when subject_did is omitted', { timeout: 90000 }, async () => {
-      console.log('Starting credential offer flow e2e test');
+    it('should create a credential offer when subject_did is omitted', { timeout: 180000 }, async () => {
+      console.log('Starting credential offer flow live integration test');
       
       const mandateId = `cart_offer_${Date.now()}`;
       // Omit subject_did to trigger credential offer flow
@@ -401,7 +397,7 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
   });
 
   // Log summary at the end
-  if (shouldRunE2E) {
+  if (shouldRunLiveIntegrationTests) {
     describe('Test Summary', () => {
       it('should log issued credential IDs', () => {
         console.log('\n=== AP2 E2E Test Summary ===');

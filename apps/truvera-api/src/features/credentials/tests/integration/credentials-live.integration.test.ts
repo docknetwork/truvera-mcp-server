@@ -1,31 +1,27 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { TruveraClient } from '../../../../../src/clients/index.js';
-import dotenv from 'dotenv';
 import { CredentialsClient } from '../../client.js';
 import { VerifiableCredential, CredentialIssuer } from '../../../shared/credentials.js';
+import {
+  API_ENDPOINT,
+  ISSUER_DID,
+  liveApiKey,
+  liveTestSkipReason,
+  shouldRunLiveIntegrationTests,
+} from '../../../../../tests/helpers/live-test-gate.js';
 
-// Load environment variables from .env (default location)
-dotenv.config();
-// Optionally override with test-specific values from .env.test or .env.tests
-dotenv.config({ path: '.env.test', override: true });
-dotenv.config({ path: '.env.tests', override: true });
+console.log('Live Integration Test - Truvera API Endpoint:', API_ENDPOINT || 'Not Provided');
+console.log('Live Integration Test - Truvera API Key:', liveApiKey ? 'Provided' : 'Not Provided');
+if (liveTestSkipReason) {
+  console.log('Live Integration Test - Skipping:', liveTestSkipReason);
+}
 
-const API_KEY = process.env.TRUVERA_API_KEY;
-const API_ENDPOINT = process.env.TRUVERA_API_ENDPOINT;
-const ISSUER_DID = process.env.TRUVERA_API_ISSUER_DID ?? 'did:example:issuer';
-
-console.log('E2E Test - Truvera API Endpoint:', API_ENDPOINT || 'Not Provided');
-console.log('E2E Test - Truvera API Key:', API_KEY ? 'Provided' : 'Not Provided');
-
-// Skip the suite if no API key is provided
-const shouldRunE2E = !!API_KEY;
-
-describe.skipIf(!shouldRunE2E)('e2e: CredentialClient tests for the Truvera API', () => {
+describe.skipIf(!shouldRunLiveIntegrationTests)('integration: CredentialClient live tests against Truvera API', () => {
   let credentialClient: CredentialsClient;
   const issuedCredentialIds: string[] = [];
 
   beforeAll(() => {
-    const client = new TruveraClient(API_KEY as string, API_ENDPOINT);
+    const client = new TruveraClient(liveApiKey as string, API_ENDPOINT);
     credentialClient = new CredentialsClient(client);
   });
 
@@ -55,8 +51,8 @@ describe.skipIf(!shouldRunE2E)('e2e: CredentialClient tests for the Truvera API'
     console.log('=====================================\n');
   });
 
-  it('calls issue_credential and succeeds', { timeout: 30000 }, async () => {
-    console.log('Starting issue_credential e2e test');
+  it('calls issue_credential and succeeds', { timeout: 120000 }, async () => {
+    console.log('Starting issue_credential live integration test');
     const response = await credentialClient.issueCredential({
       credential: {
         type: ['VerifiableCredential', 'TestCredential'],
