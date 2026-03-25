@@ -1,43 +1,51 @@
 # Wallet MCP Server
 
-Model Context Protocol (MCP) server for interacting with Truvera Wallet SDK.
+> ## 🚧 Work in Progress — Not Ready for Use
+>
+> This server is under active development and is **not production-ready**. APIs, tool names, and environment variables may change without notice. Do not rely on this server for anything beyond experimentation.
+>
+> For a fully functional MCP server, use [`apps/truvera-api`](../truvera-api/README.md).
 
-## Status
+---
 
-✅ **Phase 1 Complete** - DID management tools implemented and functional!
+A Model Context Protocol (MCP) server for interacting with the Truvera Wallet SDK (`@docknetwork/wallet-sdk-web`). When complete, it will allow AI assistants to manage DIDs, hold credentials, and support DIDComm messaging via a local wallet.
 
-## Current Features
+## Current state
 
-- ✅ MCP server transport (stdio/http)
-- ✅ Wallet SDK integration (@docknetwork/wallet-sdk-web v0.0.10)
-- ✅ Browser polyfills for Node.js environment
-- ✅ DID management (3 tools)
-  - `get_default_did` - Get wallet's default DID
-  - `create_did` - Create new Decentralized Identifiers
-  - `list_dids` - List all DIDs in wallet
-- ⏳ Credential management (coming next)
-- ⏳ DIDComm messaging (coming later)
+| Area | Status |
+|------|--------|
+| MCP server transport (stdio/http) | ✅ Scaffolded |
+| Wallet SDK integration | ✅ Basic integration (`@docknetwork/wallet-sdk-web` v0.0.10) |
+| DID management tools | ✅ Implemented (`get_default_did`, `create_did`, `list_dids`) |
+| Credential management | ⏳ Planned |
+| DIDComm messaging | ⏳ Planned |
+| Tests | ⏳ Minimal |
+| Docker support | ⏳ Not yet |
+| Production hardening | ⏳ Not yet |
 
-## Important Notes
+### Known limitations
 
-⚠️ **Browser SDK in Node.js**: The `@docknetwork/wallet-sdk-web` package is designed for browsers. We use polyfills ([src/polyfills.ts](src/polyfills.ts)) to provide browser globals (`window`, `self`, `document`, `localStorage`) in Node.js. This works but is not ideal for production.
+- **Browser SDK in Node.js:** `@docknetwork/wallet-sdk-web` is designed for browsers. We use polyfills ([src/polyfills.ts](src/polyfills.ts)) to shim browser globals (`window`, `self`, `document`, `localStorage`). This is not suitable for production.
+- **No Docker image:** There is no Dockerfile yet. The server can only be run locally via Node.js.
+- **No CI coverage:** The wallet-server is not yet included in automated CI tests.
 
-## Quick Start
+---
 
-### 1. Install Dependencies
+## Development setup
+
+If you want to work on this server, here is how to get it running locally.
+
+### 1. Install dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Configure Environment
+### 2. Configure environment
 
 ```bash
 cp .env.example .env
-# Edit .env and set:
-# - WALLET_MASTER_KEY (required for wallet operations)
-# - MCP_MODE (http or stdio)
-# - MCP_PORT (default: 3010 for http mode)
+# Edit .env — at minimum, set WALLET_MASTER_KEY
 ```
 
 ### 3. Build
@@ -48,93 +56,52 @@ npm run build
 
 ### 4. Run
 
-**stdio mode** (for Claude Desktop direct connection):
 ```bash
-MCP_MODE=stdio npm start
-```
-
-**http mode** (for development/testing):
-```bash
+# HTTP mode
 MCP_MODE=http npm start
-```
 
-### 5. Development Mode
+# STDIO mode
+MCP_MODE=stdio npm start
 
-```bash
+# Development mode with hot-reload
 npm run dev
 ```
 
-## Available Tools
+### MCP Inspector (shared docs)
 
-### DID Management (3 tools)
+Use the shared MCP Inspector instructions in the repo root README:
 
-- **`get_default_did`** - Retrieve the wallet's default DID used for credentials and messaging
-- **`create_did`** - Generate a new Decentralized Identifier with optional key type
-- **`list_dids`** - List all DIDs stored in the wallet
+- See [../../README.md#mcp-inspector-shared-for-all-servers](../../README.md#mcp-inspector-shared-for-all-servers)
 
-## Environment Variables
+---
+
+## Environment variables
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `WALLET_MASTER_KEY` | Yes | - | Master encryption key for wallet |
-| `MCP_MODE` | No | `stdio` | Transport mode: `stdio` or `http` |
-| `MCP_PORT` | No | `3010` | HTTP port (only used if `MCP_MODE=http`) |
+| `WALLET_MASTER_KEY` | Yes | — | Master encryption key for the wallet |
+| `MCP_MODE` | No | `stdio` | Transport: `http` or `stdio` |
+| `MCP_PORT` | No | `3010` | HTTP port (only used when `MCP_MODE=http`) |
 | `CHEQD_NETWORK` | No | `testnet` | Cheqd network: `testnet` or `mainnet` |
-| `EDV_STORAGE_URL` | No | `https://edv.dock.io` | EDV storage endpoint (for cloud wallet) |
-| `WALLET_NAME` | No | `mcp-wallet` | Wallet name/label |
+| `EDV_STORAGE_URL` | No | `https://edv.dock.io` | EDV cloud storage endpoint |
+| `WALLET_NAME` | No | `mcp-wallet` | Wallet label |
 
-## Testing the Connection
+---
 
-### With Claude Desktop
+## Planned architecture
 
-Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
-
-```json
-{
-  "mcpServers": {
-    "wallet": {
-      "command": "node",
-      "args": ["/path/to/truvera-mcp-server/apps/wallet-server/dist/index.js"],
-      "env": {
-        "WALLET_MASTER_KEY": "your-master-key-here"
-      }
-    }
-  }
-}
-```
-
-### Manual Testing
-
-```bash
-# In one terminal
-npm run dev
-
-# In another terminal (send MCP initialize request)
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | npm start
-```
-
-## Next Steps
-
-1. ✅ Test MCP connection with your LLM
-2. Add @docknetwork/wallet-sdk-web dependency
-3. Implement wallet initialization
-4. Add DID management tools
-5. Add credential management tools
-6. Implement DIDComm messaging
-
-## Architecture
+See [WALLET_MCP_PLAN.md](../../WALLET_MCP_PLAN.md) at the repo root for the full development plan.
 
 ```
 apps/wallet-server/
 ├── src/
 │   ├── index.ts              # Server entry point
-│   ├── build-info.ts         # Build metadata
-│   └── tools/
-│       └── placeholder.ts    # Placeholder tools for testing
+│   ├── polyfills.ts          # Browser environment shims for Node.js
+│   ├── wallet-client.ts      # Wallet SDK wrapper
+│   └── features/
+│       ├── dids/             # DID management tools
+│       └── credentials/      # Credential tools (planned)
 ├── package.json
 ├── tsconfig.json
-├── .env.example
 └── README.md
 ```
-
-Uses shared bootstrap from `packages/mcp-shared` for server initialization.
