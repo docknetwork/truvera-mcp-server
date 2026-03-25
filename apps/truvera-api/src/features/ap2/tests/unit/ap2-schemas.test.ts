@@ -19,7 +19,7 @@ describe("AP2 Schemas", () => {
       expect(schema.required).toContain("merchant_id");
       expect(schema.required).toContain("payer_id");
       expect(schema.required).toContain("issuer_did");
-      expect(schema.required).toContain("subject_did");
+      expect(schema.required).not.toContain("subject_did");
     });
 
     it("should have cart_items as array", () => {
@@ -41,7 +41,7 @@ describe("AP2 Schemas", () => {
       expect(schema.required).toContain("budget_max_value");
       expect(schema.required).toContain("payer_id");
       expect(schema.required).toContain("issuer_did");
-      expect(schema.required).toContain("subject_did");
+      expect(schema.required).not.toContain("subject_did");
     });
 
     it("should have optional product_categories as array", () => {
@@ -64,7 +64,7 @@ describe("AP2 Schemas", () => {
       expect(schema.required).toContain("payment_method");
       expect(schema.required).toContain("human_present");
       expect(schema.required).toContain("issuer_did");
-      expect(schema.required).toContain("subject_did");
+      expect(schema.required).not.toContain("subject_did");
     });
 
     it("should have human_present as boolean", () => {

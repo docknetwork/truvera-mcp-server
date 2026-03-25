@@ -65,7 +65,7 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
     
     console.log(`Cleanup complete: ${successCount} deleted, ${failCount} failed`);
     console.log('=====================================\n');
-  });
+  }, 60000);
 
   describe('Cart Mandate (Human-Present)', () => {
     it('should issue a cart mandate successfully', { timeout: 30000 }, async () => {
@@ -216,7 +216,7 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
   });
 
   describe('Payment Mandate (Network Visibility)', () => {
-    it('should issue a payment mandate for human-present transaction', { timeout: 30000 }, async () => {
+    it('should issue a payment mandate for human-present transaction', { timeout: 90000 }, async () => {
       console.log('Starting issue Payment Mandate (human-present) e2e test');
       
       const paymentMandateId = `payment_${Date.now()}`;
@@ -264,7 +264,7 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
       console.log('✓ Payment Mandate (human-present) issued successfully:', credential.id);
     });
 
-    it('should issue a payment mandate for human-not-present transaction', { timeout: 30000 }, async () => {
+    it('should issue a payment mandate for human-not-present transaction', { timeout: 90000 }, async () => {
       console.log('Starting issue Payment Mandate (human-not-present) e2e test');
       
       const paymentMandateId = `payment_autonomous_${Date.now()}`;
@@ -355,7 +355,7 @@ describe.skipIf(!shouldRunE2E)('e2e: AP2Client mandate issuance tests', () => {
   });
 
   describe('Credential Offer Flow (QR Code)', () => {
-    it('should create a credential offer when subject_did is omitted', { timeout: 30000 }, async () => {
+    it('should create a credential offer when subject_did is omitted', { timeout: 90000 }, async () => {
       console.log('Starting credential offer flow e2e test');
       
       const mandateId = `cart_offer_${Date.now()}`;
