@@ -1,8 +1,5 @@
-<<<<<<< HEAD
 import dotenv from "dotenv";
-=======
 import "dotenv/config";
->>>>>>> 4af4311 (Initial placeholder server for the wallet)
 import { bootstrapMCPServer } from "@truvera/mcp-shared/server";
 import { TruveraClient } from "./clients/index.js";
 import { buildToolList, buildHandlerMapFromTruvera } from "./tools/composeTools.js";
