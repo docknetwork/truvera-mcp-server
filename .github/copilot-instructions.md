@@ -8,7 +8,7 @@ This is a monorepo containing multiple Model Context Protocol (MCP) servers buil
 - **Language**: TypeScript/JavaScript
 - **Runtime**: Node.js 18+
 - **Deployment**: Docker & Docker Compose
-- **Primary Purpose**: Enable Claude to make authenticated REST API calls to various services
+- **Primary Purpose**: Enable Claude to make authenticated REST API calls to various Truvera services
 
 ## Apps Structure
 
