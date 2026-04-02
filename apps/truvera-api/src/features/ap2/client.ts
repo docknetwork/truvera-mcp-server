@@ -450,16 +450,4 @@ export class AP2Client {
     return this.routeIssuance(credentialData, request.subject_did);
   }
 
-  /**
-   * Verify a mandate credential
-   * @param credential - The full W3C Verifiable Credential document (not just the ID)
-   */
-  async verifyMandate(credential: unknown) {
-    // Verify the credential directly
-    return this.truveraClient.request({
-      method: "POST",
-      endpoint: "/verify",
-      body: credential,
-    });
-  }
 }

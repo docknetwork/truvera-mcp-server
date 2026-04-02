@@ -74,13 +74,4 @@ describe("AP2 Schemas", () => {
     });
   });
 
-  describe("VerifyMandateRequest", () => {
-    it("should have required credential_id field", () => {
-      const schema = components.schemas.VerifyMandateRequest;
-      
-      expect(schema.type).toBe("object");
-      expect(schema.required).toContain("credential_id");
-      expect(schema.properties.credential_id.type).toBe("string");
-    });
-  });
 });

@@ -301,55 +301,6 @@ describe.skipIf(!shouldRunLiveIntegrationTests)('integration: AP2Client live man
     });
   });
 
-  describe('Mandate Verification', () => {
-    it('should verify an issued mandate successfully', { timeout: 120000 }, async () => {
-      console.log('Starting verify mandate live integration test');
-
-      // First issue a simple cart mandate to verify
-      const mandateId = `cart_verify_${Date.now()}`;
-      const issueResponse = await ap2Client.issueCartMandate({
-        mandate_id: mandateId,
-        cart_items: [
-          { label: 'Verification Test Item', currency: 'USD', value: 10.00 },
-        ],
-        total_amount: { currency: 'USD', value: 10.00 },
-        payment_method: 'test_card',
-        merchant_id: 'merchant_verify',
-        payer_id: 'payer_verify',
-        issuer_did: ISSUER_DID,
-        subject_did: SUBJECT_DID,
-      });
-
-      expect(issueResponse.success).toBe(true);
-      
-      // Extract credential from dual-flow response structure
-      const issueResponseData = issueResponse.data as any;
-      expect(issueResponseData.type).toBe('credential');
-      const credential = issueResponseData.credential;
-
-      console.log('Issued credential for verification:', credential.id);
-
-      // Track this credential for cleanup
-      if (credential.id) {
-        issuedCredentialIds.push(credential.id);
-      }
-
-      // Now verify it - pass the full credential document
-      const verifyResponse = await ap2Client.verifyMandate(credential);
-
-      console.log('Verification Response:', JSON.stringify(verifyResponse, null, 2));
-
-      expect(verifyResponse.success).toBe(true);
-      expect(verifyResponse.data).toBeDefined();
-
-      const verificationResult = verifyResponse.data as any;
-      expect(verificationResult.verified).toBe(true);
-      // Note: verification result doesn't include the credential, just the verification status
-      
-      console.log('✓ Mandate verified successfully');
-    });
-  });
-
   describe('Credential Offer Flow (QR Code)', () => {
     it('should create a credential offer when subject_did is omitted', { timeout: 180000 }, async () => {
       console.log('Starting credential offer flow live integration test');

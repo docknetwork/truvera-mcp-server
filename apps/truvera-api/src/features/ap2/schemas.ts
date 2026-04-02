@@ -225,20 +225,6 @@ export const components = {
       ],
     },
 
-    /**
-     * Verify Mandate Request
-     */
-    VerifyMandateRequest: {
-      type: "object",
-      description: "Verify an AP2 mandate credential using the Truvera API",
-      properties: {
-        credential_id: {
-          type: "string",
-          description: "ID of the mandate credential to verify",
-        },
-      },
-      required: ["credential_id"],
-    },
   },
 };
 
