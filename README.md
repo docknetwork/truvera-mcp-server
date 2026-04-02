@@ -1,244 +1,167 @@
-# Truvera MCP Server
+# Truvera MCP Servers
 
 [![CI](https://github.com/docknetwork/truvera-mcp-server/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/docknetwork/truvera-mcp-server/actions/workflows/ci.yml)
 
-A Model Context Protocol (MCP) server that exposes Truvera API functionality as MCP tools. Built with TypeScript/Node.js and designed for development with Docker.
+A monorepo containing Model Context Protocol (MCP) servers for Truvera API integrations. MCP servers let AI assistants (Claude, GitHub Copilot, etc.) call real Truvera API operations as tools.
 
-## What this repository contains
+## Available Servers
 
-- A small, **feature-based** layout where each API area lives under `src/features/<feature>/` and exports a client, `toolDefs`, and `getHandlers`.
-- `src/clients/truvera.ts` — the low-level authenticated HTTP client used by features.
-- `src/tools/composeTools.ts` — composes tool definitions and handlers from feature modules and is the source of the MCP tools list.
-- An MCP server (`src/index.ts`) exposing tools via stdio (default) or HTTP (SSE) transport.
+| Server | Status | Description |
+|--------|--------|-------------|
+| [`apps/truvera-api`](apps/truvera-api/README.md) | ✅ Production-ready | Verifiable credentials, DIDs, presentations, schemas, profiles, AP2 mandates |
+| [`apps/wallet-server`](apps/wallet-server/README.md) | 🚧 Work in progress | Truvera Wallet SDK integration — not ready for use |
 
-## Environment variables
+## Quickstart (5 minutes)
 
-- `TRUVERA_API_KEY` (required): Truvera API key
-- `TRUVERA_API_ENDPOINT` (optional): Base API URL (default: `https://api.truvera.com`)
-  - For testnet: `https://api-testnet.truvera.io`
-- `MCP_MODE` (optional): `stdio` or `http` (default `stdio`)
-- `MCP_PORT` (optional): HTTP port (default `3000` when `MCP_MODE=http`)
+### Prerequisites
 
-## Quickstart
+- Node.js 18+
+- Docker (recommended — builds and runs the server in a container)
+- A Truvera API key ([sign up at truvera.io](https://truvera.io))
 
-1) Set up environment variables
-
-Copy the example environment file and configure your API key:
+### 1. Clone and install
 
 ```bash
-cp .env.example .env
-# Edit .env and set your TRUVERA_API_KEY
-```
-
-2) Install dependencies
-
-```bash
+git clone https://github.com/docknetwork/truvera-mcp-server.git
+cd truvera-mcp-server
 npm install
 ```
 
-3) Development (stdio mode)
+### 2. Configure environment
 
 ```bash
-# run with hot-reload (tsx)
-npm run dev
+cp apps/truvera-api/.env.example apps/truvera-api/.env
+# Edit apps/truvera-api/.env and set your TRUVERA_API_KEY
 ```
 
-4) Build & run
+### 3. Build and run with Docker (recommended)
 
 ```bash
-npm run build
-npm start
-```
+# Build the Docker image
+npm run docker:build:api
 
-Notes:
-- `MCP_MODE` selects the transport: `stdio` (default) or `http`.
-- For HTTP mode set `MCP_MODE=http` and optionally `MCP_PORT` (default 3000).
-- HTTP mode uses HTTP streaming transport (replaces deprecated SSE).
+# Start the server in HTTP mode on port 3000
+npm run docker:run:api
 
-## Running in Docker
-
-### Using Docker Compose (Recommended)
-
-1) Create a `.env` file with your API key:
-
-```bash
-cp .env.example .env
-# Edit .env and set your TRUVERA_API_KEY
-```
-
-2) Start the service:
-
-```bash
-docker-compose up -d
-```
-
-3) View logs:
-
-```bash
-docker-compose logs -f
-```
-
-4) Stop the service:
-
-```bash
-docker-compose down
-```
-
-### Using Docker directly
-
-Build image:
-
-```bash
-docker build -t truvera-mcp-service:latest .
-```
-
-Run container (stdio mode):
-
-```bash
-docker run -e TRUVERA_API_KEY=your-api-key truvera-mcp-service:latest
-```
-
-Run in HTTP mode:
-
-```bash
-docker run -e TRUVERA_API_KEY=your-api-key -e MCP_MODE=http -e MCP_PORT=3000 -p 3000:3000 truvera-mcp-service:latest
-```
-
-### Health check (HTTP mode):
-
-```bash
+# Verify it's running (should return {"status":"ok",...})
 curl http://localhost:3000/health
-# Expected: {"status":"ok","service":"truvera-mcp-service"}
 ```
 
-### MCP HTTP Streaming endpoint:
+The server is now running and ready to connect to your AI assistant. See [Connecting to AI Assistants](#connecting-to-ai-assistants) below.
 
-The MCP server uses HTTP streaming transport in HTTP mode:
+### Alternative: Run locally without Docker
 
 ```bash
-# Connect to the MCP endpoint via mcp-remote
-npx mcp-remote http://localhost:3000/mcp --insecure
+cd apps/truvera-api
+MCP_MODE=http npm run dev    # HTTP transport (recommended)
 ```
 
-## How tools are organized
+> **Transport modes:** HTTP transport is well-tested and recommended for development and production. STDIO transport is experimental — use it only if your client requires it and you are comfortable with limited test coverage.
 
-- Each tool's code is located in a sub-folder under ./src/features.
-- Each feature exports `toolDefs` (tool metadata) and `getHandlers(truveraClient)` which returns a map of tool handlers.
-- `src/tools/composeTools.ts` imports those `toolDefs` and `getHandlers` and merges them into the global tools list and handlers map exposed by the MCP server.
+## Connecting to AI Assistants
 
-To see available tools at runtime, call the `ListTools` endpoint (MCP ListToolsRequest) — the server returns the merged tool definitions.
-
-## Supported Tools
-Not all Truvera API endpoints are exposed via the MCP server. The supported tool names and input schemas are provided in the tool listing returned by the server.
-
-## Development tips
-
-- Add a new feature:
-  1. Create `src/features/<feature>/client.ts` that uses `TruveraClient` and implements API operations.
-  2. Create `src/features/<feature>/tools.ts` exporting `toolDefs` and `getHandlers`.
-  3. Add an `index.ts` in the feature folder that re-exports client and tools.
-  4. Import the feature in `src/tools/composeTools.ts` (or add it to the feature list there).
-
-- Keep feature surface small: export only what other code needs (client class and `toolDefs`/`getHandlers`).
-- Use dependency injection: pass a `TruveraClient` instance into feature clients to make testing easier.
-
-## Tests & Type Checking
-
-- TypeScript check:
-
-```bash
-npm run typecheck
-```
-
-- Build:
-
-```bash
-npm run build
-```
-
-## Developer Testing
-Test with Claude Desktop or using The MCP Inspector
+Once the server is running in HTTP mode on port 3000:
 
 ### Claude Desktop
-Configure the MCP server in the Claude `claude_desktop_config.json` file:
+
+Add to your Claude Desktop config:
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **Linux**: `~/.config/Claude/claude_desktop_config.json`
 
-Make sure the server is running in HTTP mode first:
-
-```bash
-# Terminal 1: Start the server
-MCP_MODE=http npm run dev
-
-# Terminal 2: Verify it's running
-curl http://localhost:3000/health
-```
-
-Then configure Claude Desktop:
-
 ```json
 {
-  "mcpServers": {
-    "truvera-mcp-service": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "mcp-remote",
-        "http://localhost:3000/mcp",
-        "--insecure"
-      ]
-    }
-  }
+   "mcpServers": {
+      "truvera": {
+         "command": "npx",
+         "args": ["-y", "mcp-remote", "http://localhost:3000/mcp", "--insecure"]
+      }
+   }
 }
 ```
 
-### VS Code Copilot
+### GitHub Copilot (VS Code)
 
-1. Make sure the server is running in HTTP mode:
+The workspace `.vscode/mcp.json` is already configured. Start the server, then in the Copilot chat pane click **Configure tools...** → **Update tools** under `truvera-mcp-service-vs-code`.
+
+## MCP Inspector (Shared for All Servers)
+
+Use MCP Inspector to debug or manually exercise tools from any MCP server in this repo (for example, `apps/truvera-api` now, and `apps/wallet-server` as it matures).
+
+### 1. Start the Inspector UI
 
 ```bash
+npx @modelcontextprotocol/inspector
+```
+
+### 2. Start the MCP server you want to inspect
+
+Truvera API server (HTTP mode):
+
+```bash
+npm run docker:run:api
+# or: cd apps/truvera-api && MCP_MODE=http npm run dev
+```
+
+Wallet server (HTTP mode, work in progress):
+
+```bash
+cd apps/wallet-server
 MCP_MODE=http npm run dev
 ```
 
-2. The VS Code MCP configuration is already set up in [.vscode/mcp.json](./.vscode/mcp.json)
-3. Click the `Configure tools...` icon in the Copilot chat pane.
-4. Click `Update tools` under the `truvera-mcp-service-vs-code` MCP server.
-5. Click the checkbox beside the tools you want to enable.
-6. Click `OK`
+### 3. Connect from Inspector
 
-The configuration in `.vscode/mcp.json`:
+1. Open `http://localhost:6274`
+2. Choose Streamable HTTP transport
+3. Connect to the target server endpoint:
+    - Truvera API: `http://localhost:3000/mcp`
+    - Wallet server: `http://localhost:3010/mcp` (if `MCP_PORT=3010`)
 
-```json
-{
-  "servers": {
-    "truvera-mcp-service-vs-code": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "mcp-remote",
-        "http://localhost:3000/mcp",
-        "--insecure"
-      ]
-    }
-  }
-}
+If connection fails, check the target server health endpoint first (`/health`) and confirm ports/env values.
+
+## Repository Structure
+
+```
+truvera-mcp-server/
+├── apps/
+│   ├── truvera-api/       # ✅ Truvera REST API MCP server (production-ready)
+│   └── wallet-server/     # 🚧 Wallet SDK MCP server (work in progress)
+├── packages/
+│   └── mcp-shared/        # Shared MCP server bootstrap utilities
+├── .vscode/               # VS Code tasks, launch configs, MCP server config
+├── docker-compose.yml     # Compose file for running the truvera-api service
+└── README.md              # This file
 ```
 
-### MCP Inspector
-The [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector) is an open source tool that provides a GUI client for interacting with the MCP server tools.
+## Development Commands
+
+Run from the repo root:
 
 ```bash
-docker run --rm \
-  -p 127.0.0.1:6274:6274 \
-  -p 127.0.0.1:6277:6277 \
-  -e HOST=0.0.0.0 \
-  -e MCP_AUTO_OPEN_ENABLED=false \
-  ghcr.io/modelcontextprotocol/inspector:latest
+npm install                  # Install all workspace dependencies
+npm run build                # Build all packages and apps
+npm run test                 # Run all tests
+npm run docker:build:api     # Build the truvera-api Docker image
+npm run docker:run:api       # Run the truvera-api container on port 3000
 ```
 
-## Security and Production Notes
+For development server with hot-reload (HTTP transport):
 
-- Treat `TRUVERA_API_KEY` as a secret.
-- Use HTTPS and secure secrets management in production.
+```bash
+MCP_MODE=http npm run dev:api
+```
+
+See [apps/truvera-api/README.md](apps/truvera-api/README.md) for full documentation including all environment variables, available tools, and testing instructions.
+
+## CI/CD
+
+GitHub Actions builds all apps, runs unit and integration tests, and performs a smoke test on every push. See [.github/workflows/ci.yml](.github/workflows/ci.yml) for details.
+
+## Contributing
+
+1. Create a feature branch
+2. Make your changes
+3. Ensure tests pass: `npm test`
+4. Submit a pull request
 

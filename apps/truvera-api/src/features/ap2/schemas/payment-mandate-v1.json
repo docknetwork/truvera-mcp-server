@@ -1,0 +1,149 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "@protected": true,
+    "ap2": "https://ap2-protocol.org/ns/v1#",
+    "schema": "https://schema.org/",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    
+    "PaymentMandate": {
+      "@id": "ap2:PaymentMandate",
+      "@context": {
+        "paymentMandateContents": {
+          "@id": "ap2:paymentMandateContents",
+          "@type": "@id"
+        },
+        "userAuthorization": {
+          "@id": "ap2:userAuthorization",
+          "@type": "xsd:string"
+        }
+      }
+    },
+    
+    "PaymentMandateContents": {
+      "@id": "ap2:PaymentMandateContents",
+      "@context": {
+        "paymentMandateId": {
+          "@id": "ap2:paymentMandateId",
+          "@type": "xsd:string"
+        },
+        "paymentDetailsId": {
+          "@id": "ap2:paymentDetailsId",
+          "@type": "xsd:string"
+        },
+        "paymentDetailsTotal": {
+          "@id": "ap2:paymentDetailsTotal",
+          "@type": "@id"
+        },
+        "paymentResponse": {
+          "@id": "ap2:paymentResponse",
+          "@type": "@id"
+        },
+        "merchantAgent": {
+          "@id": "ap2:merchantAgent",
+          "@type": "xsd:string"
+        },
+        "shoppingAgent": {
+          "@id": "ap2:shoppingAgent",
+          "@type": "xsd:string"
+        },
+        "humanPresent": {
+          "@id": "ap2:humanPresent",
+          "@type": "xsd:boolean"
+        },
+        "timestamp": {
+          "@id": "ap2:timestamp",
+          "@type": "xsd:dateTime"
+        }
+      }
+    },
+    
+    "PaymentTotal": {
+      "@id": "ap2:PaymentTotal",
+      "@context": {
+        "label": {
+          "@id": "schema:name",
+          "@type": "xsd:string"
+        },
+        "amount": {
+          "@id": "ap2:amount",
+          "@type": "@id"
+        },
+        "refundPeriod": {
+          "@id": "ap2:refundPeriodDays",
+          "@type": "xsd:integer"
+        }
+      }
+    },
+    
+    "MonetaryAmount": {
+      "@id": "ap2:MonetaryAmount",
+      "@context": {
+        "currency": {
+          "@id": "schema:currency",
+          "@type": "xsd:string"
+        },
+        "value": {
+          "@id": "schema:price",
+          "@type": "xsd:decimal"
+        }
+      }
+    },
+    
+    "PaymentResponse": {
+      "@id": "ap2:PaymentResponse",
+      "@context": {
+        "requestId": {
+          "@id": "ap2:requestId",
+          "@type": "xsd:string"
+        },
+        "methodName": {
+          "@id": "ap2:methodName",
+          "@type": "xsd:string"
+        },
+        "details": {
+          "@id": "ap2:responseDetails",
+          "@type": "@json"
+        },
+        "shippingAddress": {
+          "@id": "ap2:shippingAddress",
+          "@type": "@id"
+        },
+        "shippingOption": {
+          "@id": "ap2:shippingOption",
+          "@type": "xsd:string"
+        },
+        "payerName": {
+          "@id": "ap2:payerName",
+          "@type": "xsd:string"
+        },
+        "payerEmail": {
+          "@id": "schema:email",
+          "@type": "xsd:string"
+        },
+        "payerPhone": {
+          "@id": "schema:telephone",
+          "@type": "xsd:string"
+        }
+      }
+    },
+    
+    "AgentIdentifier": {
+      "@id": "ap2:AgentIdentifier",
+      "@type": "xsd:string"
+    },
+    
+    "TransactionModality": {
+      "@id": "ap2:TransactionModality",
+      "@type": "xsd:string",
+      "@context": {
+        "HUMAN_PRESENT": {
+          "@id": "ap2:HumanPresent"
+        },
+        "HUMAN_NOT_PRESENT": {
+          "@id": "ap2:HumanNotPresent"
+        }
+      }
+    }
+  }
+}

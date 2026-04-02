@@ -1,0 +1,100 @@
+import { describe, it, expect, vi } from "vitest";
+import { components } from "../../schemas.js";
+import { toolDefs, getHandlers } from "../../tools.js";
+
+describe("unit: presentations schema and tool definitions", () => {
+  it("exposes 'template' property on ProofRequestPayload", () => {
+    const sch = (components as any).schemas.ProofRequestPayload;
+    expect(sch).toBeDefined();
+    expect(sch.properties && sch.properties.template).toBeDefined();
+  });
+
+  it("provides CreateProofRequestArgs that requires body and optionally templateId", () => {
+    const sch = (components as any).schemas.CreateProofRequestArgs;
+    expect(sch).toBeDefined();
+    // body should be required
+    expect(sch.required && sch.required.includes("body")).toBe(true);
+    // templateId should exist (optional)
+    expect(sch.properties && sch.properties.templateId).toBeDefined();
+  });
+
+  it("create_proof_request tool uses CreateProofRequestArgs as input schema", () => {
+    const tool = (toolDefs as any).find((t: any) => t.name === "create_proof_request");
+    expect(tool).toBeDefined();
+    // the tool's inputSchema should reference CreateProofRequestArgs
+    expect(tool.inputSchema).toBe((components as any).schemas.CreateProofRequestArgs);
+  });
+
+  it("handler uses body.template when templateId is missing", async () => {
+    const fakeClient = {
+      createProofRequest: vi.fn()
+    } as any;
+    const handlers = getHandlers(fakeClient as any);
+    const handler = handlers.get("create_proof_request")!;
+
+    fakeClient.createProofRequest.mockResolvedValue({ success: true, data: { id: "proof-123" } });
+    const res = await handler({ body: { template: "123e4567-e89b-12d3-a456-426614174000", attributes: {} } });
+    expect(fakeClient.createProofRequest).toHaveBeenCalledWith("123e4567-e89b-12d3-a456-426614174000", { attributes: {} });
+    expect(res.isError).not.toBe(true);
+    expect(res.content).toBeDefined();
+  });
+
+  it("handler accepts matching templateId and body.template", async () => {
+    const fakeClient = {
+      createProofRequest: vi.fn()
+    } as any;
+    const handlers = getHandlers(fakeClient as any);
+    const handler = handlers.get("create_proof_request")!;
+
+    fakeClient.createProofRequest.mockResolvedValue({ success: true, data: { id: "proof-456" } });
+    const res = await handler({ templateId: "123e4567-e89b-12d3-a456-426614174000", body: { template: "123e4567-e89b-12d3-a456-426614174000", attributes: {} } });
+    expect(fakeClient.createProofRequest).toHaveBeenCalledWith("123e4567-e89b-12d3-a456-426614174000", { attributes: {} });
+    expect(res.isError).not.toBe(true);
+    expect(res.content).toBeDefined();
+  });
+
+  it("handler rejects mismatched templateId and body.template", async () => {
+    const fakeClient = {
+      createProofRequest: vi.fn()
+    } as any;
+    const handlers = getHandlers(fakeClient as any);
+    const handler = handlers.get("create_proof_request")!;
+
+    const res = await handler({ templateId: "aaaaaaaa-1111-2222-3333-cccccccccccc", body: { template: "bbbbbbbb-2222-3333-4444-dddddddddddd", attributes: {} } });
+    expect(res).toHaveProperty("isError", true);
+    expect(fakeClient.createProofRequest).not.toHaveBeenCalled();
+  });
+
+  it("defines get_proof_request_result tool with id input schema", () => {
+    const tool = (toolDefs as any).find((t: any) => t.name === "get_proof_request_result");
+    expect(tool).toBeDefined();
+    expect(tool.inputSchema).toBe((components as any).schemas.GetProofRequestResultRequest);
+  });
+
+  it("get_proof_request_result handler requires id", async () => {
+    const fakeClient = {
+      getProofRequestResult: vi.fn()
+    } as any;
+    const handlers = getHandlers(fakeClient as any);
+    const handler = handlers.get("get_proof_request_result")!;
+
+    const res = await handler({});
+    expect(res).toHaveProperty("isError", true);
+    expect(fakeClient.getProofRequestResult).not.toHaveBeenCalled();
+  });
+
+  it("get_proof_request_result handler calls client with provided id", async () => {
+    const fakeClient = {
+      getProofRequestResult: vi.fn()
+    } as any;
+    const handlers = getHandlers(fakeClient as any);
+    const handler = handlers.get("get_proof_request_result")!;
+
+    fakeClient.getProofRequestResult.mockResolvedValue({ success: true, data: { id: "proof-123", verified: true } });
+    const res = await handler({ id: "123e4567-e89b-12d3-a456-426614174000" });
+
+    expect(fakeClient.getProofRequestResult).toHaveBeenCalledWith("123e4567-e89b-12d3-a456-426614174000");
+    expect(res.isError).not.toBe(true);
+    expect(res.content).toBeDefined();
+  });
+});

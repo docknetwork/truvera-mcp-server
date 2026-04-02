@@ -1,10 +1,37 @@
-.node_modules/
-dist/
-node_modules/
-*.log
-.env
-.env.local
-.DS_Store
-*.swp
-*.swo
-*~
+# Ignore node_modules everywhere
+**/node_modules
+**/dist
+
+# Ignore git
+**/.git
+**/.gitignore
+
+# Ignore environment files
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Ignore IDE
+**/.vscode
+**/.idea
+**/*.swp
+**/*.swo
+
+# Ignore test files
+**/*.test.ts
+**/*.test.js
+**/tests
+**/__tests__
+
+# Ignore docs
+**/README.md
+**/*.md
+!apps/truvera-api/README.md
+
+# Ignore CI/CD
+**/.github
+
+# Keep only what we need for services and shared packages
+!packages/mcp-shared
+!apps/truvera-api
+!apps/wallet-server

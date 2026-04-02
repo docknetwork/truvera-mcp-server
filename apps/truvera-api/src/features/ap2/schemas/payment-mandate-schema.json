@@ -1,0 +1,178 @@
+{
+  "$schema":"http://json-schema.org/draft-07/schema#",
+  "title": "Payment Mandate",
+  "description": "AP2 Payment Mandate for payment network visibility into AI agent involvement",
+  "type": "object",
+  "required": ["paymentMandateContents", "userAuthorization"],
+  "properties": {
+    "paymentMandateContents": {
+      "description": "The payment details and agent information",
+      "type": "object",
+      "required": [
+        "paymentMandateId",
+        "paymentDetailsId",
+        "paymentDetailsTotal",
+        "paymentResponse",
+        "humanPresent",
+        "timestamp"
+      ],
+      "properties": {
+        "paymentMandateId": {
+          "type": "string",
+          "description": "Unique identifier for this payment mandate"
+        },
+        "paymentDetailsId": {
+          "type": "string",
+          "description": "Reference to the payment details"
+        },
+        "paymentDetailsTotal": {
+          "description": "Total amount being paid",
+          "type": "object",
+          "required": ["label", "amount"],
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "Human-readable label for the total",
+              "examples": ["Total", "Grand Total"]
+            },
+            "amount": {
+              "description": "Total amount",
+              "type": "object",
+              "required": ["currency", "value"],
+              "properties": {
+                "currency": {
+                  "type": "string",
+                  "description": "ISO 4217 currency code",
+                  "pattern": "^[A-Z]{3}$",
+                  "examples": ["USD", "EUR", "GBP"]
+                },
+                "value": {
+                  "type": "string",
+                  "description": "Decimal amount as string",
+                  "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+                  "examples": ["10.00", "99.99", "1234.56"]
+                }
+              }
+            },
+            "refundPeriod": {
+              "type": "integer",
+              "description": "Refund period in days",
+              "minimum": 0,
+              "examples": [30, 60, 90]
+            }
+          }
+        },
+        "paymentResponse": {
+          "description": "Selected payment method and details",
+          "type": "object",
+          "required": ["requestId", "methodName", "details"],
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "description": "Unique identifier for this payment request"
+            },
+            "methodName": {
+              "type": "string",
+              "description": "Selected payment method identifier",
+              "examples": ["basic-card", "https://google.com/pay"]
+            },
+            "details": {
+              "type": "object",
+              "description": "Payment method specific response details",
+              "additionalProperties": true
+            },
+            "shippingAddress": {
+              "description": "Shipping address if requested",
+              "type": "object",
+              "properties": {
+                "country": {
+                  "type": "string",
+                  "description": "ISO 3166-1 alpha-2 country code",
+                  "pattern": "^[A-Z]{2}$"
+                },
+                "addressLine": {
+                  "type": "array",
+                  "description": "Address lines",
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 3
+                },
+                "region": {
+                  "type": "string",
+                  "description": "State/province/region"
+                },
+                "city": {
+                  "type": "string",
+                  "description": "City"
+                },
+                "dependentLocality": {
+                  "type": "string",
+                  "description": "Dependent locality (e.g., neighborhood)"
+                },
+                "postalCode": {
+                  "type": "string",
+                  "description": "Postal/ZIP code"
+                },
+                "sortingCode": {
+                  "type": "string",
+                  "description": "Sorting code"
+                },
+                "organization": {
+                  "type": "string",
+                  "description": "Organization name"
+                },
+                "recipient": {
+                  "type": "string",
+                  "description": "Recipient name"
+                },
+                "phone": {
+                  "type": "string",
+                  "description": "Phone number"
+                }
+              }
+            },
+            "shippingOption": {
+              "type": "string",
+              "description": "Selected shipping option ID"
+            },
+            "payerName": {
+              "type": "string",
+              "description": "Payer's name if requested"
+            },
+            "payerEmail": {
+              "type": "string",
+              "format": "email",
+              "description": "Payer's email if requested"
+            },
+            "payerPhone": {
+              "type": "string",
+              "description": "Payer's phone if requested"
+            }
+          }
+        },
+        "merchantAgent": {
+          "type": "string",
+          "description": "Identifier of the merchant's AI agent"
+        },
+        "shoppingAgent": {
+          "type": "string",
+          "description": "Identifier of the user's shopping AI agent"
+        },
+        "humanPresent": {
+          "type": "boolean",
+          "description": "Whether a human was present during the transaction"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this payment mandate was created"
+        }
+      }
+    },
+    "userAuthorization": {
+      "type": "string",
+      "description": "User authorization signature or token (e.g., JWT)"
+    }
+  }
+}

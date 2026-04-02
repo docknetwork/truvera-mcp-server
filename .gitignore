@@ -8,3 +8,4 @@ npm-debug.log*
 truvera/
 .buildnumber
 src/build-info.ts
+apps/truvera-api/.env.test
