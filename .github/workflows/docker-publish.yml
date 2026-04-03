@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SHOULD_PUSH: ${{ github.event_name != 'workflow_dispatch' || inputs.push }}
+      DOCKER_IMAGE: docknetwork/truvera-api-mcp
     permissions:
       contents: read
       packages: write
@@ -62,13 +63,10 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ secrets.DOCKER_HUB_USERNAME }}/truvera-api-mcp
+            ${{ env.DOCKER_IMAGE }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=${{ steps.build_number.outputs.build_number }}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix={{branch}}-
 
       - name: Build and push API Docker image
         id: docker_build
