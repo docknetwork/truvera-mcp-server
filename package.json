@@ -21,6 +21,12 @@
     "packages/*",
     "apps/*"
   ],
+  "overrides": {
+    "@hono/node-server": "^1.19.12",
+    "express-rate-limit": "^8.3.2",
+    "hono": "^4.12.11",
+    "path-to-regexp": "^8.4.2"
+  },
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"

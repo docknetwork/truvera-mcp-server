@@ -41,3 +41,25 @@ jobs:
       - name: Run tests (mcp-shared)
         run: npm run test -- --run
         working-directory: packages/mcp-shared
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build truvera-api image for scanning
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/truvera-api/Dockerfile
+          load: true
+          tags: truvera-api-mcp:ci
+          build-args: |
+            BUILD_NUMBER=${{ github.run_number }}
+
+      - name: Scan truvera-api image for HIGH and CRITICAL vulnerabilities
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: truvera-api-mcp:ci
+          format: table
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          exit-code: '1'
