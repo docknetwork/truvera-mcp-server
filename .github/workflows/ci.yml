@@ -8,6 +8,9 @@ jobs:
   build:
     name: Build and Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     strategy:
       matrix:
         node-version: [22.x]
@@ -56,10 +59,57 @@ jobs:
             BUILD_NUMBER=${{ github.run_number }}
 
       - name: Scan truvera-api image for HIGH and CRITICAL vulnerabilities
+        id: trivy_scan
+        continue-on-error: true
         uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: truvera-api-mcp:ci
           format: table
+          output: trivy-results.txt
           ignore-unfixed: true
           severity: HIGH,CRITICAL
           exit-code: '1'
+
+      - name: Add Trivy report to job summary
+        if: always()
+        run: |
+          {
+            echo "## Trivy Image Scan"
+            echo
+            if [ "${{ steps.trivy_scan.outcome }}" = "failure" ]; then
+              echo "**Status:** FAILED (HIGH/CRITICAL vulnerabilities found)"
+            else
+              echo "**Status:** PASSED (no HIGH/CRITICAL vulnerabilities found)"
+            fi
+            echo
+            echo "<details><summary>Full Trivy output</summary>"
+            echo
+            echo '```text'
+            cat trivy-results.txt
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Generate Trivy SARIF report
+        if: always()
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: truvera-api-mcp:ci
+          format: sarif
+          output: trivy-results.sarif
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+
+      - name: Upload Trivy SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-container-scan
+
+      - name: Fail job if Trivy found HIGH/CRITICAL issues
+        if: steps.trivy_scan.outcome == 'failure'
+        run: |
+          echo "Trivy detected HIGH/CRITICAL vulnerabilities. See job summary and Security tab for details."
+          exit 1

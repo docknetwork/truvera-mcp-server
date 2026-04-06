@@ -54,6 +54,11 @@ COPY apps/truvera-api/package*.json ./apps/truvera-api/
 # Install production dependencies only
 RUN npm ci --workspaces --omit=dev
 
+# Runtime image does not need package managers; remove them to reduce attack surface
+# and avoid scanner findings from npm's bundled transitive dependencies.
+RUN rm -rf /usr/local/lib/node_modules/npm \
+  && rm -f /usr/local/bin/npm /usr/local/bin/npx
+
 # Copy built shared package from builder
 COPY --from=builder /app/packages/mcp-shared/dist ./packages/mcp-shared/dist
 COPY --from=builder /app/packages/mcp-shared/package.json ./packages/mcp-shared/
