@@ -105,11 +105,23 @@ jobs:
           exit-code: '0'
 
       - name: Upload Trivy SARIF to GitHub Security
+        id: trivy_sarif_upload
+        continue-on-error: true
         if: always()
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-results.sarif
           category: trivy-container-scan
+
+      - name: Add SARIF upload status to job summary
+        if: always()
+        run: |
+          if [ "${{ steps.trivy_sarif_upload.outcome }}" = "failure" ]; then
+            echo >> "$GITHUB_STEP_SUMMARY"
+            echo "## SARIF Upload" >> "$GITHUB_STEP_SUMMARY"
+            echo >> "$GITHUB_STEP_SUMMARY"
+            echo "SARIF upload was skipped or failed. GitHub code scanning may not be enabled for this repository." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Fail job if Trivy found HIGH/CRITICAL issues
         if: steps.trivy_scan.outcome == 'failure'
