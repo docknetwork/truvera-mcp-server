@@ -1,9 +1,11 @@
 name: CI
 
 on:
-  push:
   pull_request:
-
+  push:
+    branches:
+      - master
+      
 jobs:
   build:
     name: Build and Test
@@ -102,11 +104,16 @@ jobs:
           exit-code: '0'
 
       - name: Upload Trivy SARIF to GitHub Security
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        if: always() && github.event_name == 'push'
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-results.sarif
           category: trivy-container-scan
+
+      - name: SARIF upload skipped notice
+        if: always() && github.event_name != 'push'
+        run: |
+          echo "SARIF upload skipped for non-push events to avoid token permission errors on fork/automation PRs." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Fail job if Trivy found HIGH/CRITICAL issues
         if: steps.trivy_scan.outcome == 'failure'
