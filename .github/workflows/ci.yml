@@ -11,6 +11,7 @@ jobs:
     name: Build and Test
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
       security-events: write
     strategy:
@@ -104,16 +105,11 @@ jobs:
           exit-code: '0'
 
       - name: Upload Trivy SARIF to GitHub Security
-        if: always() && github.event_name == 'push'
+        if: always()
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-results.sarif
           category: trivy-container-scan
-
-      - name: SARIF upload skipped notice
-        if: always() && github.event_name != 'push'
-        run: |
-          echo "SARIF upload skipped for non-push events to avoid token permission errors on fork/automation PRs." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Fail job if Trivy found HIGH/CRITICAL issues
         if: steps.trivy_scan.outcome == 'failure'
