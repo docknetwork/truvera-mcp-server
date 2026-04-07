@@ -3,6 +3,10 @@ module.exports = {
   testEnvironment: "node",
   testTimeout: 60000,
   testMatch: ["<rootDir>/src/**/tests/integration/**/*.test.ts"],
+  // Run tests serially to avoid resource contention between wallet instances
+  maxWorkers: 1,
+  // Setup file to mock blockchain service
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
   transform: {
     "^.+\\.(ts|tsx)$": [
       "ts-jest",

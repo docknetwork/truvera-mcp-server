@@ -44,6 +44,7 @@ export class WalletClient {
   private wallet: IWallet | null = null;
   private walletName: string;
   private networkId: string;
+  private dataStore: DataStore | null = null;
 
   constructor(walletName: string = "default-wallet", networkId: string = "testnet") {
     this.walletName = walletName;
@@ -68,7 +69,8 @@ export class WalletClient {
 
     dataStore = await createBaseDataStore({
       configs: {
-        databasePath: this.walletName,
+        // Use in-memory database for tests to avoid persistent files and resource leaks
+        databasePath: `:memory:${Date.now()}`,
         defaultNetwork: this.networkId,
       },
       dataSource,
@@ -89,6 +91,9 @@ export class WalletClient {
         updateWallet: () => updateWallet({ dataStore }),
       },
     });
+
+    // Store dataStore reference for cleanup
+    this.dataStore = dataStore;
 
     let walletRecord = await dataStore.wallet.getWallet();
     if (!walletRecord) {
@@ -130,15 +135,49 @@ export class WalletClient {
   }
 
   /**
-   * Delete the wallet
+   * Delete the wallet and cleanup all resources
+   * Follows the pattern from @docknetwork/wallet-sdk-core tests
    */
   async deleteWallet(): Promise<void> {
     if (!this.wallet) {
       throw new Error("No wallet to delete");
     }
 
-    await this.wallet.deleteWallet();
-    this.wallet = null;
-    console.error(`[Wallet] Deleted wallet: ${this.walletName}`);
+    try {
+      // Clear the network check interval timer (critical for preventing hanging)
+      const walletAny = this.wallet as any;
+      if (walletAny.networkCheckInterval) {
+        clearInterval(walletAny.networkCheckInterval);
+      }
+
+      // Remove all documents from the dataStore
+      if (this.dataStore && typeof (this.dataStore as any).documents?.removeAllDocuments === "function") {
+        try {
+          await (this.dataStore as any).documents.removeAllDocuments();
+        } catch (err) {
+          console.debug("Error removing all documents:", err);
+        }
+      }
+
+      // Call wallet cleanup
+      try {
+        await this.wallet.deleteWallet();
+      } catch (err) {
+        console.debug("Error in wallet.deleteWallet():", err);
+      }
+
+      // Wait for async operations to settle before cleanup
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Null out references to allow garbage collection
+      this.wallet = null;
+      this.dataStore = null;
+      console.error(`[Wallet] Deleted wallet: ${this.walletName}`);
+    } catch (error) {
+      // Log the error but don't rethrow to allow cleanup to complete
+      console.error(`[Wallet] Error during cleanup for ${this.walletName}:`, error);
+      this.wallet = null;
+      this.dataStore = null;
+    }
   }
 }

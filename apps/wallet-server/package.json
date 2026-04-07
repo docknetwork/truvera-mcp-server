@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run src/features/credentials/tests/unit/credentials-tools.test.ts src/features/dids/tests/unit/dids-tools.test.ts",
     "test:watch": "vitest src/features/credentials/tests/unit/credentials-tools.test.ts src/features/dids/tests/unit/dids-tools.test.ts",
-    "test:integration": "jest --config jest.integration.config.cjs --runInBand --forceExit"
+    "test:integration": "jest --config jest.integration.config.cjs --runInBand"
   },
   "dependencies": {
     "@truvera/mcp-shared": "file:../../packages/mcp-shared",

@@ -3,7 +3,7 @@
  * These tests use the real Wallet SDK with in-memory storage
  */
 
-import { describe, it, expect, beforeEach } from "@jest/globals";
+import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
 
 import { WalletClient } from "../../../../wallet-client";
 import { DIDClient } from "../../client";
@@ -20,6 +20,19 @@ describe("integration: DIDClient with real Wallet SDK", () => {
     // Initialize wallet and DID client
     const wallet = await walletClient.initialize();
     didClient = new DIDClient(wallet);
+  });
+
+  afterEach(async () => {
+    // Clean up wallet resources after each test
+    if (walletClient && walletClient.isInitialized()) {
+      try {
+        await walletClient.deleteWallet();
+      } catch (error) {
+        console.error("Error cleaning up wallet:", error);
+      }
+    }
+    // Wait for remaining async operations to complete
+    await new Promise((resolve) => setTimeout(resolve, 100));
   });
 
   describe("getDefaultDID", () => {
