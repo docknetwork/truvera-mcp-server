@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@truvera/mcp-shared": "file:../../packages/mcp-shared",
-    "@modelcontextprotocol/sdk": "^1.25.2",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@docknetwork/wallet-sdk-web": "^0.0.10",
     "@docknetwork/wallet-sdk-core": "^1.7.0",
     "@docknetwork/wallet-sdk-data-store-web": "^1.7.0",
