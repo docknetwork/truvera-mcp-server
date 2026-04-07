@@ -68,6 +68,8 @@ jobs:
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=${{ steps.build_number.outputs.build_number }}
+          labels: |
+            org.opencontainers.image.licenses=LicenseRef-DL-NPL
 
       - name: Build and push API Docker image
         id: docker_build
