@@ -150,12 +150,6 @@ Note: This tool currently emits the repository's bundled Payment Mandate profile
 - `refund_period_days`: Refund eligibility period
 - `user_authorization`: Optional user authorization signature/token. If omitted, the server currently inserts a placeholder string so the credential matches the published Payment Mandate schema.
 
-### `verify_mandate`
-Verify an AP2 mandate credential.
-
-**Required Parameters:**
-- `credential_id`: ID of the mandate credential to verify
-
 ## Architecture
 
 ### Features
@@ -185,7 +179,6 @@ ap2/
 2. **Tool Registration**: AP2 tools are registered with dynamic descriptions including schema URLs
 3. **Issuance**: When a tool is called, AP2Client constructs the mandate structure and issues it as a VC via Truvera API
 4. **Storage**: The issued VC (mandate) can be stored in wallet-server like any other credential
-5. **Verification**: Mandates can be verified using the `verify_mandate` tool
 
 ## Testing
 

@@ -162,7 +162,6 @@ The server exposes 31 tools across these areas:
 - `issue_cart_mandate` — issue a Cart Mandate for human-present transactions
 - `issue_intent_mandate` — issue an Intent Mandate for human-not-present transactions
 - `issue_payment_mandate` — issue a Payment Mandate for payment network visibility
-- `verify_mandate` — verify any AP2 mandate credential
 
 See [src/features/ap2/README.md](src/features/ap2/README.md) for full AP2 documentation.
 
