@@ -47,6 +47,9 @@ RUN apk update && apk upgrade --no-cache && \
 # Copy root package files
 COPY package*.json ./
 
+# Include repository license in the published runtime image
+COPY LICENSE /licenses/LICENSE
+
 # Copy workspace package.json files
 COPY packages/mcp-shared/package*.json ./packages/mcp-shared/
 COPY apps/truvera-api/package*.json ./apps/truvera-api/
