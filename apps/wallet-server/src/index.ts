@@ -1,8 +1,7 @@
-import "./polyfills.js"; // Must be first - sets up browser globals for wallet-sdk-web
 import "dotenv/config";
 import { bootstrapMCPServer } from "@truvera/mcp-shared/server";
 import { BUILD_INFO } from "./build-info.js";
-import WalletSDK from "@docknetwork/wallet-sdk-web";
+import { createDIDProvider } from "@docknetwork/wallet-sdk-core/lib/did-provider";
 import { WalletClient } from "./wallet-client.js";
 import { DIDClient, didToolDefs, getDIDHandlers } from "./features/dids/index.js";
 import { CredentialClient, credentialToolDefs, getCredentialHandlers } from "./features/credentials/index.js";
@@ -29,7 +28,7 @@ async function initializeClients() {
   const didClient = new DIDClient(wallet);
   
   // Create DID provider for credential import
-  const didProvider = WalletSDK.createDIDProvider({ wallet });
+  const didProvider = createDIDProvider({ wallet });
   const credentialClient = new CredentialClient(wallet, didProvider);
   
   return { walletClient, didClient, credentialClient };

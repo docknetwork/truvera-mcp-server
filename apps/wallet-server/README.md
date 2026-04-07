@@ -8,14 +8,14 @@
 
 ---
 
-A Model Context Protocol (MCP) server for interacting with the Truvera Wallet SDK (`@docknetwork/wallet-sdk-web`). When complete, it will allow AI assistants to manage DIDs, hold credentials, and support DIDComm messaging via a local wallet.
+A Model Context Protocol (MCP) server for interacting with the Truvera Wallet SDK using direct core/data-store packages (`@docknetwork/wallet-sdk-core` + `@docknetwork/wallet-sdk-data-store-web`). When complete, it will allow AI assistants to manage DIDs, hold credentials, and support DIDComm messaging via a local wallet.
 
 ## Current state
 
 | Area | Status |
 |------|--------|
 | MCP server transport (stdio/http) | ✅ Scaffolded |
-| Wallet SDK integration | ✅ Basic integration (`@docknetwork/wallet-sdk-web` v0.0.10) |
+| Wallet SDK integration | ✅ Direct SDK integration (core + data-store packages) |
 | DID management tools | ✅ Implemented (`get_default_did`, `create_did`, `list_dids`) |
 | Credential management | ⏳ Planned |
 | DIDComm messaging | ⏳ Planned |
@@ -25,7 +25,7 @@ A Model Context Protocol (MCP) server for interacting with the Truvera Wallet SD
 
 ### Known limitations
 
-- **Browser SDK in Node.js:** `@docknetwork/wallet-sdk-web` is designed for browsers. We use polyfills ([src/polyfills.ts](src/polyfills.ts)) to shim browser globals (`window`, `self`, `document`, `localStorage`). This is not suitable for production.
+- **In-memory storage only:** The current wallet-server wiring uses in-memory local storage adapters. This is suitable for development and tests, but persistence and cloud sync hardening are still pending.
 - **No Docker image:** There is no Dockerfile yet. The server can only be run locally via Node.js.
 - **No CI coverage:** The wallet-server is not yet included in automated CI tests.
 
@@ -96,7 +96,6 @@ See [WALLET_MCP_PLAN.md](../../WALLET_MCP_PLAN.md) at the repo root for the full
 apps/wallet-server/
 ├── src/
 │   ├── index.ts              # Server entry point
-│   ├── polyfills.ts          # Browser environment shims for Node.js
 │   ├── wallet-client.ts      # Wallet SDK wrapper
 │   └── features/
 │       ├── dids/             # DID management tools

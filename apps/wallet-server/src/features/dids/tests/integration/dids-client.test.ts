@@ -3,9 +3,6 @@
  * These tests use the real Wallet SDK with in-memory storage
  */
 
-// CRITICAL: Import polyfills first before any SDK imports
-import "../../../../polyfills.js";
-
 import { describe, it, expect, beforeEach } from "vitest";
 import { WalletClient } from "../../../../wallet-client.js";
 import { DIDClient } from "../../client.js";

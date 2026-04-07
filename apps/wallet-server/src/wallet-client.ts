@@ -3,8 +3,42 @@
  * Manages wallet initialization and lifecycle
  */
 
-import WalletSDK from "@docknetwork/wallet-sdk-web";
+import { createDataStore as createBaseDataStore } from "@docknetwork/wallet-sdk-data-store/lib/index";
+import type { DataStore, LocalStorage } from "@docknetwork/wallet-sdk-data-store/lib/types";
+import {
+  createDocument,
+  removeDocument,
+  updateDocument,
+  getDocumentById,
+  getDocumentsByType,
+  getDocumentsById,
+  getAllDocuments,
+  removeAllDocuments,
+  getDocumentCorrelations,
+} from "@docknetwork/wallet-sdk-data-store-web/lib/entities/document";
+import {
+  createWallet as createWalletRecord,
+  getWallet,
+  updateWallet,
+} from "@docknetwork/wallet-sdk-data-store-web/lib/entities/wallet.entity";
+import { createWallet } from "@docknetwork/wallet-sdk-core/lib/wallet";
 import type { IWallet } from "@docknetwork/wallet-sdk-core/lib/types";
+
+class InMemoryLocalStorage implements LocalStorage {
+  private readonly storage = new Map<string, string>();
+
+  async getItem(key: string): Promise<string | null> {
+    return this.storage.has(key) ? this.storage.get(key)! : null;
+  }
+
+  async setItem(key: string, value: string): Promise<void> {
+    this.storage.set(key, value);
+  }
+
+  async removeItem(key: string): Promise<void> {
+    this.storage.delete(key);
+  }
+}
 
 export class WalletClient {
   private wallet: IWallet | null = null;
@@ -24,18 +58,57 @@ export class WalletClient {
       return this.wallet;
     }
 
-    // Create in-memory data store (IndexedDB in browser, in-memory in Node)
-    const dataStore = await WalletSDK.createDataStore({
-      dbName: this.walletName,
-      defaultNetwork: this.networkId,
+    let dataStore: DataStore;
+    const localStorageImpl = new InMemoryLocalStorage();
+
+    const dataSource = {
+      destroy: async () => {},
+      initialize: async () => {},
+    };
+
+    dataStore = await createBaseDataStore({
+      configs: {
+        databasePath: this.walletName,
+        defaultNetwork: this.networkId,
+      },
+      dataSource,
+      documentStore: {
+        addDocument: (json, options) => createDocument({ dataStore, json, options }),
+        removeDocument: (id, options) => removeDocument({ dataStore, id, options }),
+        updateDocument: (document, options) => updateDocument({ dataStore, document, options }),
+        getDocumentById: (id) => getDocumentById({ dataStore, id }),
+        getDocumentsByType: (type) => getDocumentsByType({ dataStore, type }),
+        getDocumentsById: (idList) => getDocumentsById({ dataStore, idList }),
+        getAllDocuments: (allNetworks) => getAllDocuments({ dataStore, allNetworks }),
+        removeAllDocuments: () => removeAllDocuments({ dataStore }),
+        getDocumentCorrelations: (documentId) => getDocumentCorrelations({ dataStore, documentId }),
+      },
+      localStorageImpl,
+      walletStore: {
+        getWallet: () => getWallet({ dataStore }),
+        updateWallet: () => updateWallet({ dataStore }),
+      },
     });
 
-    // Create wallet instance
-    this.wallet = await WalletSDK.createWallet({
+    let walletRecord = await dataStore.wallet.getWallet();
+    if (!walletRecord) {
+      walletRecord = await createWalletRecord({ dataStore });
+    }
+
+    dataStore.networkId = walletRecord.networkId;
+    dataStore.network = dataStore.networks.find((item) => item.id === walletRecord.networkId)!;
+
+    // Create wallet instance using core SDK directly
+    this.wallet = await createWallet({
       dataStore,
     });
 
-    console.error(`[Wallet] Initialized wallet: ${this.walletName} (network: ${this.networkId})`);
+    // Ensure wallet starts on requested network.
+    if (this.wallet.getNetworkId() !== this.networkId) {
+      await this.wallet.setNetwork(this.networkId);
+    }
+
+    console.error(`[Wallet] Initialized wallet: ${this.walletName} (network: ${this.wallet.getNetworkId()})`);
     return this.wallet;
   }
 
