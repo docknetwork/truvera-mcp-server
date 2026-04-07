@@ -34,12 +34,7 @@ export function getAP2ToolDefs(): ToolDef[] {
       name: "issue_payment_mandate",
       description: `Issue a Payment Mandate for payment network visibility into agent involvement. Payment Mandates are separate VDCs sent to payment networks and issuers (alongside cart/intent mandates) to signal AI agent participation and transaction modality. Schema: ${schemaUrls.payment}. This helps networks assess risk and ensure proper accountability for agentic transactions. DUAL FLOW: If 'subject_did' is provided, the credential is issued immediately. If 'subject_did' is omitted, a credential offer is created for QR code claiming.`,
       inputSchema: components.schemas.IssuePaymentMandateRequest,
-    },
-    {
-      name: "verify_mandate",
-      description: "Verify an AP2 mandate credential using the Truvera API. Validates signatures, checks expiration, and confirms the mandate's authenticity. Returns verification status and details about the mandate.",
-      inputSchema: components.schemas.VerifyMandateRequest,
-    },
+    }
   ];
 }
 
@@ -62,17 +57,6 @@ export function getAP2Handlers(client: AP2Client): Map<string, ToolHandler> {
   handlers.set("issue_payment_mandate", async (args) => {
     const request = args as IssuePaymentMandateRequest;
     return formatResult(await client.issuePaymentMandate(request));
-  });
-
-  handlers.set("verify_mandate", async (args) => {
-    const { credential_id } = args as { credential_id: string };
-    if (!credential_id) {
-      return {
-        content: [{ type: "text", text: "Error: 'credential_id' is required" }],
-        isError: true,
-      };
-    }
-    return formatResult(await client.verifyMandate(credential_id));
   });
 
   return handlers;
