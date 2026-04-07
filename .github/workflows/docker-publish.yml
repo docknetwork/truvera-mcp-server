@@ -30,6 +30,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
 
     steps:
       - name: Checkout repository
@@ -70,13 +71,15 @@ jobs:
 
       - name: Build and push API Docker image
         id: docker_build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./apps/truvera-api/Dockerfile
           push: ${{ env.SHOULD_PUSH == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          sbom: ${{ env.SHOULD_PUSH == 'true' }}
+          provenance: ${{ env.SHOULD_PUSH == 'true' }}
           build-args: |
             BUILD_NUMBER=${{ steps.build_number.outputs.build_number }}
           cache-from: type=gha

@@ -1,7 +1,7 @@
 # Multi-stage build for Truvera MCP Service
 ARG BUILD_NUMBER=1
 
-FROM node:22-alpine3.22 AS builder
+FROM node:22-alpine3.23 AS builder
 
 ARG BUILD_NUMBER
 
@@ -36,7 +36,7 @@ COPY apps/truvera-api/tsconfig.json ./apps/truvera-api/
 RUN BUILD_NUMBER=$BUILD_NUMBER npm run build --workspace=apps/truvera-api
 
 # Runtime stage
-FROM node:22-alpine3.22
+FROM node:22-alpine3.23
 
 WORKDIR /app
 
