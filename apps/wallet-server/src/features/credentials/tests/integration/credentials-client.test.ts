@@ -3,9 +3,10 @@
  * These tests use the real Wallet SDK with in-memory storage
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
-import { WalletClient } from "../../../../wallet-client.js";
-import { CredentialClient } from "../../client.js";
+import { describe, it, expect, beforeEach } from "@jest/globals";
+
+import { WalletClient } from "../../../../wallet-client";
+import { CredentialClient } from "../../client";
 
 describe("integration: CredentialClient with real Wallet SDK", () => {
   let walletClient: WalletClient;
