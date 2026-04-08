@@ -3,14 +3,14 @@
  * Manages DID operations using the Dock Wallet SDK
  */
 
-import WalletSDK from "@docknetwork/wallet-sdk-web";
-import type { DIDProvider } from "@docknetwork/wallet-sdk-web";
+import { createDIDProvider } from "@docknetwork/wallet-sdk-core/lib/did-provider";
+import type { IDIDProvider } from "@docknetwork/wallet-sdk-core/lib/types";
 import type { IWallet } from "@docknetwork/wallet-sdk-core/lib/types";
 import type { CreateDIDResult, DIDListResult } from "./types.js";
 
 export class DIDClient {
   private wallet: IWallet;
-  private didProvider: DIDProvider | null = null;
+  private didProvider: IDIDProvider | null = null;
 
   constructor(wallet: IWallet) {
     this.wallet = wallet;
@@ -19,9 +19,9 @@ export class DIDClient {
   /**
    * Initialize the DID provider
    */
-  private ensureProvider(): DIDProvider {
+  private ensureProvider(): IDIDProvider {
     if (!this.didProvider) {
-      this.didProvider = WalletSDK.createDIDProvider({ wallet: this.wallet });
+      this.didProvider = createDIDProvider({ wallet: this.wallet });
     }
     return this.didProvider;
   }

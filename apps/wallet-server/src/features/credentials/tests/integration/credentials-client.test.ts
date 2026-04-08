@@ -3,12 +3,10 @@
  * These tests use the real Wallet SDK with in-memory storage
  */
 
-// CRITICAL: Import polyfills first before any SDK imports
-import "../../../../polyfills.js";
+import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
 
-import { describe, it, expect, beforeEach } from "vitest";
-import { WalletClient } from "../../../../wallet-client.js";
-import { CredentialClient } from "../../client.js";
+import { WalletClient } from "../../../../wallet-client";
+import { CredentialClient } from "../../client";
 
 describe("integration: CredentialClient with real Wallet SDK", () => {
   let walletClient: WalletClient;
@@ -22,6 +20,19 @@ describe("integration: CredentialClient with real Wallet SDK", () => {
     // Initialize wallet and credential client
     const wallet = await walletClient.initialize();
     credentialClient = new CredentialClient(wallet);
+  });
+
+  afterEach(async () => {
+    // Clean up wallet resources after each test
+    if (walletClient && walletClient.isInitialized()) {
+      try {
+        await walletClient.deleteWallet();
+      } catch (error) {
+        console.error("Error cleaning up wallet:", error);
+      }
+    }
+    // Wait for remaining async operations to complete
+    await new Promise((resolve) => setTimeout(resolve, 100));
   });
 
   describe("listCredentials", () => {
