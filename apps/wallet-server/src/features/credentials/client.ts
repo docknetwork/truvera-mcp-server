@@ -3,9 +3,7 @@
  * Manages credential operations using the Dock Wallet SDK
  */
 
-import { createCredentialProvider } from "@docknetwork/wallet-sdk-core/lib/credential-provider";
-import { createDIDProvider } from "@docknetwork/wallet-sdk-core/lib/did-provider";
-import type { IWallet, ICredentialProvider, IDIDProvider } from "@docknetwork/wallet-sdk-core/lib/types";
+import type { IWallet, ICredentialProvider, IDIDProvider } from "@docknetwork/wallet-sdk-core/lib/types.js";
 import type { CredentialListResult, CredentialInfo, ImportCredentialResult } from "./types.js";
 
 export class CredentialClient {
@@ -21,8 +19,9 @@ export class CredentialClient {
   /**
    * Initialize the credential provider
    */
-  private ensureProvider(): ICredentialProvider {
+  private async ensureProvider(): Promise<ICredentialProvider> {
     if (!this.credentialProvider) {
+      const { createCredentialProvider } = await import("@docknetwork/wallet-sdk-core/lib/credential-provider.js");
       this.credentialProvider = createCredentialProvider({ wallet: this.wallet });
     }
     return this.credentialProvider;
@@ -31,8 +30,9 @@ export class CredentialClient {
   /**
    * Initialize the DID provider (required for credential import)
    */
-  private ensureDIDProvider(): IDIDProvider {
+  private async ensureDIDProvider(): Promise<IDIDProvider> {
     if (!this.didProvider) {
+      const { createDIDProvider } = await import("@docknetwork/wallet-sdk-core/lib/did-provider.js");
       this.didProvider = createDIDProvider({ wallet: this.wallet });
     }
     return this.didProvider;
@@ -43,8 +43,8 @@ export class CredentialClient {
    */
   async importCredential(uri: string): Promise<ImportCredentialResult> {
     try {
-      const credentialProvider = this.ensureProvider();
-      const didProvider = this.ensureDIDProvider();
+      const credentialProvider = await this.ensureProvider();
+      const didProvider = await this.ensureDIDProvider();
 
       const before = await credentialProvider.getCredentials();
       const beforeIds = new Set(before.map((doc: any) => doc?.id).filter(Boolean));
@@ -96,7 +96,7 @@ export class CredentialClient {
    * List all credentials in the wallet
    */
   async listCredentials(): Promise<CredentialListResult> {
-    const provider = this.ensureProvider();
+    const provider = await this.ensureProvider();
     const allDocs = await provider.getCredentials();
     
     // Map credentials to our standardized format

@@ -1,0 +1,24 @@
+diff --git a/node_modules/@digitalbazaar/did-method-key/lib/DidKeyDriver.js b/node_modules/@digitalbazaar/did-method-key/lib/DidKeyDriver.js
+index 7e25886..d879c5a 100644
+--- a/node_modules/@digitalbazaar/did-method-key/lib/DidKeyDriver.js
++++ b/node_modules/@digitalbazaar/did-method-key/lib/DidKeyDriver.js
+@@ -3,15 +3,15 @@
+  */
+ import {
+   Ed25519VerificationKey2020
+-} from '@digitalbazaar/ed25519-verification-key-2020';
++} from '@digitalbazaar/ed25519-verification-key-2020/lib/main.js';
+ import {
+   X25519KeyAgreementKey2020
+-} from '@digitalbazaar/x25519-key-agreement-key-2020';
++} from '@digitalbazaar/x25519-key-agreement-key-2020/lib/main.js';
+ import {
+   X25519KeyAgreementKey2019
+-} from '@digitalbazaar/x25519-key-agreement-key-2019';
++} from '@digitalbazaar/x25519-key-agreement-key-2019/lib/main.js';
+ 
+-import * as didIo from '@digitalbazaar/did-io';
++import * as didIo from '@digitalbazaar/did-io/lib/main.js';
+ 
+ const DID_CONTEXT_URL = 'https://www.w3.org/ns/did/v1';
+ // For backwards compat only, not actually importing this suite

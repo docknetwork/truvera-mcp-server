@@ -3,9 +3,8 @@
  * Manages DID operations using the Dock Wallet SDK
  */
 
-import { createDIDProvider } from "@docknetwork/wallet-sdk-core/lib/did-provider";
-import type { IDIDProvider } from "@docknetwork/wallet-sdk-core/lib/types";
-import type { IWallet } from "@docknetwork/wallet-sdk-core/lib/types";
+import type { IDIDProvider } from "@docknetwork/wallet-sdk-core/lib/types.js";
+import type { IWallet } from "@docknetwork/wallet-sdk-core/lib/types.js";
 import type { CreateDIDResult, DIDListResult } from "./types.js";
 
 export class DIDClient {
@@ -19,8 +18,9 @@ export class DIDClient {
   /**
    * Initialize the DID provider
    */
-  private ensureProvider(): IDIDProvider {
+  private async ensureProvider(): Promise<IDIDProvider> {
     if (!this.didProvider) {
+      const { createDIDProvider } = await import("@docknetwork/wallet-sdk-core/lib/did-provider.js");
       this.didProvider = createDIDProvider({ wallet: this.wallet });
     }
     return this.didProvider;
@@ -30,7 +30,7 @@ export class DIDClient {
    * Get the default DID for this wallet
    */
   async getDefaultDID(): Promise<string | null> {
-    const provider = this.ensureProvider();
+    const provider = await this.ensureProvider();
     const allDocs = await provider.getAll();
     
     // Filter to only DID resolution documents and extract the DID
@@ -46,7 +46,7 @@ export class DIDClient {
    * Create a new DID
    */
   async createDID(keyType?: string): Promise<CreateDIDResult> {
-    const provider = this.ensureProvider();
+    const provider = await this.ensureProvider();
     
     // Create DID using the provider
     const result = await provider.createDIDKey({
@@ -65,7 +65,7 @@ export class DIDClient {
    * List all DIDs in the wallet
    */
   async listDIDs(): Promise<DIDListResult> {
-    const provider = this.ensureProvider();
+    const provider = await this.ensureProvider();
     const allDocs = await provider.getAll();
     
     // Filter to only DID resolution documents and extract the DID

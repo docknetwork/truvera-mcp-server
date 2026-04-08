@@ -5,6 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "postinstall": "patch-package --patch-dir apps/wallet-server/patches",
     "build": "npm run build --workspace=packages/mcp-shared && npm run build --workspace=apps/truvera-api",
     "build:shared": "npm run build --workspace=packages/mcp-shared",
     "build:api": "npm run build --workspace=apps/truvera-api",
@@ -53,5 +54,8 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/docknetwork/truvera-mcp-server.git"
+  },
+  "devDependencies": {
+    "patch-package": "^8.0.1"
   }
 }

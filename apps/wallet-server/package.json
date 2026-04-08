@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node -r ./register-aliases.cjs dist/index.js",
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run src/features/credentials/tests/unit/credentials-tools.test.ts src/features/dids/tests/unit/dids-tools.test.ts",
@@ -19,7 +19,8 @@
     "@docknetwork/wallet-sdk-core": "^1.7.0",
     "@docknetwork/wallet-sdk-data-store": "^1.7.0",
     "@docknetwork/wallet-sdk-data-store-web": "^1.7.0",
-    "dotenv": "^16.6.1"
+    "dotenv": "^16.6.1",
+    "module-alias": "^2.2.3"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",

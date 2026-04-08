@@ -3,8 +3,8 @@
  * Manages wallet initialization and lifecycle
  */
 
-import { createDataStore as createBaseDataStore } from "@docknetwork/wallet-sdk-data-store/lib/index";
-import type { DataStore, LocalStorage } from "@docknetwork/wallet-sdk-data-store/lib/types";
+import { createDataStore as createBaseDataStore } from "@docknetwork/wallet-sdk-data-store/lib/index.js";
+import type { DataStore, LocalStorage } from "@docknetwork/wallet-sdk-data-store/lib/types.js";
 import {
   createDocument,
   removeDocument,
@@ -15,14 +15,14 @@ import {
   getAllDocuments,
   removeAllDocuments,
   getDocumentCorrelations,
-} from "@docknetwork/wallet-sdk-data-store-web/lib/entities/document";
+} from "@docknetwork/wallet-sdk-data-store-web/lib/entities/document/index.js";
 import {
   createWallet as createWalletRecord,
   getWallet,
   updateWallet,
-} from "@docknetwork/wallet-sdk-data-store-web/lib/entities/wallet.entity";
-import { createWallet } from "@docknetwork/wallet-sdk-core/lib/wallet";
-import type { IWallet } from "@docknetwork/wallet-sdk-core/lib/types";
+} from "@docknetwork/wallet-sdk-data-store-web/lib/entities/wallet.entity.js";
+import { createWallet } from "@docknetwork/wallet-sdk-core/lib/wallet.js";
+import type { IWallet } from "@docknetwork/wallet-sdk-core/lib/types.js";
 
 class InMemoryLocalStorage implements LocalStorage {
   private readonly storage = new Map<string, string>();
