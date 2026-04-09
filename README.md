@@ -53,7 +53,8 @@ The server is now running and ready to connect to your AI assistant. See [Connec
 
 ```bash
 cd apps/truvera-api
-MCP_MODE=http npm run dev    # HTTP transport (recommended)
+npm run build
+MCP_MODE=http npm start    # HTTP transport (recommended)
 ```
 
 > **Transport modes:** HTTP transport is well-tested and recommended for development and production. STDIO transport is experimental — use it only if your client requires it and you are comfortable with limited test coverage.
