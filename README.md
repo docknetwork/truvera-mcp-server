@@ -159,6 +159,10 @@ See [apps/truvera-api/README.md](apps/truvera-api/README.md) for full documentat
 
 GitHub Actions builds all apps, runs unit and integration tests, and performs a smoke test on every push. See [.github/workflows/ci.yml](.github/workflows/ci.yml) for details.
 
+Docker image publishing uses two tag policies:
+- `latest` is pushed only when a GitHub Release is published from the `master` branch (stable release image).
+- All other Docker publishes are tagged only with the build number from `apps/truvera-api/.buildnumber` (or GitHub run number fallback) and should be treated as unstable builds.
+
 ## Contributing
 
 1. Create a feature branch
