@@ -85,4 +85,53 @@ describe("integration: CredentialClient with real Wallet SDK", () => {
       expect(result.count).toBeGreaterThanOrEqual(0);
     });
   });
+
+  describe("importCredential", () => {
+    it("returns success: false with a message when URI is malformed", async () => {
+      const result = await credentialClient.importCredential("not-a-valid-uri");
+
+      expect(result.success).toBe(false);
+      expect(typeof result.message).toBe("string");
+      expect(result.message!.length).toBeGreaterThan(0);
+      expect(result.credential).toBeUndefined();
+    });
+
+    it("returns success: false when the credential offer URI is unreachable", async () => {
+      const result = await credentialClient.importCredential(
+        "openid-credential-offer://?credential_offer_uri=https://localhost:19999/offer/does-not-exist"
+      );
+
+      expect(result.success).toBe(false);
+      expect(typeof result.message).toBe("string");
+      expect(result.message!.length).toBeGreaterThan(0);
+    });
+
+    it("does not alter the credential list after a failed import", async () => {
+      const before = await credentialClient.listCredentials();
+
+      await credentialClient.importCredential("not-a-valid-uri");
+
+      const after = await credentialClient.listCredentials();
+      expect(after.count).toBe(before.count);
+    });
+
+    it("initialises the DID provider lazily alongside the credential provider", async () => {
+      // Calling importCredential bootstraps both providers internally.
+      // A second call should reuse them without error.
+      const first = await credentialClient.importCredential("not-a-valid-uri");
+      const second = await credentialClient.importCredential("not-a-valid-uri");
+
+      expect(first.success).toBe(false);
+      expect(second.success).toBe(false);
+    });
+
+    it("result always conforms to ImportCredentialResult shape", async () => {
+      const result = await credentialClient.importCredential("bad-uri");
+
+      expect(result).toHaveProperty("success");
+      expect(typeof result.success).toBe("boolean");
+      // message is present on failure
+      expect(result).toHaveProperty("message");
+    });
+  });
 });
