@@ -252,7 +252,7 @@ describe("unit: DID tools", () => {
       });
 
       // Test each handler returns proper structure
-      for (const [name, handler] of handlers.entries()) {
+      for (const [_name, handler] of handlers.entries()) {
         const result = await handler({});
         
         expect(result).toHaveProperty("content");

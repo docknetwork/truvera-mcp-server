@@ -5,13 +5,18 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
+    "prebuild": "node scripts/update-build-version.js",
     "build": "tsc",
     "start": "node -r ./register-aliases.cjs dist/index.js",
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
     "test": "vitest run src/features/credentials/tests/unit/credentials-tools.test.ts src/features/dids/tests/unit/dids-tools.test.ts",
     "test:watch": "vitest src/features/credentials/tests/unit/credentials-tools.test.ts src/features/dids/tests/unit/dids-tools.test.ts",
-    "test:integration": "jest --config jest.integration.config.cjs --runInBand"
+    "test:integration": "jest --config jest.integration.config.cjs --runInBand",
+    "docker:build": "cd ../.. && docker build --build-arg BUILD_NUMBER=\"$(cat apps/wallet-server/.buildnumber)\" -t truvera-wallet-mcp:latest -t truvera-wallet-mcp:$(cat apps/wallet-server/.buildnumber) -f apps/wallet-server/Dockerfile .",
+    "docker:run": "docker rm -f truvera-wallet-mcp || true && docker run -d --name truvera-wallet-mcp --env-file ./.env -e MCP_MODE=http -e MCP_PORT=3001 -p 3001:3001 truvera-wallet-mcp:latest"
   },
   "dependencies": {
     "@truvera/mcp-shared": "file:../../packages/mcp-shared",
@@ -27,7 +32,10 @@
     "@babel/preset-env": "^7.26.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.56.1",
+    "@typescript-eslint/parser": "^8.56.1",
     "babel-jest": "^29.7.0",
+    "eslint": "^10.0.2",
     "jest": "^29.7.0",
     "ts-jest": "^29.2.5",
     "tsx": "^4.7.0",

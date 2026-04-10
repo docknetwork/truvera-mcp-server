@@ -5,18 +5,24 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "postinstall": "patch-package --patch-dir apps/wallet-server/patches",
-    "build": "npm run build --workspace=packages/mcp-shared && npm run build --workspace=apps/truvera-api",
+    "postinstall": "node scripts/apply-wallet-patches.js",
+    "build": "npm run build --workspace=packages/mcp-shared && npm run build --workspace=apps/truvera-api && npm run build --workspace=apps/wallet-server",
     "build:shared": "npm run build --workspace=packages/mcp-shared",
     "build:api": "npm run build --workspace=apps/truvera-api",
+    "build:wallet": "npm run build --workspace=apps/wallet-server",
     "dev:api": "npm run dev --workspace=apps/truvera-api",
+    "dev:wallet": "npm run dev --workspace=apps/wallet-server",
     "test": "npm run test --workspaces",
     "test:api": "npm run test --workspace=apps/truvera-api",
+    "test:wallet": "npm run test --workspace=apps/wallet-server",
+    "test:wallet:integration": "npm run test:integration --workspace=apps/wallet-server",
     "typecheck": "npm run typecheck --workspaces",
     "lint": "npm run lint --workspaces",
     "lint:fix": "npm run lint:fix --workspaces",
     "docker:build:api": "docker build --build-arg BUILD_NUMBER=\"$(cat apps/truvera-api/.buildnumber)\" -t docknetwork/truvera-api-mcp:latest -t docknetwork/truvera-api-mcp:$(cat apps/truvera-api/.buildnumber) -f apps/truvera-api/Dockerfile .",
-    "docker:run:api": "docker rm -f truvera-api-mcp || true && docker run -d --name truvera-api-mcp --env-file apps/truvera-api/.env -e MCP_MODE=http -e MCP_PORT=3000 -p 3000:3000 docknetwork/truvera-api-mcp:latest"
+    "docker:run:api": "docker rm -f truvera-api-mcp || true && docker run -d --name truvera-api-mcp --env-file apps/truvera-api/.env -e MCP_MODE=http -e MCP_PORT=3000 -p 3000:3000 docknetwork/truvera-api-mcp:latest",
+    "docker:build:wallet": "docker build --build-arg BUILD_NUMBER=\"$(cat apps/wallet-server/.buildnumber)\" -t docknetwork/truvera-wallet-mcp:latest -t docknetwork/truvera-wallet-mcp:$(cat apps/wallet-server/.buildnumber) -f apps/wallet-server/Dockerfile .",
+    "docker:run:wallet": "docker rm -f truvera-wallet-mcp || true && docker run -d --name truvera-wallet-mcp --env-file apps/wallet-server/.env -e MCP_MODE=http -e MCP_PORT=3001 -p 3001:3001 docknetwork/truvera-wallet-mcp:latest"
   },
   "workspaces": [
     "packages/*",

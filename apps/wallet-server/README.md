@@ -20,14 +20,13 @@ A Model Context Protocol (MCP) server for interacting with the Truvera Wallet SD
 | Credential management | ⏳ Planned |
 | DIDComm messaging | ⏳ Planned |
 | Tests | ⏳ Minimal |
-| Docker support | ⏳ Not yet |
+| Docker support | ✅ Included |
 | Production hardening | ⏳ Not yet |
 
 ### Known limitations
 
 - **In-memory storage only:** The current wallet-server wiring uses in-memory local storage adapters. This is suitable for development and tests, but persistence and cloud sync hardening are still pending.
-- **No Docker image:** There is no Dockerfile yet. The server can only be run locally via Node.js.
-- **No CI coverage:** The wallet-server is not yet included in automated CI tests.
+- **Local-only wallet state:** Containerized runs are useful for MCP integration testing, but the wallet still uses in-memory backing stores today.
 
 ---
 
@@ -54,6 +53,12 @@ cp .env.example .env
 npm run build
 ```
 
+From the repo root you can also use:
+
+```bash
+npm run build:wallet
+```
+
 ### 4. Run
 
 ```bash
@@ -66,6 +71,38 @@ MCP_MODE=stdio npm start
 # Development mode with hot-reload
 npm run dev
 ```
+
+From the repo root:
+
+```bash
+npm run dev:wallet
+```
+
+### 5. Docker workflow
+
+From the repo root:
+
+```bash
+# Build the image
+npm run docker:build:wallet
+
+# Start the container in HTTP mode on port 3001
+npm run docker:run:wallet
+```
+
+Or from this directory:
+
+```bash
+docker-compose up -d
+```
+
+### 6. Verify the server is running
+
+```bash
+curl http://localhost:3001/health
+```
+
+If port 3001 is already in use and you start the server from an interactive terminal, the server now prompts to continue on the next available port instead of exiting immediately.
 
 ### MCP Inspector (shared docs)
 
@@ -81,12 +118,25 @@ Use the shared MCP Inspector instructions in the repo root README:
 |----------|----------|---------|-------------|
 | `WALLET_MASTER_KEY` | Yes | — | Master encryption key for the wallet |
 | `MCP_MODE` | No | `stdio` | Transport: `http` or `stdio` |
-| `MCP_PORT` | No | `3010` | HTTP port (only used when `MCP_MODE=http`) |
+| `MCP_PORT` | No | `3001` | HTTP port (only used when `MCP_MODE=http`) |
 | `CHEQD_NETWORK` | No | `testnet` | Cheqd network: `testnet` or `mainnet` |
 | `EDV_STORAGE_URL` | No | `https://edv.dock.io` | EDV cloud storage endpoint |
 | `WALLET_NAME` | No | `mcp-wallet` | Wallet label |
 
 ---
+
+## Running tests
+
+```bash
+# Unit tests
+npm test
+
+# Integration tests
+npm run test:integration
+
+# Type checking only
+npm run typecheck
+```
 
 ## Planned architecture
 

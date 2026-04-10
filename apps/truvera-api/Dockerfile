@@ -13,6 +13,7 @@ RUN apk update && apk upgrade --no-cache && \
 
 # Copy root package files for workspace
 COPY package*.json ./
+COPY scripts ./scripts
 
 # Copy workspace package.json files first (for Docker layer caching)
 COPY packages/mcp-shared/package*.json ./packages/mcp-shared/
@@ -46,6 +47,7 @@ RUN apk update && apk upgrade --no-cache && \
 
 # Copy root package files
 COPY package*.json ./
+COPY scripts ./scripts
 
 # Include repository license in the published runtime image
 COPY LICENSE /licenses/LICENSE
