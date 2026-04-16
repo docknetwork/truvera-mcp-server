@@ -1,0 +1,45 @@
+name: Wallet CI
+
+on:
+  pull_request:
+    paths:
+      - 'apps/wallet-server/**'
+      - 'packages/mcp-shared/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/**'
+      - '.github/workflows/ci-wallet.yml'
+      - '.github/workflows/ci-server-reusable.yml'
+  push:
+    branches:
+      - master
+    paths:
+      - 'apps/wallet-server/**'
+      - 'packages/mcp-shared/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/**'
+      - '.github/workflows/ci-wallet.yml'
+      - '.github/workflows/ci-server-reusable.yml'
+
+jobs:
+  wallet:
+    uses: ./.github/workflows/ci-server-reusable.yml
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    with:
+      job_name: Build and Test Wallet Server
+      build_script: npm run build:wallet
+      test_script: npm test
+      test_working_directory: apps/wallet-server
+      run_integration_tests: true
+      integration_test_script: npm run test:integration
+      integration_test_working_directory: apps/wallet-server
+      dockerfile: ./apps/wallet-server/Dockerfile
+      image_ref: truvera-wallet-mcp:ci
+      trivy_results_file: wallet-trivy-results.txt
+      trivy_sarif_file: wallet-trivy-results.sarif
+      trivy_scan_label: Wallet Trivy Image Scan
+      sarif_category: trivy-container-scan-wallet

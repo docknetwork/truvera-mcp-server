@@ -1,0 +1,90 @@
+name: Docker Publish Reusable
+
+on:
+  workflow_call:
+    inputs:
+      docker_image:
+        required: true
+        type: string
+      dockerfile:
+        required: true
+        type: string
+      build_number_file:
+        required: true
+        type: string
+      should_push:
+        required: true
+        type: boolean
+
+jobs:
+  publish:
+    name: Build and Publish Image
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_IMAGE: ${{ inputs.docker_image }}
+      DOCKERFILE: ${{ inputs.dockerfile }}
+      BUILD_NUMBER_FILE: ${{ inputs.build_number_file }}
+      SHOULD_PUSH: ${{ inputs.should_push }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read build number
+        id: build_number
+        run: |
+          if [ -f "${BUILD_NUMBER_FILE}" ]; then
+            BUILD_NUM=$(cat "${BUILD_NUMBER_FILE}")
+            echo "Using ${BUILD_NUMBER_FILE}"
+          else
+            BUILD_NUM="${{ github.run_number }}"
+            echo "${BUILD_NUMBER_FILE} not found; using GitHub run number"
+          fi
+          echo "build_number=$BUILD_NUM" >> "$GITHUB_OUTPUT"
+          echo "Build number: $BUILD_NUM"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to DockerHub
+        if: ${{ env.SHOULD_PUSH == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.DOCKER_IMAGE }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.event_name == 'release' && github.event.release.target_commitish == github.event.repository.default_branch }}
+            type=raw,value=${{ steps.build_number.outputs.build_number }}
+          labels: |
+            org.opencontainers.image.licenses=LicenseRef-DL-NPL
+
+      - name: Build and publish Docker image
+        id: docker_build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ env.DOCKERFILE }}
+          push: ${{ env.SHOULD_PUSH == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          sbom: ${{ env.SHOULD_PUSH == 'true' }}
+          provenance: ${{ env.SHOULD_PUSH == 'true' }}
+          build-args: |
+            BUILD_NUMBER=${{ steps.build_number.outputs.build_number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Image digest
+        if: ${{ env.SHOULD_PUSH == 'true' }}
+        run: echo "Image pushed with digest ${{ steps.docker_build.outputs.digest }}"
+
+      - name: Image build only
+        if: ${{ env.SHOULD_PUSH != 'true' }}
+        run: echo "Image built without push because workflow_dispatch input 'push' was false"

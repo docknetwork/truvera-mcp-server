@@ -1,0 +1,44 @@
+name: Shared Package CI
+
+on:
+  pull_request:
+    paths:
+      - 'packages/mcp-shared/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ci-shared.yml'
+  push:
+    branches:
+      - master
+    paths:
+      - 'packages/mcp-shared/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ci-shared.yml'
+
+jobs:
+  shared:
+    name: Build and Test mcp-shared
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies (monorepo)
+        run: npm ci --workspaces
+
+      - name: Build shared package
+        run: npm run build:shared
+
+      - name: Run tests (mcp-shared)
+        run: npm run test -- --run
+        working-directory: packages/mcp-shared
