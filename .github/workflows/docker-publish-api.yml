@@ -1,21 +1,19 @@
 name: Publish API Docker Image
 
-"on":
+on:
   push:
     branches:
       - master
     paths:
       - 'apps/truvera-api/**'
-      - 'apps/wallet-server/**'
       - 'packages/mcp-shared/**'
       - 'package.json'
       - 'package-lock.json'
       - 'scripts/**'
       - '.github/workflows/docker-publish.yml'
-
+      - '.github/workflows/docker-publish-reusable.yml'
   release:
     types: [published]
-
   workflow_dispatch:
     inputs:
       push:
@@ -25,196 +23,14 @@ name: Publish API Docker Image
         type: boolean
 
 jobs:
-  detect_changes:
-    name: Detect Changed Areas
-    runs-on: ubuntu-latest
-    outputs:
-      api: ${{ steps.filter.outputs.api }}
-      wallet: ${{ steps.filter.outputs.wallet }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Detect changed paths on push
-        id: filter
-        if: github.event_name == 'push'
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            api:
-              - 'apps/truvera-api/**'
-              - 'packages/mcp-shared/**'
-              - 'package.json'
-              - 'package-lock.json'
-              - 'scripts/**'
-              - '.github/workflows/docker-publish.yml'
-            wallet:
-              - 'apps/wallet-server/**'
-              - 'packages/mcp-shared/**'
-              - 'package.json'
-              - 'package-lock.json'
-              - 'scripts/**'
-              - '.github/workflows/docker-publish.yml'
-
-      - name: Force both images on non-push events
-        id: non_push
-        if: github.event_name != 'push'
-        run: |
-          echo "api=true" >> "$GITHUB_OUTPUT"
-          echo "wallet=true" >> "$GITHUB_OUTPUT"
-
-  build-and-push-api:
-    name: Build and Push truvera-api-mcp
-    runs-on: ubuntu-latest
-    needs: detect_changes
-    if: github.event_name != 'push' || needs.detect_changes.outputs.api == 'true'
-    env:
-      SHOULD_PUSH: ${{ github.event_name != 'workflow_dispatch' || inputs.push }}
-      DOCKER_IMAGE: docknetwork/truvera-api-mcp
-      BUILD_NUMBER_FILE: apps/truvera-api/.buildnumber
-      DOCKERFILE: ./apps/truvera-api/Dockerfile
+  api:
+    uses: ./.github/workflows/docker-publish-reusable.yml
     permissions:
       contents: read
       packages: write
       id-token: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Read build number
-        id: build_number
-        run: |
-          if [ -f "${BUILD_NUMBER_FILE}" ]; then
-            BUILD_NUM=$(cat "${BUILD_NUMBER_FILE}")
-            echo "Using ${BUILD_NUMBER_FILE}"
-          else
-            BUILD_NUM="${{ github.run_number }}"
-            echo "${BUILD_NUMBER_FILE} not found; using GitHub run number"
-          fi
-          echo "build_number=$BUILD_NUM" >> "$GITHUB_OUTPUT"
-          echo "Build number: $BUILD_NUM"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to DockerHub
-        if: ${{ env.SHOULD_PUSH == 'true' }}
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            ${{ env.DOCKER_IMAGE }}
-          tags: |
-            type=raw,value=latest,enable=${{ github.event_name == 'release' && github.event.release.target_commitish == github.event.repository.default_branch }}
-            type=raw,value=${{ steps.build_number.outputs.build_number }}
-          labels: |
-            org.opencontainers.image.licenses=LicenseRef-DL-NPL
-
-      - name: Build and push API Docker image
-        id: docker_build
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ${{ env.DOCKERFILE }}
-          push: ${{ env.SHOULD_PUSH == 'true' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          sbom: ${{ env.SHOULD_PUSH == 'true' }}
-          provenance: ${{ env.SHOULD_PUSH == 'true' }}
-          build-args: |
-            BUILD_NUMBER=${{ steps.build_number.outputs.build_number }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
-
-      - name: Image digest
-        if: ${{ env.SHOULD_PUSH == 'true' }}
-        run: echo "Image pushed with digest ${{ steps.docker_build.outputs.digest }}"
-
-      - name: Image build only
-        if: ${{ env.SHOULD_PUSH != 'true' }}
-        run: echo "Image built without push because workflow_dispatch input 'push' was false"
-
-  build-and-push-wallet:
-    name: Build and Push truvera-wallet-mcp
-    runs-on: ubuntu-latest
-    needs: detect_changes
-    if: github.event_name != 'push' || needs.detect_changes.outputs.wallet == 'true'
-    env:
-      SHOULD_PUSH: ${{ github.event_name != 'workflow_dispatch' || inputs.push }}
-      DOCKER_IMAGE: docknetwork/truvera-wallet-mcp
-      BUILD_NUMBER_FILE: apps/wallet-server/.buildnumber
-      DOCKERFILE: ./apps/wallet-server/Dockerfile
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Read build number
-        id: build_number
-        run: |
-          if [ -f "${BUILD_NUMBER_FILE}" ]; then
-            BUILD_NUM=$(cat "${BUILD_NUMBER_FILE}")
-            echo "Using ${BUILD_NUMBER_FILE}"
-          else
-            BUILD_NUM="${{ github.run_number }}"
-            echo "${BUILD_NUMBER_FILE} not found; using GitHub run number"
-          fi
-          echo "build_number=$BUILD_NUM" >> "$GITHUB_OUTPUT"
-          echo "Build number: $BUILD_NUM"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to DockerHub
-        if: ${{ env.SHOULD_PUSH == 'true' }}
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            ${{ env.DOCKER_IMAGE }}
-          tags: |
-            type=raw,value=latest,enable=${{ github.event_name == 'release' && github.event.release.target_commitish == github.event.repository.default_branch }}
-            type=raw,value=${{ steps.build_number.outputs.build_number }}
-          labels: |
-            org.opencontainers.image.licenses=LicenseRef-DL-NPL
-
-      - name: Build and push wallet Docker image
-        id: docker_build
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ${{ env.DOCKERFILE }}
-          push: ${{ env.SHOULD_PUSH == 'true' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          sbom: ${{ env.SHOULD_PUSH == 'true' }}
-          provenance: ${{ env.SHOULD_PUSH == 'true' }}
-          build-args: |
-            BUILD_NUMBER=${{ steps.build_number.outputs.build_number }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
-
-      - name: Image digest
-        if: ${{ env.SHOULD_PUSH == 'true' }}
-        run: echo "Image pushed with digest ${{ steps.docker_build.outputs.digest }}"
-
-      - name: Image build only
-        if: ${{ env.SHOULD_PUSH != 'true' }}
-        run: echo "Image built without push because workflow_dispatch input 'push' was false"
+    with:
+      docker_image: docknetwork/truvera-api-mcp
+      dockerfile: ./apps/truvera-api/Dockerfile
+      build_number_file: apps/truvera-api/.buildnumber
+      should_push: ${{ github.event_name != 'workflow_dispatch' || inputs.push }}
