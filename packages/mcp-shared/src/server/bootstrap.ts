@@ -33,25 +33,23 @@ export async function bootstrapMCPServer(
       version,
     });
 
-    // Register all tools with the MCP server
+    // Validate that every declared tool has a handler.
+    // Tool discovery/execution is handled by our explicit request handlers below,
+    // which allows feature modules to continue supplying JSON Schema inputSchema.
     for (const tool of tools) {
       const handler = toolHandlers.get(tool.name);
-      if (handler) {
-        server.registerTool(
-          tool.name,
-          {
-            title: tool.title ?? tool.name,
-            description: tool.description,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            inputSchema: (tool.inputSchema ?? { type: "object", properties: {}, required: [] }) as any,
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          handler as any
-        );
-      } else {
+      if (!handler) {
         console.error(`No handler found for tool: ${tool.name}`);
       }
     }
+
+    // MCP SDK now requires declaring the tools capability before registering
+    // tools/list or tools/call handlers on the low-level server.
+    server.server.registerCapabilities({
+      tools: {
+        listChanged: true,
+      },
+    });
 
     // Set up request handlers
     server.server.setRequestHandler(
