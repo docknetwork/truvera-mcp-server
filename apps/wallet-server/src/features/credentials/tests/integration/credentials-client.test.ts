@@ -7,10 +7,15 @@ import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
 
 import { WalletClient } from "../../../../wallet-client";
 import { CredentialClient } from "../../client";
+import { DIDClient } from "../../../dids/client";
+
+const OID4VCI_TEST_OFFER_URI =
+  "openid-credential-offer://?credential_offer_uri=https://api-testnet.truvera.io/openid/credential-offers/fbe0a6ed-2aa8-4363-833b-6aa8fe1c6d01";
 
 describe("integration: CredentialClient with real Wallet SDK", () => {
   let walletClient: WalletClient;
   let credentialClient: CredentialClient;
+  let didClient: DIDClient;
 
   beforeEach(async () => {
     // Create a unique wallet for each test to avoid conflicts
@@ -20,19 +25,23 @@ describe("integration: CredentialClient with real Wallet SDK", () => {
     // Initialize wallet and credential client
     const wallet = await walletClient.initialize();
     credentialClient = new CredentialClient(wallet);
+    didClient = new DIDClient(wallet);
   });
 
   afterEach(async () => {
+    if (walletClient) {
+      await walletClient.waitForIdle();
+    }
+
     // Clean up wallet resources after each test
     if (walletClient && walletClient.isInitialized()) {
       try {
         await walletClient.deleteWallet();
+        await walletClient.waitForIdle();
       } catch (error) {
         console.error("Error cleaning up wallet:", error);
       }
     }
-    // Wait for remaining async operations to complete
-    await new Promise((resolve) => setTimeout(resolve, 100));
   });
 
   describe("listCredentials", () => {
@@ -132,6 +141,35 @@ describe("integration: CredentialClient with real Wallet SDK", () => {
       expect(typeof result.success).toBe("boolean");
       // message is present on failure
       expect(result).toHaveProperty("message");
+    });
+
+    it("imports credential from OID4VCI offer URL and stores it in the wallet SDK", async () => {
+      // Ensure the wallet has a DID available before import.
+      await didClient.createDID();
+
+      const before = await credentialClient.listCredentials();
+
+      const importResult = await credentialClient.importCredential(OID4VCI_TEST_OFFER_URI);
+      expect(importResult.success).toBe(true);
+      expect(importResult.credential).toBeDefined();
+
+      const after = await credentialClient.listCredentials();
+      expect(after.count).toBeGreaterThan(before.count);
+
+      // Verify the imported credential is visible via wallet-sdk provider storage too.
+      const { createCredentialProvider } = await import("@docknetwork/wallet-sdk-core/lib/credential-provider.js");
+      const provider = createCredentialProvider({ wallet: walletClient.getWallet() });
+      const sdkCredentials = await provider.getCredentials();
+      expect(sdkCredentials.length).toBeGreaterThan(0);
+
+      const importedId = importResult.credential?.id;
+      if (importedId) {
+        const inSdkStore = sdkCredentials.some((doc: any) => {
+          const id = doc?.id || doc?.credential?.id;
+          return id === importedId;
+        });
+        expect(inSdkStore).toBe(true);
+      }
     });
   });
 });

@@ -45,10 +45,62 @@ export class WalletClient {
   private walletName: string;
   private networkId: string;
   private dataStore: DataStore | null = null;
+  private inFlightDocumentOps = 0;
+  private idleWaiters: Array<() => void> = [];
 
   constructor(walletName: string = "default-wallet", networkId: string = "testnet") {
     this.walletName = walletName;
     this.networkId = networkId;
+  }
+
+  private trackDocumentOperation<T>(operation: Promise<T>): Promise<T> {
+    this.inFlightDocumentOps += 1;
+
+    return operation.finally(() => {
+      this.inFlightDocumentOps = Math.max(0, this.inFlightDocumentOps - 1);
+
+      if (this.inFlightDocumentOps === 0) {
+        const waiters = this.idleWaiters.splice(0);
+        for (const resolve of waiters) {
+          resolve();
+        }
+      }
+    });
+  }
+
+  /**
+   * Wait until tracked document operations settle.
+   * This avoids brittle fixed sleeps in integration tests.
+   */
+  async waitForIdle(timeoutMs: number = 10000): Promise<void> {
+    const start = Date.now();
+
+    while (true) {
+      if (this.inFlightDocumentOps === 0) {
+        // Ensure no new operations were queued in the same tick.
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        if (this.inFlightDocumentOps === 0) {
+          return;
+        }
+      }
+
+      const elapsed = Date.now() - start;
+      const remaining = timeoutMs - elapsed;
+      if (remaining <= 0) {
+        throw new Error(`Timed out waiting for wallet document operations to settle after ${timeoutMs}ms`);
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          reject(new Error(`Timed out waiting for wallet document operations to settle after ${timeoutMs}ms`));
+        }, remaining);
+
+        this.idleWaiters.push(() => {
+          clearTimeout(timeoutId);
+          resolve();
+        });
+      });
+    }
   }
 
   /**
@@ -75,14 +127,14 @@ export class WalletClient {
       },
       dataSource,
       documentStore: {
-        addDocument: (json, options) => createDocument({ dataStore, json, options }),
-        removeDocument: (id, options) => removeDocument({ dataStore, id, options }),
-        updateDocument: (document, options) => updateDocument({ dataStore, document, options }),
+        addDocument: (json, options) => this.trackDocumentOperation(createDocument({ dataStore, json, options })),
+        removeDocument: (id, options) => this.trackDocumentOperation(removeDocument({ dataStore, id, options })),
+        updateDocument: (document, options) => this.trackDocumentOperation(updateDocument({ dataStore, document, options })),
         getDocumentById: (id) => getDocumentById({ dataStore, id }),
         getDocumentsByType: (type) => getDocumentsByType({ dataStore, type }),
         getDocumentsById: (idList) => getDocumentsById({ dataStore, idList }),
         getAllDocuments: (allNetworks) => getAllDocuments({ dataStore, allNetworks }),
-        removeAllDocuments: () => removeAllDocuments({ dataStore }),
+        removeAllDocuments: () => this.trackDocumentOperation(removeAllDocuments({ dataStore })),
         getDocumentCorrelations: (documentId) => getDocumentCorrelations({ dataStore, documentId }),
       },
       localStorageImpl,
@@ -161,13 +213,12 @@ export class WalletClient {
 
       // Call wallet cleanup
       try {
+        await this.waitForIdle();
         await this.wallet.deleteWallet();
+        await this.waitForIdle();
       } catch (err) {
         console.debug("Error in wallet.deleteWallet():", err);
       }
-
-      // Wait for async operations to settle before cleanup
-      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Null out references to allow garbage collection
       this.wallet = null;

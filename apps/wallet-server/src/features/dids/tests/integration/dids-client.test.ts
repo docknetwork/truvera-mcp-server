@@ -23,6 +23,10 @@ describe("integration: DIDClient with real Wallet SDK", () => {
   });
 
   afterEach(async () => {
+    if (walletClient) {
+      await walletClient.waitForIdle();
+    }
+
     // Clean up wallet resources after each test
     if (walletClient && walletClient.isInitialized()) {
       try {
@@ -31,8 +35,6 @@ describe("integration: DIDClient with real Wallet SDK", () => {
         console.error("Error cleaning up wallet:", error);
       }
     }
-    // Wait for remaining async operations to complete
-    await new Promise((resolve) => setTimeout(resolve, 100));
   });
 
   describe("getDefaultDID", () => {
