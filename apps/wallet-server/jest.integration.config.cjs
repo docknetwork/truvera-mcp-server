@@ -22,6 +22,8 @@ module.exports = {
     ],
   },
   moduleNameMapper: {
+    // Resolve TypeScript ESM-style .js extension imports to their source .ts files
+    "^(\\.{1,2}/.*)\\.js$": "$1",
     "^ky-universal$": "ky",
     "^base58-universal$": "<rootDir>/../../node_modules/base58-universal/main.js",
     "^base64url-universal$": "<rootDir>/../../node_modules/base64url-universal/lib/index.js",
