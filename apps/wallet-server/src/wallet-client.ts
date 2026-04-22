@@ -165,7 +165,7 @@ export class WalletClient {
       await this.wallet.setNetwork(this.networkId);
     }
 
-    console.error(`[Wallet] Initialized wallet: ${this.walletName} (network: ${this.wallet.getNetworkId()})`);
+    console.info(`[Wallet] Initialized wallet: ${this.walletName} (network: ${this.wallet.getNetworkId()})`);
     return this.wallet;
   }
 
@@ -223,7 +223,7 @@ export class WalletClient {
       // Null out references to allow garbage collection
       this.wallet = null;
       this.dataStore = null;
-      console.error(`[Wallet] Deleted wallet: ${this.walletName}`);
+      console.info(`[Wallet] Deleted wallet: ${this.walletName}`);
     } catch (error) {
       // Log the error but don't rethrow to allow cleanup to complete
       console.error(`[Wallet] Error during cleanup for ${this.walletName}:`, error);
