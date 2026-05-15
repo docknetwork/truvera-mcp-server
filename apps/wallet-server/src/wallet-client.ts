@@ -24,19 +24,81 @@ import {
 import { createWallet } from "@docknetwork/wallet-sdk-core/lib/wallet.js";
 import type { IWallet } from "@docknetwork/wallet-sdk-core/lib/types.js";
 
-class InMemoryLocalStorage implements LocalStorage {
+class SharedInMemoryStorage {
   private readonly storage = new Map<string, string>();
 
-  async getItem(key: string): Promise<string | null> {
+  getItem(key: string): string | null {
     return this.storage.has(key) ? this.storage.get(key)! : null;
   }
 
-  async setItem(key: string, value: string): Promise<void> {
+  setItem(key: string, value: string): void {
     this.storage.set(key, value);
   }
 
-  async removeItem(key: string): Promise<void> {
+  removeItem(key: string): void {
     this.storage.delete(key);
+  }
+
+  keys(): string[] {
+    return Array.from(this.storage.keys());
+  }
+}
+
+class InMemoryLocalStorage implements LocalStorage {
+  constructor(private readonly storage: SharedInMemoryStorage) {}
+
+  async getItem(key: string): Promise<string | null> {
+    return this.storage.getItem(key);
+  }
+
+  async setItem(key: string, value: string): Promise<void> {
+    this.storage.setItem(key, value);
+  }
+
+  async removeItem(key: string): Promise<void> {
+    this.storage.removeItem(key);
+  }
+}
+
+class NodeLocalStoragePolyfill {
+  private readonly sharedStorage: SharedInMemoryStorage;
+
+  constructor(sharedStorage: SharedInMemoryStorage) {
+    this.sharedStorage = sharedStorage;
+  }
+
+  get length(): number {
+    return this.sharedStorage.keys().length;
+  }
+
+  key(index: number): string | null {
+    const keys = this.sharedStorage.keys();
+    return keys[index] ?? null;
+  }
+
+  getItem(key: string): string | null {
+    return this.sharedStorage.getItem(String(key));
+  }
+
+  setItem(key: string, value: string): void {
+    this.sharedStorage.setItem(String(key), String(value));
+  }
+
+  removeItem(key: string): void {
+    this.sharedStorage.removeItem(String(key));
+  }
+
+  clear(): void {
+    for (const key of this.sharedStorage.keys()) {
+      this.sharedStorage.removeItem(key);
+    }
+  }
+}
+
+function ensureNodeGlobalLocalStorage(sharedStorage: SharedInMemoryStorage): void {
+  const globalAny = globalThis as any;
+  if (!globalAny.localStorage || typeof globalAny.localStorage.getItem !== "function") {
+    globalAny.localStorage = new NodeLocalStoragePolyfill(sharedStorage);
   }
 }
 
@@ -112,7 +174,9 @@ export class WalletClient {
     }
 
     let dataStore: DataStore;
-    const localStorageImpl = new InMemoryLocalStorage();
+    const sharedStorage = new SharedInMemoryStorage();
+    const localStorageImpl = new InMemoryLocalStorage(sharedStorage);
+    ensureNodeGlobalLocalStorage(sharedStorage);
 
     const dataSource = {
       destroy: async () => {},
