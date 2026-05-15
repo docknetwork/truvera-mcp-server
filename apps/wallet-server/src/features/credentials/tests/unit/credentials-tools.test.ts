@@ -10,17 +10,19 @@ describe("unit: Credential tools", () => {
     mockClient = {
       listCredentials: vi.fn(),
       importCredential: vi.fn(),
+      respondToProofRequest: vi.fn(),
       ensureProvider: vi.fn(),
     } as any;
   });
 
   describe("Tool Definitions", () => {
     it("exports correct tool definitions", () => {
-      expect(credentialToolDefs).toHaveLength(2);
+      expect(credentialToolDefs).toHaveLength(3);
       
       const toolNames = credentialToolDefs.map((t) => t.name);
       expect(toolNames).toContain("list_credentials");
       expect(toolNames).toContain("import_credential");
+      expect(toolNames).toContain("respond_to_proof_request");
     });
 
     it("each tool has required properties", () => {
@@ -109,9 +111,10 @@ describe("unit: Credential tools", () => {
     it("registers all credential handlers", () => {
       const handlers = getCredentialHandlers(mockClient);
       
-      expect(handlers.size).toBe(2);
+      expect(handlers.size).toBe(3);
       expect(handlers.has("list_credentials")).toBe(true);
       expect(handlers.has("import_credential")).toBe(true);
+      expect(handlers.has("respond_to_proof_request")).toBe(true);
     });
 
     it("handler returns MCP-compliant response format", async () => {
@@ -256,6 +259,129 @@ describe("unit: Credential tools", () => {
       
       // Verify it's valid JSON
       expect(() => JSON.parse(result.content[0].text)).not.toThrow();
+    });
+  });
+
+  describe("respond_to_proof_request handler", () => {
+    it("returns error when proofRequest is missing", async () => {
+      const handlers = getCredentialHandlers(mockClient);
+      const handler = handlers.get("respond_to_proof_request")!;
+
+      const result = await handler({});
+
+      expect(mockClient.respondToProofRequest).not.toHaveBeenCalled();
+      expect(result.isError).toBe(true);
+
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(false);
+      expect(response.error).toContain("proofRequest parameter is required");
+    });
+
+    it("returns a presentation when proof request response succeeds", async () => {
+      const handlers = getCredentialHandlers(mockClient);
+      const handler = handlers.get("respond_to_proof_request")!;
+      const proofRequest = {
+        request: { input_descriptors: [] },
+        nonce: "nonce-123",
+      };
+
+      vi.mocked(mockClient.respondToProofRequest).mockResolvedValue({
+        success: true,
+        status: "completed",
+        presentation: { type: ["VerifiablePresentation"] },
+        selectedCredentialIds: ["urn:uuid:123"],
+        selectedDID: "did:key:z6Mkholder",
+        submission: {
+          submitted: true,
+          responseUrl: "https://example.com/response",
+        },
+        sharedPresentationDetails: {
+          holder: "did:key:z6Mkholder",
+          credentialCount: 1,
+          credentials: [{ id: "urn:uuid:123" }],
+        },
+        message: "Presentation created successfully",
+      });
+
+      const result = await handler({ proofRequest });
+
+      expect(mockClient.respondToProofRequest).toHaveBeenCalledWith({
+        proofRequest,
+        selectedCredentialIds: undefined,
+        attributesToRevealByCredential: undefined,
+        interactive: undefined,
+        autoSubmit: undefined,
+      });
+      expect(result.isError).toBeUndefined();
+
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(true);
+      expect(response.status).toBe("completed");
+      expect(response.presentation).toEqual({ type: ["VerifiablePresentation"] });
+      expect(response.selectedCredentialIds).toEqual(["urn:uuid:123"]);
+      expect(response.selectedDID).toBe("did:key:z6Mkholder");
+      expect(response.submission).toEqual({
+        submitted: true,
+        responseUrl: "https://example.com/response",
+      });
+      expect(response.sharedPresentationDetails).toEqual({
+        holder: "did:key:z6Mkholder",
+        credentialCount: 1,
+        credentials: [{ id: "urn:uuid:123" }],
+      });
+    });
+
+    it("returns structured errors when presentation creation fails", async () => {
+      const handlers = getCredentialHandlers(mockClient);
+      const handler = handlers.get("respond_to_proof_request")!;
+
+      vi.mocked(mockClient.respondToProofRequest).mockResolvedValue({
+        success: false,
+        status: "failed",
+        message: "No credentials in the wallet matched the proof request.",
+        errors: [{ message: "no_match" }],
+      });
+
+      const result = await handler({ proofRequest: { request: {} } });
+
+      expect(result.isError).toBe(true);
+
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(false);
+      expect(response.status).toBe("failed");
+      expect(response.error).toBe("No credentials in the wallet matched the proof request.");
+      expect(response.errors).toEqual([{ message: "no_match" }]);
+    });
+
+    it("returns needs_input when additional user decisions are required", async () => {
+      const handlers = getCredentialHandlers(mockClient);
+      const handler = handlers.get("respond_to_proof_request")!;
+
+      vi.mocked(mockClient.respondToProofRequest).mockResolvedValue({
+        success: true,
+        status: "needs_input",
+        message: "Additional user input is required before a presentation can be created.",
+        requiredDecisions: ["Select one or more credentials using selectedCredentialIds."],
+        candidateCredentials: [
+          {
+            credentialId: "urn:uuid:123",
+            type: ["VerifiableCredential"],
+            availableAttributes: ["name"],
+            supportsSelectiveDisclosure: true,
+          },
+        ],
+      });
+
+      const result = await handler({ proofRequest: { request: {} } });
+      expect(result.isError).toBeUndefined();
+
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(true);
+      expect(response.status).toBe("needs_input");
+      expect(response.requiredDecisions).toEqual([
+        "Select one or more credentials using selectedCredentialIds.",
+      ]);
+      expect(response.candidateCredentials).toHaveLength(1);
     });
   });
 });

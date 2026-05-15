@@ -4,7 +4,17 @@
  */
 
 import type { IWallet, ICredentialProvider, IDIDProvider } from "@docknetwork/wallet-sdk-core/lib/types.js";
-import type { CredentialListResult, CredentialInfo, ImportCredentialResult } from "./types.js";
+import { createVerificationController } from "@docknetwork/wallet-sdk-core/lib/verification-controller.js";
+import type {
+  CredentialListResult,
+  CredentialInfo,
+  ImportCredentialResult,
+  ProofResponseCandidate,
+  PresentedCredentialDetail,
+  RespondToProofRequestParams,
+  RespondToProofRequestResult,
+  SharedPresentationDetails,
+} from "./types.js";
 
 export class CredentialClient {
   private wallet: IWallet;
@@ -16,6 +26,55 @@ export class CredentialClient {
     if (didProvider) {
       this.didProviderPromise = Promise.resolve(didProvider);
     }
+  }
+
+  private getCredentialId(credential: any): string | undefined {
+    const id = credential?.id || credential?.credential?.id;
+    return typeof id === "string" ? id : undefined;
+  }
+
+  private getCredentialAttributeKeys(credential: any): string[] {
+    const subject = credential?.credentialSubject || credential?.credential?.credentialSubject;
+    if (!subject || typeof subject !== "object") {
+      return [];
+    }
+    return Object.keys(subject).filter((key) => key !== "id");
+  }
+
+  private getResponseUrlFromProofRequest(proofRequest: Record<string, unknown>): string | undefined {
+    const direct = proofRequest.response_url;
+    if (typeof direct === "string") {
+      return direct;
+    }
+
+    const nestedRequest = (proofRequest as any)?.request?.response_url;
+    if (typeof nestedRequest === "string") {
+      return nestedRequest;
+    }
+
+    return undefined;
+  }
+
+  private summarizePresentation(presentation: any): SharedPresentationDetails {
+    const credentials = presentation?.verifiableCredential;
+    const credentialList = Array.isArray(credentials) ? credentials : credentials ? [credentials] : [];
+
+    const summarizedCredentials: PresentedCredentialDetail[] = credentialList.map((credential: any) => ({
+      id: credential?.id,
+      type: Array.isArray(credential?.type) ? credential.type : undefined,
+      issuer: typeof credential?.issuer === "string" ? credential.issuer : undefined,
+      credentialSubject:
+        credential?.credentialSubject && typeof credential.credentialSubject === "object"
+          ? credential.credentialSubject
+          : undefined,
+    }));
+
+    return {
+      holder: typeof presentation?.holder === "string" ? presentation.holder : undefined,
+      proofType: typeof presentation?.proof?.type === "string" ? presentation.proof.type : undefined,
+      credentialCount: summarizedCredentials.length,
+      credentials: summarizedCredentials,
+    };
   }
 
   /**
@@ -111,5 +170,205 @@ export class CredentialClient {
       credentials,
       count: credentials.length,
     };
+  }
+
+  /**
+   * Build a verifiable presentation that satisfies a proof request using
+   * credentials already stored in the wallet.
+   */
+  async respondToProofRequest(params: RespondToProofRequestParams): Promise<RespondToProofRequestResult> {
+    try {
+      const { proofRequest, selectedCredentialIds, attributesToRevealByCredential } = params;
+      const interactive = params.interactive !== false;
+      const autoSubmit = params.autoSubmit !== false;
+
+      const credentialProvider = await this.ensureProvider();
+      const didProvider = await this.ensureDIDProvider();
+      const controller = createVerificationController({
+        wallet: this.wallet,
+        credentialProvider,
+        didProvider,
+      });
+
+      await controller.start({ template: proofRequest });
+
+      const filteredCredentials = controller.getFilteredCredentials();
+      if (!Array.isArray(filteredCredentials) || filteredCredentials.length === 0) {
+        return {
+          success: false,
+          status: "failed",
+          message: "No credentials in the wallet matched the proof request.",
+        };
+      }
+
+      const candidateCredentials: ProofResponseCandidate[] = [];
+      const credentialById = new Map<string, any>();
+
+      for (const credential of filteredCredentials) {
+        const credentialId = this.getCredentialId(credential);
+        if (!credentialId) {
+          continue;
+        }
+
+        const supportsSelectiveDisclosure =
+          !!credential?._sd_jwt || !!(await controller.isBBSPlusCredential(credential));
+        const availableAttributes = this.getCredentialAttributeKeys(credential);
+
+        candidateCredentials.push({
+          credentialId,
+          type: Array.isArray(credential?.type)
+            ? credential.type
+            : Array.isArray(credential?.credential?.type)
+              ? credential.credential.type
+              : [],
+          issuer:
+            typeof credential?.issuer === "string"
+              ? credential.issuer
+              : typeof credential?.credential?.issuer === "string"
+                ? credential.credential.issuer
+                : undefined,
+          issuanceDate:
+            typeof credential?.issuanceDate === "string"
+              ? credential.issuanceDate
+              : typeof credential?.credential?.issuanceDate === "string"
+                ? credential.credential.issuanceDate
+                : undefined,
+          availableAttributes,
+          supportsSelectiveDisclosure,
+        });
+
+        credentialById.set(credentialId, credential);
+      }
+
+      if (candidateCredentials.length === 0) {
+        return {
+          success: false,
+          status: "failed",
+          message: "Matched credentials were missing stable identifiers required for presentation creation.",
+        };
+      }
+
+      const requiredDecisions: string[] = [];
+      let resolvedCredentialIds: string[] = [];
+
+      if (selectedCredentialIds && selectedCredentialIds.length > 0) {
+        const invalidIds = selectedCredentialIds.filter((id) => !credentialById.has(id));
+        if (invalidIds.length > 0) {
+          return {
+            success: false,
+            status: "failed",
+            message: `selectedCredentialIds contained values that do not match this proof request: ${invalidIds.join(", ")}`,
+            candidateCredentials,
+          };
+        }
+        resolvedCredentialIds = selectedCredentialIds;
+      } else if (candidateCredentials.length === 1) {
+        resolvedCredentialIds = [candidateCredentials[0].credentialId];
+      } else if (interactive) {
+        requiredDecisions.push("Select one or more credentials using selectedCredentialIds.");
+      } else {
+        resolvedCredentialIds = candidateCredentials.map((candidate) => candidate.credentialId);
+      }
+
+      const needsAttributeDecision =
+        interactive &&
+        resolvedCredentialIds.length > 0 &&
+        !attributesToRevealByCredential &&
+        resolvedCredentialIds.some((id) => {
+          const candidate = candidateCredentials.find((item) => item.credentialId === id);
+          return !!candidate && candidate.supportsSelectiveDisclosure && candidate.availableAttributes.length > 0;
+        });
+
+      if (needsAttributeDecision) {
+        requiredDecisions.push(
+          "Provide attributesToRevealByCredential for selective-disclosure credentials, or call with interactive=false to proceed automatically."
+        );
+      }
+
+      if (requiredDecisions.length > 0) {
+        return {
+          success: true,
+          status: "needs_input",
+          message: "Additional user input is required before a presentation can be created.",
+          candidateCredentials,
+          requiredDecisions,
+        };
+      }
+
+      for (const credentialId of resolvedCredentialIds) {
+        const credential = credentialById.get(credentialId);
+        if (!credential) {
+          continue;
+        }
+
+        controller.selectedCredentials.set(credentialId, {
+          credential,
+          attributesToReveal: attributesToRevealByCredential?.[credentialId],
+        });
+      }
+
+      const presentation = await controller.createPresentation();
+      const evaluation = controller.evaluatePresentation(presentation);
+      const sharedPresentationDetails = this.summarizePresentation(presentation);
+
+      if (!evaluation.isValid) {
+        return {
+          success: false,
+          status: "failed",
+          message: "Generated presentation did not satisfy the proof request.",
+          presentation,
+          selectedCredentialIds: resolvedCredentialIds,
+          selectedDID: controller.getSelectedDID(),
+          sharedPresentationDetails,
+          errors: evaluation.errors,
+          warnings: evaluation.warnings,
+        };
+      }
+
+      const responseUrl = this.getResponseUrlFromProofRequest(proofRequest);
+      let submission: RespondToProofRequestResult["submission"] = {
+        submitted: false,
+        responseUrl,
+      };
+
+      if (autoSubmit) {
+        if (!responseUrl) {
+          return {
+            success: false,
+            status: "failed",
+            message: "proofRequest.response_url is required to auto-submit the presentation.",
+            presentation,
+            selectedCredentialIds: resolvedCredentialIds,
+            selectedDID: controller.getSelectedDID(),
+            sharedPresentationDetails,
+          };
+        }
+
+        const verifierResponse = await controller.submitPresentation(presentation);
+        submission = {
+          submitted: true,
+          responseUrl,
+          verifierResponse,
+        };
+      }
+
+      return {
+        success: true,
+        status: "completed",
+        presentation,
+        selectedCredentialIds: resolvedCredentialIds,
+        selectedDID: controller.getSelectedDID(),
+        submission,
+        sharedPresentationDetails,
+        warnings: evaluation.warnings,
+        message: autoSubmit ? "Presentation created and submitted successfully" : "Presentation created successfully",
+      };
+    } catch (error) {
+      return {
+        success: false,
+        status: "failed",
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 }
