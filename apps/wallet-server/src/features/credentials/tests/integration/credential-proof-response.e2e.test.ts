@@ -20,6 +20,8 @@
  * Run via: npm run test:integration
  */
 
+import os from "os";
+import path from "path";
 import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
 
 import { WalletClient } from "../../../../wallet-client";
@@ -266,7 +268,8 @@ describe("e2e: credential import → proof request response (via MCP tool handle
     requireLiveTestEnv();
 
     const uniqueWalletName = `proof-e2e-wallet-${Date.now()}-${Math.random()}`;
-    walletClient = new WalletClient(uniqueWalletName, "testnet");
+    const dbPath = path.join(os.tmpdir(), `${uniqueWalletName}.db`);
+    walletClient = new WalletClient(uniqueWalletName, "testnet", dbPath);
 
     const wallet = await walletClient.initialize();
     const didClient = new DIDClient(wallet);

@@ -1,8 +1,10 @@
 /**
  * Integration tests for CredentialClient
- * These tests use the real Wallet SDK with in-memory storage
+ * These tests use the real Wallet SDK with SQLite storage (isolated per-test temp file)
  */
 
+import os from "os";
+import path from "path";
 import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
 
 import { WalletClient } from "../../../../wallet-client";
@@ -18,11 +20,9 @@ describe("integration: CredentialClient with real Wallet SDK", () => {
   let didClient: DIDClient;
 
   beforeEach(async () => {
-    // Create a unique wallet for each test to avoid conflicts
-    const uniqueWalletName = `test-wallet-${Date.now()}-${Math.random()}`;
-    walletClient = new WalletClient(uniqueWalletName, "testnet");
-    
-    // Initialize wallet and credential client
+    const dbPath = path.join(os.tmpdir(), `wallet-test-${Date.now()}-${Math.random()}.db`);
+    walletClient = new WalletClient("test-wallet", "testnet", dbPath);
+
     const wallet = await walletClient.initialize();
     credentialClient = new CredentialClient(wallet);
     didClient = new DIDClient(wallet);

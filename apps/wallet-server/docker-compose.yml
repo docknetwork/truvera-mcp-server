@@ -15,6 +15,8 @@ services:
       - NODE_ENV=production
     ports:
       - "3001:3001"
+    volumes:
+      - wallet-db-data:/data
     restart: unless-stopped
     networks:
       - mcp-network
@@ -22,3 +24,6 @@ services:
 networks:
   mcp-network:
     driver: bridge
+
+volumes:
+  wallet-db-data:

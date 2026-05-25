@@ -5,6 +5,11 @@ module.exports = {
   testMatch: ["<rootDir>/src/**/tests/integration/**/*.test.ts"],
   // Run tests serially to avoid resource contention between wallet instances
   maxWorkers: 1,
+  // The wallet SDK's async-mutex queue has in-flight writes that outlive the
+  // test cleanup hooks. forceExit exits cleanly after all tests pass rather
+  // than waiting for those stragglers (which would cause "Cannot log after
+  // tests are done" warnings and exit code 1).
+  forceExit: true,
   // Setup file to mock blockchain service
   setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
   transform: {

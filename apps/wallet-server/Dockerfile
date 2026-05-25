@@ -57,6 +57,10 @@ COPY --from=builder /app/apps/wallet-server/dist ./apps/wallet-server/dist
 COPY --from=builder /app/apps/wallet-server/register-aliases.cjs ./apps/wallet-server/register-aliases.cjs
 
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
+
+# Create /data directory for SQLite database files and set permissions
+RUN mkdir -p /data && chown -R nodejs:nodejs /data && chmod 755 /data
+
 USER nodejs
 
 WORKDIR /app/apps/wallet-server

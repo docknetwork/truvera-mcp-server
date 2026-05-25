@@ -9,3 +9,4 @@ truvera/
 .buildnumber
 src/build-info.ts
 apps/truvera-api/.env.test
+.claude/settings.local.json

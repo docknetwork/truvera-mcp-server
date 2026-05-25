@@ -3,166 +3,24 @@
  * Manages wallet initialization and lifecycle
  */
 
-import { createDataStore as createBaseDataStore } from "@docknetwork/wallet-sdk-data-store/lib/index.js";
-import type { DataStore, LocalStorage } from "@docknetwork/wallet-sdk-data-store/lib/types.js";
-import {
-  createDocument,
-  removeDocument,
-  updateDocument,
-  getDocumentById,
-  getDocumentsByType,
-  getDocumentsById,
-  getAllDocuments,
-  removeAllDocuments,
-  getDocumentCorrelations,
-} from "@docknetwork/wallet-sdk-data-store-web/lib/entities/document/index.js";
-import {
-  createWallet as createWalletRecord,
-  getWallet,
-  updateWallet,
-} from "@docknetwork/wallet-sdk-data-store-web/lib/entities/wallet.entity.js";
+import path from "path";
+import { createDataStore } from "@docknetwork/wallet-sdk-data-store-typeorm/lib/index.js";
+import type { DataStore } from "@docknetwork/wallet-sdk-data-store/lib/types.js";
 import { createWallet } from "@docknetwork/wallet-sdk-core/lib/wallet.js";
 import type { IWallet } from "@docknetwork/wallet-sdk-core/lib/types.js";
-
-class SharedInMemoryStorage {
-  private readonly storage = new Map<string, string>();
-
-  getItem(key: string): string | null {
-    return this.storage.has(key) ? this.storage.get(key)! : null;
-  }
-
-  setItem(key: string, value: string): void {
-    this.storage.set(key, value);
-  }
-
-  removeItem(key: string): void {
-    this.storage.delete(key);
-  }
-
-  keys(): string[] {
-    return Array.from(this.storage.keys());
-  }
-}
-
-class InMemoryLocalStorage implements LocalStorage {
-  constructor(private readonly storage: SharedInMemoryStorage) {}
-
-  async getItem(key: string): Promise<string | null> {
-    return this.storage.getItem(key);
-  }
-
-  async setItem(key: string, value: string): Promise<void> {
-    this.storage.setItem(key, value);
-  }
-
-  async removeItem(key: string): Promise<void> {
-    this.storage.removeItem(key);
-  }
-}
-
-class NodeLocalStoragePolyfill {
-  private readonly sharedStorage: SharedInMemoryStorage;
-
-  constructor(sharedStorage: SharedInMemoryStorage) {
-    this.sharedStorage = sharedStorage;
-  }
-
-  get length(): number {
-    return this.sharedStorage.keys().length;
-  }
-
-  key(index: number): string | null {
-    const keys = this.sharedStorage.keys();
-    return keys[index] ?? null;
-  }
-
-  getItem(key: string): string | null {
-    return this.sharedStorage.getItem(String(key));
-  }
-
-  setItem(key: string, value: string): void {
-    this.sharedStorage.setItem(String(key), String(value));
-  }
-
-  removeItem(key: string): void {
-    this.sharedStorage.removeItem(String(key));
-  }
-
-  clear(): void {
-    for (const key of this.sharedStorage.keys()) {
-      this.sharedStorage.removeItem(key);
-    }
-  }
-}
-
-function ensureNodeGlobalLocalStorage(sharedStorage: SharedInMemoryStorage): void {
-  const globalAny = globalThis as any;
-  if (!globalAny.localStorage || typeof globalAny.localStorage.getItem !== "function") {
-    globalAny.localStorage = new NodeLocalStoragePolyfill(sharedStorage);
-  }
-}
 
 export class WalletClient {
   private wallet: IWallet | null = null;
   private walletName: string;
   private networkId: string;
   private dataStore: DataStore | null = null;
-  private inFlightDocumentOps = 0;
-  private idleWaiters: Array<() => void> = [];
+  private databasePath: string;
 
-  constructor(walletName: string = "default-wallet", networkId: string = "testnet") {
+  constructor(walletName: string = "default-wallet", networkId: string = "testnet", databasePath?: string) {
     this.walletName = walletName;
     this.networkId = networkId;
-  }
-
-  private trackDocumentOperation<T>(operation: Promise<T>): Promise<T> {
-    this.inFlightDocumentOps += 1;
-
-    return operation.finally(() => {
-      this.inFlightDocumentOps = Math.max(0, this.inFlightDocumentOps - 1);
-
-      if (this.inFlightDocumentOps === 0) {
-        const waiters = this.idleWaiters.splice(0);
-        for (const resolve of waiters) {
-          resolve();
-        }
-      }
-    });
-  }
-
-  /**
-   * Wait until tracked document operations settle.
-   * This avoids brittle fixed sleeps in integration tests.
-   */
-  async waitForIdle(timeoutMs: number = 10000): Promise<void> {
-    const start = Date.now();
-
-    while (true) {
-      if (this.inFlightDocumentOps === 0) {
-        // Ensure no new operations were queued in the same tick.
-        await new Promise<void>((resolve) => setImmediate(resolve));
-        if (this.inFlightDocumentOps === 0) {
-          return;
-        }
-      }
-
-      const elapsed = Date.now() - start;
-      const remaining = timeoutMs - elapsed;
-      if (remaining <= 0) {
-        throw new Error(`Timed out waiting for wallet document operations to settle after ${timeoutMs}ms`);
-      }
-
-      await new Promise<void>((resolve, reject) => {
-        const timeoutId = setTimeout(() => {
-          reject(new Error(`Timed out waiting for wallet document operations to settle after ${timeoutMs}ms`));
-        }, remaining);
-
-        this.idleWaiters.push(() => {
-          clearTimeout(timeoutId);
-          resolve();
-        });
-      });
-    }
+    // Use provided path or default to /data/wallet-db
+    this.databasePath = databasePath || path.join("/data", "wallet-db");
   }
 
   /**
@@ -173,64 +31,47 @@ export class WalletClient {
       return this.wallet;
     }
 
-    let dataStore: DataStore;
-    const sharedStorage = new SharedInMemoryStorage();
-    const localStorageImpl = new InMemoryLocalStorage(sharedStorage);
-    ensureNodeGlobalLocalStorage(sharedStorage);
-
-    const dataSource = {
-      destroy: async () => {},
-      initialize: async () => {},
-    };
-
-    dataStore = await createBaseDataStore({
-      configs: {
-        // Use in-memory database for tests to avoid persistent files and resource leaks
-        databasePath: `:memory:${Date.now()}`,
-        defaultNetwork: this.networkId,
-      },
-      dataSource,
-      documentStore: {
-        addDocument: (json, options) => this.trackDocumentOperation(createDocument({ dataStore, json, options })),
-        removeDocument: (id, options) => this.trackDocumentOperation(removeDocument({ dataStore, id, options })),
-        updateDocument: (document, options) => this.trackDocumentOperation(updateDocument({ dataStore, document, options })),
-        getDocumentById: (id) => getDocumentById({ dataStore, id }),
-        getDocumentsByType: (type) => getDocumentsByType({ dataStore, type }),
-        getDocumentsById: (idList) => getDocumentsById({ dataStore, idList }),
-        getAllDocuments: (allNetworks) => getAllDocuments({ dataStore, allNetworks }),
-        removeAllDocuments: () => this.trackDocumentOperation(removeAllDocuments({ dataStore })),
-        getDocumentCorrelations: (documentId) => getDocumentCorrelations({ dataStore, documentId }),
-      },
-      localStorageImpl,
-      walletStore: {
-        getWallet: () => getWallet({ dataStore }),
-        updateWallet: () => updateWallet({ dataStore }),
-      },
+    // Create data store using TypeORM + SQLite
+    const dataStore = await createDataStore({
+      databasePath: this.databasePath,
+      defaultNetwork: this.networkId,
     });
 
     // Store dataStore reference for cleanup
     this.dataStore = dataStore;
 
-    let walletRecord = await dataStore.wallet.getWallet();
-    if (!walletRecord) {
-      walletRecord = await createWalletRecord({ dataStore });
-    }
-
-    dataStore.networkId = walletRecord.networkId;
-    dataStore.network = dataStore.networks.find((item) => item.id === walletRecord.networkId)!;
-
-    // Create wallet instance using core SDK directly
+    // Create wallet instance using core SDK
     this.wallet = await createWallet({
       dataStore,
     });
 
-    // Ensure wallet starts on requested network.
+    // Ensure wallet starts on requested network
     if (this.wallet.getNetworkId() !== this.networkId) {
       await this.wallet.setNetwork(this.networkId);
     }
 
-    console.info(`[Wallet] Initialized wallet: ${this.walletName} (network: ${this.wallet.getNetworkId()})`);
+    console.info(
+      `[Wallet] Initialized wallet: ${this.walletName} (network: ${this.wallet.getNetworkId()}, database: ${this.databasePath})`
+    );
     return this.wallet;
+  }
+
+  /**
+   * Wait until wallet operations settle
+   */
+  async waitForIdle(): Promise<void> {
+    // Drain the SDK's global write mutex. Both createDocument and updateDocument
+    // run inside writeMutex.runExclusive, so acquiring it here blocks until the
+    // current in-flight write finishes. This is more reliable than a fixed delay.
+    //
+    // Note: syncCredentialStatus (fired without await in the SDK) makes network
+    // calls between its writes, so there is a window where the mutex is free but
+    // more writes are queued. Jest's forceExit handles that residual gap.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { writeMutex } = await import(
+      "@docknetwork/wallet-sdk-data-store-typeorm/lib/entities/document/create-document.js" as string
+    );
+    await writeMutex.runExclusive(async () => {});
   }
 
   /**
@@ -266,20 +107,9 @@ export class WalletClient {
         clearInterval(walletAny.networkCheckInterval);
       }
 
-      // Remove all documents from the dataStore
-      if (this.dataStore && typeof (this.dataStore as any).documents?.removeAllDocuments === "function") {
-        try {
-          await (this.dataStore as any).documents.removeAllDocuments();
-        } catch (err) {
-          console.debug("Error removing all documents:", err);
-        }
-      }
-
       // Call wallet cleanup
       try {
-        await this.waitForIdle();
         await this.wallet.deleteWallet();
-        await this.waitForIdle();
       } catch (err) {
         console.debug("Error in wallet.deleteWallet():", err);
       }
