@@ -10,6 +10,7 @@ const MCP_PORT = parseInt(process.env.MCP_PORT || "3001", 10);
 const MCP_MODE = process.env.MCP_MODE || "stdio"; // "stdio" or "http"
 const WALLET_NAME = process.env.WALLET_NAME || "mcp-wallet";
 const CHEQD_NETWORK = process.env.CHEQD_NETWORK || "testnet"; // "testnet" or "mainnet"
+const WALLET_DB_PATH = process.env.WALLET_DB_PATH; // defaults to /data/wallet-db inside WalletClient
 
 // Validate required environment variables
 const WALLET_MASTER_KEY = process.env.WALLET_MASTER_KEY;
@@ -20,7 +21,7 @@ if (!WALLET_MASTER_KEY) {
 
 // Initialize wallet and clients
 async function initializeClients() {
-  const walletClient = new WalletClient(WALLET_NAME, CHEQD_NETWORK);
+  const walletClient = new WalletClient(WALLET_NAME, CHEQD_NETWORK, WALLET_DB_PATH);
   await walletClient.initialize();
   
   const wallet = walletClient.getWallet();
