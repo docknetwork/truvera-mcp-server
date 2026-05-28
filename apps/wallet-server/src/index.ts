@@ -1,9 +1,48 @@
 import "dotenv/config";
+import { LocalStorage } from "node-localstorage";
+import { blockchainService } from "@docknetwork/wallet-sdk-wasm/lib/services/blockchain/service.js";
 import { bootstrapMCPServer } from "@truvera/mcp-shared/server";
 import { BUILD_INFO } from "./build-info.js";
 import { WalletClient } from "./wallet-client.js";
 import { DIDClient, didToolDefs, getDIDHandlers } from "./features/dids/index.js";
 import { CredentialClient, credentialToolDefs, getCredentialHandlers } from "./features/credentials/index.js";
+
+// wallet-sdk-wasm's storageService calls global.localStorage for DID resolution
+// caching during BBS+ proof generation. Node.js has no native localStorage, so
+// we use node-localstorage backed by the same /data volume as the wallet DB.
+const _lsPath = process.env.WALLET_DB_PATH
+  ? `${process.env.WALLET_DB_PATH}-localstorage`
+  : "/data/localstorage";
+(globalThis as any).localStorage = new LocalStorage(_lsPath);
+
+// cheqd DID documents store BBS+ keys as JSON-stringified objects in
+// assertionMethod/authentication rather than as proper objects in
+// verificationMethod. Wrap the resolver to normalise these before jsonld.frame
+// processes them, so publicKeyBase58 is always reachable.
+function normalizeDIDDocument(doc: any): any {
+  if (!doc || typeof doc !== "object") return doc;
+  const extra: any[] = [];
+  for (const prop of ["assertionMethod", "authentication", "capabilityInvocation", "capabilityDelegation"]) {
+    if (!Array.isArray(doc[prop])) continue;
+    doc[prop] = doc[prop].map((entry: any) => {
+      if (typeof entry !== "string") return entry;
+      try {
+        // cheqd DID documents can be double-JSON-encoded (string → string → object)
+        let parsed: any = JSON.parse(entry);
+        if (typeof parsed === "string") parsed = JSON.parse(parsed);
+        if (parsed && typeof parsed === "object" && parsed.id) {
+          extra.push(parsed);
+          return parsed.id;
+        }
+      } catch {}
+      return entry;
+    });
+  }
+  if (extra.length) doc.verificationMethod = [...(doc.verificationMethod ?? []), ...extra];
+  return doc;
+}
+const _origResolve = blockchainService.resolver.resolve.bind(blockchainService.resolver);
+(blockchainService.resolver as any).resolve = async (did: string) => normalizeDIDDocument(await _origResolve(did));
 
 // Configuration from environment variables
 const MCP_PORT = parseInt(process.env.MCP_PORT || "3001", 10);

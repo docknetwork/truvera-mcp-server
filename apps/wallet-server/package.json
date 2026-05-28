@@ -19,13 +19,14 @@
     "docker:run": "docker rm -f truvera-wallet-mcp || true && docker run -d --name truvera-wallet-mcp --env-file ./.env -e MCP_MODE=http -e MCP_PORT=3001 -p 3001:3001 -v truvera-wallet-mcp-data:/data truvera-wallet-mcp:latest"
   },
   "dependencies": {
-    "@truvera/mcp-shared": "file:../../packages/mcp-shared",
-    "@modelcontextprotocol/sdk": "^1.29.0",
     "@docknetwork/wallet-sdk-core": "^1.7.0",
     "@docknetwork/wallet-sdk-data-store": "^1.7.0",
     "@docknetwork/wallet-sdk-data-store-typeorm": "^1.7.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@truvera/mcp-shared": "file:../../packages/mcp-shared",
     "dotenv": "^16.6.1",
     "module-alias": "^2.2.3",
+    "node-localstorage": "^3.0.5",
     "sqlite3": "^5.1.7",
     "typeorm": "^0.3.20"
   },
@@ -34,6 +35,7 @@
     "@babel/preset-env": "^7.26.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.0.0",
+    "@types/node-localstorage": "^1.3.3",
     "@typescript-eslint/eslint-plugin": "^8.56.1",
     "@typescript-eslint/parser": "^8.56.1",
     "babel-jest": "^29.7.0",

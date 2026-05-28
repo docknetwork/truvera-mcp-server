@@ -97,7 +97,7 @@ async function main() {
   try {
     fs.mkdirSync(hostDir, { recursive: true });
     // Pre-create the database file so SQLite opens an existing file rather than
-    // creating one inside the container (avoids permission issues on bind mounts).
+    // creating one inside the container.
     if (!fs.existsSync(WALLET_DB_PATH)) {
       fs.writeFileSync(WALLET_DB_PATH, "");
     }
@@ -127,11 +127,18 @@ async function main() {
   // directory is always mounted at /data, so translate the path accordingly.
   const containerDbPath = `/data/${path.basename(WALLET_DB_PATH)}`;
 
+  // Run as the host user so the container process owns the bind-mounted files
+  // and normal directory permissions apply — no need for world-writable mounts.
+  const uid = process.getuid();
+  const gid = process.getgid();
+
   runDocker([
     "run",
     "-d",
     "--name",
     CONTAINER_NAME,
+    "--user",
+    `${uid}:${gid}`,
     "--env-file",
     "apps/wallet-server/.env",
     "-e",
