@@ -45,7 +45,8 @@
     "@transmute/jsonld@0.0.4": {
       "@digitalbazaar/http-client": "^3.4.1"
     },
-    "undici": ">=6.27.0"
+    "undici": ">=6.27.0",
+    "tmp": "^0.2.6"
   },
   "engines": {
     "node": ">=18.0.0",
