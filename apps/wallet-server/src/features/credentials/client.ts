@@ -38,7 +38,23 @@ export class CredentialClient {
     if (!subject || typeof subject !== "object") {
       return [];
     }
-    return Object.keys(subject).filter((key) => key !== "id");
+    // Return full JSON paths so that availableAttributes in needs_input responses can
+    // be passed directly back in attributesToRevealByCredential without modification.
+    return Object.keys(subject)
+      .filter((key) => key !== "id")
+      .map((key) => `credentialSubject.${key}`);
+  }
+
+  private normalizeAttributesToReveal(attributes: string[] | undefined, credential: any): string[] | undefined {
+    if (!attributes) return undefined;
+    const subject = credential?.credentialSubject || credential?.credential?.credentialSubject;
+    const subjectKeys = subject && typeof subject === "object" ? new Set(Object.keys(subject)) : new Set<string>();
+    // Promote bare attribute names (no path separator) that match a credentialSubject key to
+    // their full path form. Any path that already contains "." is left as-is, covering both
+    // credentialSubject.X paths supplied explicitly and non-credentialSubject paths like "issuer".
+    return attributes.map((attr) =>
+      !attr.includes(".") && subjectKeys.has(attr) ? `credentialSubject.${attr}` : attr
+    );
   }
 
   private getResponseUrlFromProofRequest(proofRequest: Record<string, unknown>): string | undefined {
@@ -303,7 +319,10 @@ export class CredentialClient {
 
         controller.selectedCredentials.set(credentialId, {
           credential,
-          attributesToReveal: attributesToRevealByCredential?.[credentialId],
+          attributesToReveal: this.normalizeAttributesToReveal(
+            attributesToRevealByCredential?.[credentialId],
+            credential
+          ),
         });
       }
 

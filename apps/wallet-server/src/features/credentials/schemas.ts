@@ -35,7 +35,10 @@ export const respondToProofRequestSchema = {
     },
     attributesToRevealByCredential: {
       type: "object" as const,
-      description: "Optional selective disclosure map keyed by credential id with attribute names to reveal.",
+      description:
+        "Optional selective disclosure map for BBS+ credentials. Keys are credential IDs; values are arrays of attribute paths to reveal. " +
+        "Use the full JSON path as returned in availableAttributes (e.g. \"credentialSubject.startDate\"). " +
+        "Bare attribute names without a path separator (e.g. \"startDate\") are also accepted and will be resolved automatically if the attribute exists in credentialSubject.",
       additionalProperties: {
         type: "array" as const,
         items: { type: "string" as const },

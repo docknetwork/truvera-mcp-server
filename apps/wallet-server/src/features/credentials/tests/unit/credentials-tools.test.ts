@@ -366,7 +366,7 @@ describe("unit: Credential tools", () => {
           {
             credentialId: "urn:uuid:123",
             type: ["VerifiableCredential"],
-            availableAttributes: ["name"],
+            availableAttributes: ["credentialSubject.name"],
             supportsSelectiveDisclosure: true,
           },
         ],
