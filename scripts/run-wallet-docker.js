@@ -103,12 +103,12 @@ async function main() {
     }
   } catch (err) {
     if (err.code === "EACCES") {
-      console.error(`Error: cannot create wallet data directory '${hostDir}': permission denied.`);
+      console.error("Error: cannot create wallet data directory: permission denied.");
       console.error(`WALLET_DB_PATH must be a path you have write access to.`);
-      console.error(`  Current value: WALLET_DB_PATH=${WALLET_DB_PATH}`);
+      console.error("  Current value: WALLET_DB_PATH is set (value redacted).");
       console.error(`  Example:       WALLET_DB_PATH=${process.env.HOME}/wallet-data/wallet-db`);
     } else {
-      console.error(`Error: cannot create wallet data directory '${hostDir}': ${err.message}`);
+      console.error(`Error: cannot create wallet data directory: ${err.message}`);
     }
     process.exit(1);
   }
