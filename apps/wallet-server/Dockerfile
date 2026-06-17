@@ -48,6 +48,15 @@ COPY apps/wallet-server/patches ./apps/wallet-server/patches
 
 RUN npm ci --workspaces --omit=dev
 
+# patch-package is only needed during npm ci to apply patches; remove it so
+# its tmp dependency (CVE-2026-44705) is not present in the final image.
+# protobufjs/cli contains the pbjs/pbts code-generation tools with their own
+# bundled lodash@4.17.21 (CVE-2026-4800); these tools are build-time only and
+# never used at runtime.
+RUN npm uninstall -g patch-package && \
+    find /app/node_modules -path "*/protobufjs/cli/node_modules" -type d \
+        -exec rm -rf {} + 2>/dev/null; true
+
 RUN rm -rf /usr/local/lib/node_modules/npm \
   && rm -f /usr/local/bin/npm /usr/local/bin/npx
 
