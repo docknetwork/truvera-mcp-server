@@ -46,6 +46,8 @@ module.exports = {
     "^@docknetwork/wallet-sdk-wasm/src/(.*)$": "@docknetwork/wallet-sdk-wasm/lib/$1",
     "^@docknetwork/wallet-sdk-data-store/src/(.*)$": "@docknetwork/wallet-sdk-data-store/lib/$1",
     "^@docknetwork/wallet-sdk-data-store/src$": "@docknetwork/wallet-sdk-data-store/lib",
+    // Not installed — mocked here so message-provider can be loaded in tests
+    "^@docknetwork/wallet-sdk-relay-service/lib$": "<rootDir>/src/__mocks__/wallet-sdk-relay-service.cjs",
   },
   transformIgnorePatterns: [
     "/node_modules/(?!@babel|@docknetwork|@digitalbazaar|base58-universal|multiformats|p-limit|yocto-queue|@cheqd/ts-proto|ky|did-jwt-cjs|@scure/base)",

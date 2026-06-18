@@ -112,8 +112,9 @@ describe("unit: Credential tools", () => {
     it("registers all credential handlers", () => {
       const handlers = getCredentialHandlers(mockClient);
       
-      expect(handlers.size).toBe(3);
+      expect(handlers.size).toBe(4);
       expect(handlers.has("list_credentials")).toBe(true);
+      expect(handlers.has("get_credential")).toBe(true);
       expect(handlers.has("import_credential")).toBe(true);
       expect(handlers.has("respond_to_proof_request")).toBe(true);
     });

@@ -117,7 +117,8 @@ export class CredentialClient {
   async getCredential(id: string): Promise<GetCredentialResult> {
     try {
       const provider = await this.ensureProvider();
-      const doc = provider.getById(id);
+      // getById is typed as synchronous but the underlying dataStore call is async
+      const doc = await (provider.getById(id) as Promise<any> | any);
       if (!doc) {
         return { success: false, message: `Credential not found: ${id}` };
       }

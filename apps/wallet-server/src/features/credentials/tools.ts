@@ -116,9 +116,7 @@ export function getCredentialHandlers(client: CredentialClient): Map<string, Too
     try {
       const params = args as Record<string, unknown>;
       const uri = params.uri as string;
-      
-      console.log('[import_credential handler] Extracted URI:', uri);
-      
+
       if (!uri || typeof uri !== "string") {
         return {
           content: [
@@ -138,9 +136,7 @@ export function getCredentialHandlers(client: CredentialClient): Map<string, Too
         };
       }
       
-      console.log('[import_credential handler] Calling client.importCredential...');
       const result = await client.importCredential(uri);
-      console.log('[import_credential handler] Client returned:', JSON.stringify({ success: result.success, hasCredential: !!result.credential, message: result.message }));
 
       if (result.success) {
         return {
