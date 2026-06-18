@@ -7,6 +7,7 @@ import { WalletClient } from "./wallet-client.js";
 import { DIDClient, didToolDefs, getDIDHandlers } from "./features/dids/index.js";
 import { CredentialClient, credentialToolDefs, getCredentialHandlers } from "./features/credentials/index.js";
 import { MessageClient, messageToolDefs, getMessageHandlers } from "./features/messages/index.js";
+import { AgentCardClient, agentCardToolDefs, getAgentCardHandlers } from "./features/agent-card/index.js";
 
 // wallet-sdk-wasm's storageService calls global.localStorage for DID resolution
 // caching during BBS+ proof generation. Node.js has no native localStorage, so
@@ -70,8 +71,9 @@ async function initializeClients() {
   const didProvider = await didClient.getProvider();
   const credentialClient = new CredentialClient(wallet, didProvider);
   const messageClient = new MessageClient(wallet, didProvider);
+  const agentCardClient = new AgentCardClient(didClient);
 
-  return { walletClient, didClient, credentialClient, messageClient };
+  return { walletClient, didClient, credentialClient, messageClient, agentCardClient };
 }
 
 // Start server using bootstrap
@@ -79,18 +81,19 @@ async function main() {
   console.error("Starting Wallet MCP Server...");
   console.error(`  - Mode: ${MCP_MODE}`);
   
-  const { didClient, credentialClient, messageClient } = await initializeClients();
+  const { didClient, credentialClient, messageClient, agentCardClient } = await initializeClients();
 
   // Build tools and handlers
-  const tools = [...didToolDefs, ...credentialToolDefs, ...messageToolDefs];
+  const tools = [...didToolDefs, ...credentialToolDefs, ...messageToolDefs, ...agentCardToolDefs];
   const toolHandlers = new Map([
     ...getDIDHandlers(didClient),
     ...getCredentialHandlers(credentialClient),
     ...getMessageHandlers(messageClient),
+    ...getAgentCardHandlers(agentCardClient),
   ]);
-  
+
   console.error(`  - Tools available: ${tools.length}`);
-  
+
   const shutdown = async () => {
     await messageClient.stop();
     process.exit(0);
