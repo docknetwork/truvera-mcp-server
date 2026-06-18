@@ -6,9 +6,9 @@ describe("unit: Credential tools", () => {
   let mockClient: CredentialClient;
 
   beforeEach(() => {
-    // Create a fresh mock client for each test
     mockClient = {
       listCredentials: vi.fn(),
+      getCredential: vi.fn(),
       importCredential: vi.fn(),
       respondToProofRequest: vi.fn(),
       ensureProvider: vi.fn(),
@@ -17,10 +17,11 @@ describe("unit: Credential tools", () => {
 
   describe("Tool Definitions", () => {
     it("exports correct tool definitions", () => {
-      expect(credentialToolDefs).toHaveLength(3);
-      
+      expect(credentialToolDefs).toHaveLength(4);
+
       const toolNames = credentialToolDefs.map((t) => t.name);
       expect(toolNames).toContain("list_credentials");
+      expect(toolNames).toContain("get_credential");
       expect(toolNames).toContain("import_credential");
       expect(toolNames).toContain("respond_to_proof_request");
     });
@@ -382,6 +383,71 @@ describe("unit: Credential tools", () => {
         "Select one or more credentials using selectedCredentialIds.",
       ]);
       expect(response.candidateCredentials).toHaveLength(1);
+    });
+  });
+
+  describe("get_credential handler", () => {
+    const mockCredential = {
+      id: "urn:uuid:abc123",
+      type: ["VerifiableCredential", "UniversityDegreeCredential"],
+      issuer: "did:key:z6Mk...",
+      issuanceDate: "2023-01-01T00:00:00Z",
+      credentialSubject: { name: "Alice" },
+    };
+
+    it("returns credential when found", async () => {
+      const handlers = getCredentialHandlers(mockClient);
+      const handler = handlers.get("get_credential")!;
+      expect(handler).toBeDefined();
+
+      (mockClient.getCredential as any).mockResolvedValue({ success: true, credential: mockCredential });
+
+      const result = await handler({ id: "urn:uuid:abc123" });
+
+      expect(mockClient.getCredential).toHaveBeenCalledWith("urn:uuid:abc123");
+      expect(result.isError).not.toBe(true);
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(true);
+      expect(response.credential).toEqual(mockCredential);
+    });
+
+    it("returns error when credential not found", async () => {
+      const handlers = getCredentialHandlers(mockClient);
+      const handler = handlers.get("get_credential")!;
+
+      (mockClient.getCredential as any).mockResolvedValue({ success: false, message: "Credential not found: urn:uuid:missing" });
+
+      const result = await handler({ id: "urn:uuid:missing" });
+
+      expect(result.isError).toBe(true);
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(false);
+      expect(response.error).toContain("not found");
+    });
+
+    it("returns error when id is missing", async () => {
+      const handlers = getCredentialHandlers(mockClient);
+      const handler = handlers.get("get_credential")!;
+
+      const result = await handler({});
+
+      expect(result.isError).toBe(true);
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(false);
+    });
+
+    it("handles thrown errors gracefully", async () => {
+      const handlers = getCredentialHandlers(mockClient);
+      const handler = handlers.get("get_credential")!;
+
+      (mockClient.getCredential as any).mockRejectedValue(new Error("Database error"));
+
+      const result = await handler({ id: "urn:uuid:abc123" });
+
+      expect(result.isError).toBe(true);
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(false);
+      expect(response.error).toBe("Database error");
     });
   });
 });
