@@ -23,6 +23,14 @@ export class DIDClient {
   }
 
   /**
+   * Expose the initialized DID provider so it can be shared with other clients
+   * (avoids creating a second provider instance over the same wallet).
+   */
+  async getProvider(): Promise<IDIDProvider> {
+    return this.ensureProvider();
+  }
+
+  /**
    * Get the default DID for this wallet
    */
   async getDefaultDID(): Promise<string | null> {

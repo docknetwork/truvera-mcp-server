@@ -6,6 +6,7 @@ import { BUILD_INFO } from "./build-info.js";
 import { WalletClient } from "./wallet-client.js";
 import { DIDClient, didToolDefs, getDIDHandlers } from "./features/dids/index.js";
 import { CredentialClient, credentialToolDefs, getCredentialHandlers } from "./features/credentials/index.js";
+import { MessageClient, messageToolDefs, getMessageHandlers } from "./features/messages/index.js";
 
 // wallet-sdk-wasm's storageService calls global.localStorage for DID resolution
 // caching during BBS+ proof generation. Node.js has no native localStorage, so
@@ -62,12 +63,15 @@ if (!WALLET_MASTER_KEY) {
 async function initializeClients() {
   const walletClient = new WalletClient(WALLET_NAME, CHEQD_NETWORK, WALLET_DB_PATH_RESOLVED);
   await walletClient.initialize();
-  
+
   const wallet = walletClient.getWallet();
   const didClient = new DIDClient(wallet);
-  const credentialClient = new CredentialClient(wallet);
-  
-  return { walletClient, didClient, credentialClient };
+  // Share the DID provider across clients to avoid redundant provider instances
+  const didProvider = await didClient.getProvider();
+  const credentialClient = new CredentialClient(wallet, didProvider);
+  const messageClient = new MessageClient(wallet, didProvider);
+
+  return { walletClient, didClient, credentialClient, messageClient };
 }
 
 // Start server using bootstrap
@@ -75,13 +79,14 @@ async function main() {
   console.error("Starting Wallet MCP Server...");
   console.error(`  - Mode: ${MCP_MODE}`);
   
-  const { didClient, credentialClient } = await initializeClients();
-  
+  const { didClient, credentialClient, messageClient } = await initializeClients();
+
   // Build tools and handlers
-  const tools = [...didToolDefs, ...credentialToolDefs];
+  const tools = [...didToolDefs, ...credentialToolDefs, ...messageToolDefs];
   const toolHandlers = new Map([
     ...getDIDHandlers(didClient),
     ...getCredentialHandlers(credentialClient),
+    ...getMessageHandlers(messageClient),
   ]);
   
   console.error(`  - Tools available: ${tools.length}`);
