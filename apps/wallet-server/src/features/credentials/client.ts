@@ -8,6 +8,7 @@ import { createVerificationController } from "@docknetwork/wallet-sdk-core/lib/v
 import type {
   CredentialListResult,
   CredentialInfo,
+  GetCredentialResult,
   ImportCredentialResult,
   ProofResponseCandidate,
   PresentedCredentialDetail,
@@ -108,6 +109,34 @@ export class CredentialClient {
       ({ createDIDProvider }) => createDIDProvider({ wallet: this.wallet })
     );
     return this.didProviderPromise;
+  }
+
+  /**
+   * Retrieve a single credential by its ID
+   */
+  async getCredential(id: string): Promise<GetCredentialResult> {
+    try {
+      const provider = await this.ensureProvider();
+      const doc = provider.getById(id);
+      if (!doc) {
+        return { success: false, message: `Credential not found: ${id}` };
+      }
+      const credential: CredentialInfo = {
+        id: doc.id || doc.credential?.id || id,
+        type: doc.type || doc.credential?.type || ["VerifiableCredential"],
+        issuer: doc.issuer || doc.credential?.issuer || "unknown",
+        issuanceDate: doc.issuanceDate || doc.credential?.issuanceDate || "",
+        expirationDate: doc.expirationDate || doc.credential?.expirationDate,
+        credentialSubject: doc.credentialSubject || doc.credential?.credentialSubject,
+        ...doc,
+      };
+      return { success: true, credential };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 
   /**
