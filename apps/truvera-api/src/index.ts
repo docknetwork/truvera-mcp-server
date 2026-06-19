@@ -25,7 +25,8 @@ const truveraClient = new TruveraClient(API_KEY, API_ENDPOINT);
 
 // Build tools and handlers
 const tools = buildToolList();
-const toolHandlers = buildHandlerMapFromTruvera(truveraClient);
+// Pass tools by reference so AgentCardClient sees AP2 tools pushed in main()
+const toolHandlers = buildHandlerMapFromTruvera(truveraClient, tools);
 
 // Start server using bootstrap
 async function main() {
