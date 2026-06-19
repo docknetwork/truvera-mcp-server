@@ -49,11 +49,12 @@ describe('integration: every tool handler should call TruveraClient.request', ()
   it('invokes request for each tool handler and returns a response', async () => {
     const tools = buildToolList();
     expect(Array.isArray(tools)).toBeTruthy();
-    const handlers = buildHandlerMapFromTruvera(new TruveraClient('test-key', 'http://localhost'));
+    const handlers = buildHandlerMapFromTruvera(new TruveraClient('test-key', 'http://localhost'), tools);
 
     for (const tool of tools) {
       const handler = handlers.get(tool.name);
       expect(handler).toBeDefined();
+      if (!handler) continue;
 
       const args = constructArgsFromSchema((tool as any).inputSchema);
       spy.mockClear();
