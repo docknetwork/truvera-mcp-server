@@ -91,3 +91,24 @@ CVE-2026-27601
 # ─────────────────────────────────────────────────────────────────────────────
 CVE-2026-48712
 CVE-2026-48779
+
+# ─────────────────────────────────────────────────────────────────────────────
+# fast-uri@3.1.2
+# Source: ajv@8.18.0 → @modelcontextprotocol/sdk (both api and wallet servers)
+# Risk:   ajv@8 requires fast-uri@^3.x; 4.x is a breaking API change that
+#         ajv does not support. The CVEs are parsing edge-cases in URI
+#         validation that are not reachable via MCP tool input schemas.
+# ─────────────────────────────────────────────────────────────────────────────
+CVE-2026-6321
+CVE-2026-6322
+
+# ─────────────────────────────────────────────────────────────────────────────
+# tmp@0.2.x
+# Source: protobufjs/cli nested inside cosmjs-types-cjs, @cosmjs/stargate-cjs,
+#         @cosmjs/proto-signing-cjs, @confio/ics23 (CosmJS CJS compat bundles)
+# Risk:   tmp is a CLI build tool for protobuf code generation; it is never
+#         invoked at runtime. npm overrides cannot reach nested node_modules
+#         inside published CJS bundle packages. No user-controlled paths are
+#         passed to tmp in production.
+# ─────────────────────────────────────────────────────────────────────────────
+CVE-2026-44705
