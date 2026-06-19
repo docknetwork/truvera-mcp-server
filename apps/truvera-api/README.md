@@ -83,36 +83,7 @@ MCP_MODE=stdio npm run dev
 
 ## Connecting to AI Assistants
 
-The server must be running in HTTP mode on port 3000 before connecting.
-
-### Claude Desktop
-
-Add to your Claude Desktop config file:
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-- **Linux**: `~/.config/Claude/claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "truvera": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "http://localhost:3000/mcp", "--insecure"]
-    }
-  }
-}
-```
-
-Restart Claude Desktop. The Truvera tools will appear in the tool picker.
-
-### GitHub Copilot in VS Code
-
-The workspace `.vscode/mcp.json` is already configured. Start the server, then:
-
-1. Open the Copilot chat pane.
-2. Click the **Configure tools...** icon.
-3. Click **Update tools** under `truvera-mcp-service-vs-code`.
-4. Enable the tools you want and click **OK**.
+The server must be running in HTTP mode on port 3000 before connecting. Full connection instructions for Claude Desktop, VS Code (Copilot), and Cursor are in the [repo root README](../../README.md#connecting-to-ai-assistants).
 
 ### MCP Inspector (shared docs)
 
@@ -141,7 +112,7 @@ The workspace `.vscode/mcp.json` is already configured. Start the server, then:
 | `AP2_INTENT_MANDATE_SCHEMA_URL` | No | *(see .env.example)* | JSON-LD schema URL for Intent Mandates |
 | `AP2_PAYMENT_MANDATE_SCHEMA_URL` | No | *(see .env.example)* | JSON-LD schema URL for Payment Mandates |
 
-> **Note:** As of March 2026, AP2 JSON-LD schemas are not yet published at the URLs above. The server handles this gracefully — schema URLs are passed to the Truvera API for future compatibility but fetch failures are non-blocking and do not affect tool functionality.
+> **Note:** The default schema URLs point to Truvera-hosted AP2-compatible schemas at `schema.truvera.io`. The AP2 community has not yet published canonical schemas at `ap2-protocol.org`; when they do, update these variables to match. Schema URLs are passed to the Truvera API during credential issuance.
 
 ---
 
@@ -150,13 +121,14 @@ The workspace `.vscode/mcp.json` is already configured. Start the server, then:
 The server exposes 31 tools across these areas:
 
 ### Truvera API tools
-- **Credentials** — issue, list, get, delete
-- **DIDs** — create, list, get, delete, export, import
-- **Presentations** — create, list, get, delete
-- **Schemas** — list, get
-- **Profiles** — create, update, get, delete, list
-- **Verification** — verify credentials and presentations
-- **OpenID** — credential offers and proof requests
+- **Credentials** — `issue_credential`, `list_credentials`, `get_credential`, `delete_credential`
+- **DIDs** — `create_did`, `list_dids`, `get_did`, `delete_did`, `export_did`, `import_dids`
+- **Proof Templates & Requests** — `list_proof_templates`, `create_proof_template`, `get_proof_template`, `create_proof_request`, `get_proof_request_result`
+- **Schemas** — `list_schemas`, `get_schema`
+- **Profiles** — `create_profile`, `list_profiles`, `get_profile`, `update_profile`, `delete_profile`
+- **Verification** — `verify` (credentials, presentations, JWTs)
+- **OpenID** — `list_issuers`, `create_issuer`, `create_credential_offer`, `get_credential_offer`
+- **Agent Card** — `get_agent_card_details` (returns this server's A2A identity contribution)
 
 ### AP2 (Agent Payments Protocol) tools
 - `issue_cart_mandate` — issue a Cart Mandate for human-present transactions
