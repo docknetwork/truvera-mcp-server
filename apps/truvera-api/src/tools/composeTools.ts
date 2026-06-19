@@ -24,6 +24,7 @@ import { components as verifyComponents } from "../features/verify/schemas.js";
 import { toolDefs as profilesDefs, getHandlers as getProfilesHandlers } from "../features/profiles/index.js";
 import { toolDefs as openidDefs, getHandlers as getOpenidHandlers } from "../features/openid/index.js";
 import { toolDefs as verifyDefs, getHandlers as getVerifyHandlers } from "../features/verify/index.js";
+import { AgentCardClient, toolDefs as agentCardDefs, getHandlers as getAgentCardHandlers } from "../features/agent-card/index.js";
 
 export function buildToolList(): ToolDef[] {
   const tools = [
@@ -34,6 +35,7 @@ export function buildToolList(): ToolDef[] {
     ...profilesDefs,
     ...openidDefs,
     ...verifyDefs,
+    ...agentCardDefs,
   ];
   // Merge all known component schemas so we can resolve $ref references
   const mergedSchemas: Record<string, any> = { // JSON Schema registry is intentionally dynamic
@@ -99,7 +101,7 @@ export function buildHandlerMap(clients: {
   profiles: ProfilesClient;
   openid: OpenIdClient;
   verify: VerifyClient;
-}) {
+}, tools: ToolDef[]) {
   const handlers = new Map<string, ToolHandler>();
 
   // Merge all handler maps from per-client modules
@@ -111,6 +113,7 @@ export function buildHandlerMap(clients: {
     getProfilesHandlers(clients.profiles),
     getOpenidHandlers(clients.openid),
     getVerifyHandlers(clients.verify),
+    getAgentCardHandlers(new AgentCardClient(tools)),
   ];
 
   for (const src of sources) {
@@ -122,7 +125,7 @@ export function buildHandlerMap(clients: {
   return handlers;
 }
 
-export function buildHandlerMapFromTruvera(truvera: TruveraClient) {
+export function buildHandlerMapFromTruvera(truvera: TruveraClient, tools: ToolDef[]) {
   const clients = {
     truvera,
     dids: new DidClient(truvera),
@@ -134,5 +137,5 @@ export function buildHandlerMapFromTruvera(truvera: TruveraClient) {
     verify: new VerifyClient(truvera),
   };
 
-  return buildHandlerMap(clients);
+  return buildHandlerMap(clients, tools);
 }
