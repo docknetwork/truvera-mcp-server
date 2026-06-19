@@ -79,19 +79,15 @@ TRUVERA_API_KEY=your_api_key_here
 AP2_ENABLED=true  # Set to false to disable AP2 support
 AP2_DEFAULT_TTL_SECONDS=3600  # Default time-to-live for intent mandates
 
-# Schema URLs (optional - currently placeholders)
-# Note: As of March 2026, AP2 does not publish JSON-LD schemas.
-# These URLs will return 404 but the system handles this gracefully.
-# The schema URLs are passed to Truvera API but not validated.
-# Update these when official AP2 schemas are published.
-AP2_CART_MANDATE_SCHEMA_URL=https://ap2-protocol.org/schemas/cart-mandate/v1
-AP2_INTENT_MANDATE_SCHEMA_URL=https://ap2-protocol.org/schemas/intent-mandate/v1
-AP2_PAYMENT_MANDATE_SCHEMA_URL=https://ap2-protocol.org/schemas/payment-mandate/v1
+# Schema URLs — defaults point to Truvera-hosted AP2-compatible schemas.
+# These are passed to the Truvera API during credential issuance.
+# Override if you publish your own schemas.
+AP2_CART_MANDATE_SCHEMA_URL=https://schema.truvera.io/CartMandateHumanPresent-V1-1772663227477.json
+AP2_INTENT_MANDATE_SCHEMA_URL=https://schema.truvera.io/IntentMandateHumanNotPresent-V1-1772663293733.json
+AP2_PAYMENT_MANDATE_SCHEMA_URL=https://schema.truvera.io/PaymentMandate-V1-1772663322422.json
 ```
 
-**Important**: The AP2 protocol specification exists but JSON-LD schemas are not yet published at the URLs above. The system will attempt to fetch them at startup but handles 404 errors gracefully. The schema URLs are passed to Truvera's credential issuance API for future compatibility but are not currently validated. You can configure custom schema URLs when they become available.
-
-**Schema status note**: The local schemas currently bundled in this repository should be treated as interim Truvera-compatible profiles derived from the AP2 documentation, not as definitive upstream AP2 schemas. In particular, the current Payment Mandate schema/context uses camelCase field names such as `paymentMandateContents` and `userAuthorization`, while the AP2 public specification samples currently show snake_case names such as `payment_mandate_contents` and `user_authorization`. When the AP2 community publishes a definitive schema set, this implementation should be reviewed and adjusted to match it.
+**Note on schema status**: The defaults above are Truvera-hosted profiles derived from the AP2 documentation. The AP2 community has not yet published a canonical JSON-LD schema set at `ap2-protocol.org`. When they do, update these URLs to match. The local Payment Mandate schema currently uses camelCase field names (`paymentMandateContents`, `userAuthorization`) which may differ from future upstream AP2 definitions that use snake_case.
 
 ## Available MCP Tools
 
