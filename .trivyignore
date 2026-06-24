@@ -57,14 +57,15 @@ CVE-2026-31802
 # ─────────────────────────────────────────────────────────────────────────────
 # undici@5.29.0
 # Source: @digitalbazaar/http-client@3.4.1 inside jsonld@6.0.0
-# Risk:   @digitalbazaar/http-client@3.4.1 requires undici@^5. The 5.x → 6.x
-#         upgrade has breaking API changes. The DoS vectors (CVE-2026-1526,
-#         CVE-2026-2229) require sending malformed HTTP responses from a server
-#         the wallet connects to — mitigated by connecting only to known
-#         trusted DID registries (cheqd, PolygonID). WebSocket path is unused.
+# Risk:   @digitalbazaar/http-client@3.4.1 requires undici@^5; there is no
+#         5.x patch for these CVEs (fix requires jumping to 6.x which breaks
+#         the API). The wallet only connects to known trusted DID registries
+#         (cheqd, PolygonID), so malformed-response and WebSocket vectors are
+#         unexploitable. undici@6.x is pinned to >=6.27.0 via npm overrides.
 # ─────────────────────────────────────────────────────────────────────────────
 CVE-2026-1526
 CVE-2026-2229
+CVE-2026-12151
 
 # ─────────────────────────────────────────────────────────────────────────────
 # underscore@1.13.6 / @1.13.4
@@ -112,3 +113,20 @@ CVE-2026-6322
 #         passed to tmp in production.
 # ─────────────────────────────────────────────────────────────────────────────
 CVE-2026-44705
+
+# ─────────────────────────────────────────────────────────────────────────────
+# lodash@4.17.21 and minimatch@3.1.2
+# Source: protobufjs/cli nested inside @confio/ics23, @cosmjs/stargate-cjs,
+#         @cosmjs/proto-signing-cjs, cosmjs-types-cjs (CosmJS CJS compat bundles)
+# Risk:   These are CLI code-generation tools bundled inside published CJS
+#         packages. npm overrides cannot reach nested node_modules inside
+#         published packages. The lodash arbitrary-code-execution vector
+#         (CVE-2026-4800) and minimatch DoS vectors (CVE-2026-26996,
+#         CVE-2026-27903, CVE-2026-27904) require passing untrusted input to
+#         these CLI tools, which are never invoked at runtime — only during
+#         protobuf code generation at SDK build time.
+# ─────────────────────────────────────────────────────────────────────────────
+CVE-2026-4800
+CVE-2026-26996
+CVE-2026-27903
+CVE-2026-27904
