@@ -9,21 +9,17 @@ import type { CreateDIDResult, DIDListResult } from "./types.js";
 
 export class DIDClient {
   private wallet: IWallet;
-  private didProvider: IDIDProvider | null = null;
+  private providerPromise: Promise<IDIDProvider> | null = null;
 
   constructor(wallet: IWallet) {
     this.wallet = wallet;
   }
 
-  /**
-   * Initialize the DID provider
-   */
-  private async ensureProvider(): Promise<IDIDProvider> {
-    if (!this.didProvider) {
-      const { createDIDProvider } = await import("@docknetwork/wallet-sdk-core/lib/did-provider.js");
-      this.didProvider = createDIDProvider({ wallet: this.wallet });
-    }
-    return this.didProvider;
+  private ensureProvider(): Promise<IDIDProvider> {
+    this.providerPromise ??= import("@docknetwork/wallet-sdk-core/lib/did-provider.js").then(
+      ({ createDIDProvider }) => createDIDProvider({ wallet: this.wallet })
+    );
+    return this.providerPromise;
   }
 
   /**

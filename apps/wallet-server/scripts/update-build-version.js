@@ -10,7 +10,7 @@ const buildNumberPath = path.join(__dirname, '../.buildnumber');
 
 let buildNumber = process.env.BUILD_NUMBER ? parseInt(process.env.BUILD_NUMBER, 10) : null;
 
-if (!buildNumber || isNaN(buildNumber)) {
+if (buildNumber === null || isNaN(buildNumber)) {
   if (fs.existsSync(buildNumberPath)) {
     const content = fs.readFileSync(buildNumberPath, 'utf-8').trim();
     buildNumber = parseInt(content, 10) || 1;
@@ -27,7 +27,8 @@ const packageVersion = process.env.npm_package_version || '0.1.0';
 const fullVersion = `${packageVersion}-build.${buildNumber}`;
 
 const buildInfo = `// Auto-generated build information
-export const BUILD_INFO = {
+import type { BuildInfo } from "@truvera/mcp-shared/types";
+export const BUILD_INFO: BuildInfo = {
   timestamp: '${timestamp}',
   buildNumber: ${buildNumber},
   version: '${fullVersion}',

@@ -8,34 +8,31 @@ import type { CredentialListResult, CredentialInfo, ImportCredentialResult } fro
 
 export class CredentialClient {
   private wallet: IWallet;
-  private credentialProvider: ICredentialProvider | null = null;
-  private didProvider: IDIDProvider | null = null;
+  private credentialProviderPromise: Promise<ICredentialProvider> | null = null;
+  private didProviderPromise: Promise<IDIDProvider> | null = null;
 
   constructor(wallet: IWallet, didProvider?: IDIDProvider) {
     this.wallet = wallet;
-    this.didProvider = didProvider || null;
+    if (didProvider) {
+      this.didProviderPromise = Promise.resolve(didProvider);
+    }
   }
 
   /**
    * Initialize the credential provider
    */
-  private async ensureProvider(): Promise<ICredentialProvider> {
-    if (!this.credentialProvider) {
-      const { createCredentialProvider } = await import("@docknetwork/wallet-sdk-core/lib/credential-provider.js");
-      this.credentialProvider = createCredentialProvider({ wallet: this.wallet });
-    }
-    return this.credentialProvider;
+  private ensureProvider(): Promise<ICredentialProvider> {
+    this.credentialProviderPromise ??= import("@docknetwork/wallet-sdk-core/lib/credential-provider.js").then(
+      ({ createCredentialProvider }) => createCredentialProvider({ wallet: this.wallet })
+    );
+    return this.credentialProviderPromise;
   }
 
-  /**
-   * Initialize the DID provider (required for credential import)
-   */
-  private async ensureDIDProvider(): Promise<IDIDProvider> {
-    if (!this.didProvider) {
-      const { createDIDProvider } = await import("@docknetwork/wallet-sdk-core/lib/did-provider.js");
-      this.didProvider = createDIDProvider({ wallet: this.wallet });
-    }
-    return this.didProvider;
+  private ensureDIDProvider(): Promise<IDIDProvider> {
+    this.didProviderPromise ??= import("@docknetwork/wallet-sdk-core/lib/did-provider.js").then(
+      ({ createDIDProvider }) => createDIDProvider({ wallet: this.wallet })
+    );
+    return this.didProviderPromise;
   }
 
   /**
