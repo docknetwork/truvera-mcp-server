@@ -30,8 +30,8 @@
   ],
   "overrides": {
     "@hono/node-server": "^1.19.12",
-    "express-rate-limit": "^8.3.2",
-    "hono": "^4.12.26",
+    "express-rate-limit": "^8.5.2",
+    "hono": "^4.12.27",
     "path-to-regexp": "^8.4.2",
     "base58-universal": "2.0.0",
     "base64url-universal": "1.1.0",
