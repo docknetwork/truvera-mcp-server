@@ -1,16 +1,16 @@
-name: Publish API Docker Image
+name: Publish Wallet Docker Image
 
 on:
   push:
     branches:
       - master
     paths:
-      - 'apps/truvera-api/**'
+      - 'apps/wallet-server/**'
       - 'packages/mcp-shared/**'
       - 'package.json'
       - 'package-lock.json'
       - 'scripts/**'
-      - '.github/workflows/docker-publish.yml'
+      - '.github/workflows/docker-publish-wallet.yml'
       - '.github/workflows/docker-publish-reusable.yml'
   release:
     types: [published]
@@ -23,14 +23,14 @@ on:
         type: boolean
 
 jobs:
-  api:
+  wallet:
     uses: ./.github/workflows/docker-publish-reusable.yml
     permissions:
       contents: read
       packages: write
       id-token: write
     with:
-      docker_image: docknetwork/truvera-api-mcp
-      dockerfile: ./apps/truvera-api/Dockerfile
-      build_number_file: apps/truvera-api/.buildnumber
+      docker_image: docknetwork/truvera-wallet-mcp
+      dockerfile: ./apps/wallet-server/Dockerfile
+      build_number_file: apps/wallet-server/.buildnumber
       should_push: ${{ github.event_name != 'workflow_dispatch' || inputs.push }}

@@ -1,0 +1,159 @@
+name: Server CI Reusable
+
+on:
+  workflow_call:
+    inputs:
+      job_name:
+        required: true
+        type: string
+      build_script:
+        required: true
+        type: string
+      test_script:
+        required: true
+        type: string
+      test_working_directory:
+        required: true
+        type: string
+      run_integration_tests:
+        required: false
+        default: false
+        type: boolean
+      integration_test_script:
+        required: false
+        default: ""
+        type: string
+      integration_test_working_directory:
+        required: false
+        default: ""
+        type: string
+      dockerfile:
+        required: true
+        type: string
+      image_ref:
+        required: true
+        type: string
+      trivy_results_file:
+        required: true
+        type: string
+      trivy_sarif_file:
+        required: true
+        type: string
+      trivy_scan_label:
+        required: true
+        type: string
+      sarif_category:
+        required: true
+        type: string
+
+jobs:
+  server:
+    name: ${{ inputs.job_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies (monorepo)
+        run: npm ci --workspaces
+
+      - name: Build shared package
+        run: npm run build:shared
+
+      - name: Build target server
+        run: ${{ inputs.build_script }}
+
+      - name: Run tests
+        run: ${{ inputs.test_script }}
+        working-directory: ${{ inputs.test_working_directory }}
+
+      - name: Run integration tests
+        if: inputs.run_integration_tests
+        run: ${{ inputs.integration_test_script }}
+        working-directory: ${{ inputs.integration_test_working_directory }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image for scanning
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ inputs.dockerfile }}
+          load: true
+          tags: ${{ inputs.image_ref }}
+          build-args: |
+            BUILD_NUMBER=${{ github.run_number }}
+
+      - name: Scan image for HIGH and CRITICAL vulnerabilities
+        id: trivy_scan
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: ${{ inputs.image_ref }}
+          format: table
+          output: ${{ inputs.trivy_results_file }}
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+
+      - name: Add Trivy report to job summary
+        if: always()
+        run: |
+          {
+            echo "## ${{ inputs.trivy_scan_label }}"
+            echo
+            if [ "${{ steps.trivy_scan.outcome }}" = "failure" ]; then
+              echo "**Status:** FAILED (HIGH/CRITICAL vulnerabilities found)"
+            else
+              echo "**Status:** PASSED (no HIGH/CRITICAL vulnerabilities found)"
+            fi
+            echo
+            echo "<details><summary>Full Trivy output</summary>"
+            echo
+            echo '```text'
+            cat "${{ inputs.trivy_results_file }}"
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Generate Trivy SARIF report
+        if: always()
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: ${{ inputs.image_ref }}
+          format: sarif
+          output: ${{ inputs.trivy_sarif_file }}
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+
+      - name: Upload Trivy SARIF to GitHub Security
+        id: trivy_sarif_upload
+        continue-on-error: true
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: ${{ inputs.trivy_sarif_file }}
+          category: ${{ inputs.sarif_category }}
+
+      - name: Add SARIF upload status to job summary
+        if: always() && steps.trivy_sarif_upload.outcome == 'failure'
+        run: |
+          echo >> "$GITHUB_STEP_SUMMARY"
+          echo "## SARIF Upload" >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          echo "SARIF upload was skipped or failed. GitHub code scanning may not be enabled for this repository." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail job if Trivy found HIGH/CRITICAL issues
+        if: steps.trivy_scan.outcome == 'failure'
+        run: |
+          echo "Trivy detected HIGH/CRITICAL vulnerabilities. See job summary and Security tab for details."
+          exit 1

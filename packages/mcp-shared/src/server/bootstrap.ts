@@ -69,11 +69,12 @@ export async function bootstrapMCPServer(
   // Start the appropriate transport
   if (transportConfig.mode === "http") {
     const port = transportConfig.port ?? 3000;
-    startHTTPTransport({
+    await startHTTPTransport({
       serverFactory: createServer,
       MCP_PORT: port,
       BUILD_INFO: buildInfo,
       tools,
+      serviceName: name,
     });
   } else {
     const server = createServer();

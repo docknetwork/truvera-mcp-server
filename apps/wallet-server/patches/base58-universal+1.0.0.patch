@@ -1,0 +1,126 @@
+diff --git a/node_modules/base58-universal/index.js b/node_modules/base58-universal/index.js
+index c1ff223..8f49bcc 100644
+--- a/node_modules/base58-universal/index.js
++++ b/node_modules/base58-universal/index.js
+@@ -3,6 +3,118 @@
+  */
+ 'use strict';
+ 
+-// translate `main.js` to CommonJS
+-require = require('esm')(module);
+-module.exports = require('./main.js');
++// Node 24 compatibility: avoid the legacy `esm` runtime shim.
++// This file provides a CommonJS implementation equivalent to `main.js`.
++const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
++const reverseAlphabets = Object.create(null);
++
++function encodeBaseN(input, alphabetValue, maxline) {
++	if(!(input instanceof Uint8Array)) {
++		throw new TypeError('"input" must be a Uint8Array.');
++	}
++	if(typeof alphabetValue !== 'string') {
++		throw new TypeError('"alphabet" must be a string.');
++	}
++	if(maxline !== undefined && typeof maxline !== 'number') {
++		throw new TypeError('"maxline" must be a number.');
++	}
++	if(input.length === 0) {
++		return '';
++	}
++
++	let output = '';
++	const base = alphabetValue.length;
++	const first = alphabetValue.charAt(0);
++	const digits = [0];
++
++	for(let i = 0; i < input.length; ++i) {
++		let carry = input[i];
++		for(let j = 0; j < digits.length; ++j) {
++			carry += digits[j] << 8;
++			digits[j] = carry % base;
++			carry = (carry / base) | 0;
++		}
++
++		while(carry > 0) {
++			digits.push(carry % base);
++			carry = (carry / base) | 0;
++		}
++	}
++
++	for(let i = 0; input[i] === 0 && i < input.length - 1; ++i) {
++		output += first;
++	}
++	for(let i = digits.length - 1; i >= 0; --i) {
++		output += alphabetValue[digits[i]];
++	}
++
++	if(maxline) {
++		const regex = new RegExp('.{1,' + maxline + '}', 'g');
++		output = output.match(regex).join('\r\n');
++	}
++
++	return output;
++}
++
++function decodeBaseN(input, alphabetValue) {
++	if(typeof input !== 'string') {
++		throw new TypeError('"input" must be a string.');
++	}
++	if(typeof alphabetValue !== 'string') {
++		throw new TypeError('"alphabet" must be a string.');
++	}
++	if(input.length === 0) {
++		return new Uint8Array();
++	}
++
++	let table = reverseAlphabets[alphabetValue];
++	if(!table) {
++		table = reverseAlphabets[alphabetValue] = [];
++		for(let i = 0; i < alphabetValue.length; ++i) {
++			table[alphabetValue.charCodeAt(i)] = i;
++		}
++	}
++
++	input = input.replace(/\s/g, '');
++
++	const base = alphabetValue.length;
++	const first = alphabetValue.charAt(0);
++	const bytes = [0];
++	for(let i = 0; i < input.length; i++) {
++		const value = table[input.charCodeAt(i)];
++		if(value === undefined) {
++			return;
++		}
++
++		let carry = value;
++		for(let j = 0; j < bytes.length; ++j) {
++			carry += bytes[j] * base;
++			bytes[j] = carry & 0xff;
++			carry >>= 8;
++		}
++
++		while(carry > 0) {
++			bytes.push(carry & 0xff);
++			carry >>= 8;
++		}
++	}
++
++	for(let k = 0; input[k] === first && k < input.length - 1; ++k) {
++		bytes.push(0);
++	}
++
++	return new Uint8Array(bytes.reverse());
++}
++
++function encode(input, maxline) {
++	return encodeBaseN(input, alphabet, maxline);
++}
++
++function decode(input) {
++	return decodeBaseN(input, alphabet);
++}
++
++module.exports = {
++	encode,
++	decode,
++};

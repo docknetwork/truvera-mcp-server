@@ -3,34 +3,30 @@
  * Manages DID operations using the Dock Wallet SDK
  */
 
-import { createDIDProvider } from "@docknetwork/wallet-sdk-core/lib/did-provider";
-import type { IDIDProvider } from "@docknetwork/wallet-sdk-core/lib/types";
-import type { IWallet } from "@docknetwork/wallet-sdk-core/lib/types";
+import type { IDIDProvider } from "@docknetwork/wallet-sdk-core/lib/types.js";
+import type { IWallet } from "@docknetwork/wallet-sdk-core/lib/types.js";
 import type { CreateDIDResult, DIDListResult } from "./types.js";
 
 export class DIDClient {
   private wallet: IWallet;
-  private didProvider: IDIDProvider | null = null;
+  private providerPromise: Promise<IDIDProvider> | null = null;
 
   constructor(wallet: IWallet) {
     this.wallet = wallet;
   }
 
-  /**
-   * Initialize the DID provider
-   */
-  private ensureProvider(): IDIDProvider {
-    if (!this.didProvider) {
-      this.didProvider = createDIDProvider({ wallet: this.wallet });
-    }
-    return this.didProvider;
+  private ensureProvider(): Promise<IDIDProvider> {
+    this.providerPromise ??= import("@docknetwork/wallet-sdk-core/lib/did-provider.js").then(
+      ({ createDIDProvider }) => createDIDProvider({ wallet: this.wallet })
+    );
+    return this.providerPromise;
   }
 
   /**
    * Get the default DID for this wallet
    */
   async getDefaultDID(): Promise<string | null> {
-    const provider = this.ensureProvider();
+    const provider = await this.ensureProvider();
     const allDocs = await provider.getAll();
     
     // Filter to only DID resolution documents and extract the DID
@@ -46,7 +42,7 @@ export class DIDClient {
    * Create a new DID
    */
   async createDID(keyType?: string): Promise<CreateDIDResult> {
-    const provider = this.ensureProvider();
+    const provider = await this.ensureProvider();
     
     // Create DID using the provider
     const result = await provider.createDIDKey({
@@ -65,7 +61,7 @@ export class DIDClient {
    * List all DIDs in the wallet
    */
   async listDIDs(): Promise<DIDListResult> {
-    const provider = this.ensureProvider();
+    const provider = await this.ensureProvider();
     const allDocs = await provider.getAll();
     
     // Filter to only DID resolution documents and extract the DID

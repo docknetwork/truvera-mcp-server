@@ -3,39 +3,36 @@
  * Manages credential operations using the Dock Wallet SDK
  */
 
-import { createCredentialProvider } from "@docknetwork/wallet-sdk-core/lib/credential-provider";
-import { createDIDProvider } from "@docknetwork/wallet-sdk-core/lib/did-provider";
-import type { IWallet, ICredentialProvider, IDIDProvider } from "@docknetwork/wallet-sdk-core/lib/types";
+import type { IWallet, ICredentialProvider, IDIDProvider } from "@docknetwork/wallet-sdk-core/lib/types.js";
 import type { CredentialListResult, CredentialInfo, ImportCredentialResult } from "./types.js";
 
 export class CredentialClient {
   private wallet: IWallet;
-  private credentialProvider: ICredentialProvider | null = null;
-  private didProvider: IDIDProvider | null = null;
+  private credentialProviderPromise: Promise<ICredentialProvider> | null = null;
+  private didProviderPromise: Promise<IDIDProvider> | null = null;
 
   constructor(wallet: IWallet, didProvider?: IDIDProvider) {
     this.wallet = wallet;
-    this.didProvider = didProvider || null;
+    if (didProvider) {
+      this.didProviderPromise = Promise.resolve(didProvider);
+    }
   }
 
   /**
    * Initialize the credential provider
    */
-  private ensureProvider(): ICredentialProvider {
-    if (!this.credentialProvider) {
-      this.credentialProvider = createCredentialProvider({ wallet: this.wallet });
-    }
-    return this.credentialProvider;
+  private ensureProvider(): Promise<ICredentialProvider> {
+    this.credentialProviderPromise ??= import("@docknetwork/wallet-sdk-core/lib/credential-provider.js").then(
+      ({ createCredentialProvider }) => createCredentialProvider({ wallet: this.wallet })
+    );
+    return this.credentialProviderPromise;
   }
 
-  /**
-   * Initialize the DID provider (required for credential import)
-   */
-  private ensureDIDProvider(): IDIDProvider {
-    if (!this.didProvider) {
-      this.didProvider = createDIDProvider({ wallet: this.wallet });
-    }
-    return this.didProvider;
+  private ensureDIDProvider(): Promise<IDIDProvider> {
+    this.didProviderPromise ??= import("@docknetwork/wallet-sdk-core/lib/did-provider.js").then(
+      ({ createDIDProvider }) => createDIDProvider({ wallet: this.wallet })
+    );
+    return this.didProviderPromise;
   }
 
   /**
@@ -43,8 +40,8 @@ export class CredentialClient {
    */
   async importCredential(uri: string): Promise<ImportCredentialResult> {
     try {
-      const credentialProvider = this.ensureProvider();
-      const didProvider = this.ensureDIDProvider();
+      const credentialProvider = await this.ensureProvider();
+      const didProvider = await this.ensureDIDProvider();
 
       const before = await credentialProvider.getCredentials();
       const beforeIds = new Set(before.map((doc: any) => doc?.id).filter(Boolean));
@@ -96,7 +93,7 @@ export class CredentialClient {
    * List all credentials in the wallet
    */
   async listCredentials(): Promise<CredentialListResult> {
-    const provider = this.ensureProvider();
+    const provider = await this.ensureProvider();
     const allDocs = await provider.getCredentials();
     
     // Map credentials to our standardized format

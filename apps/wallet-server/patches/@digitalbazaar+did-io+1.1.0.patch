@@ -1,0 +1,13 @@
+diff --git a/node_modules/@digitalbazaar/did-io/lib/CachedResolver.js b/node_modules/@digitalbazaar/did-io/lib/CachedResolver.js
+index bfd0673..e830d09 100644
+--- a/node_modules/@digitalbazaar/did-io/lib/CachedResolver.js
++++ b/node_modules/@digitalbazaar/did-io/lib/CachedResolver.js
+@@ -2,7 +2,7 @@
+  * Copyright (c) 2021 Digital Bazaar, Inc. All rights reserved.
+  */
+ import {parseDid} from './did-io.js';
+-import {LruCache} from '@digitalbazaar/lru-memoize';
++import {LruCache} from '@digitalbazaar/lru-memoize/lib/main.js';
+ 
+ export class CachedResolver {
+   /**

@@ -1,0 +1,13 @@
+diff --git a/node_modules/@digitalbazaar/minimal-cipher/util.js b/node_modules/@digitalbazaar/minimal-cipher/util.js
+index 50a6441..71212d8 100644
+--- a/node_modules/@digitalbazaar/minimal-cipher/util.js
++++ b/node_modules/@digitalbazaar/minimal-cipher/util.js
+@@ -2,7 +2,7 @@
+ import {TextDecoder, TextEncoder} from 'util';
+ export {TextDecoder, TextEncoder};
+ 
+-export {ReadableStream, TransformStream} from 'web-streams-polyfill/ponyfill';
++export {ReadableStream, TransformStream} from 'web-streams-polyfill/dist/ponyfill.js';
+ 
+ export function stringToUint8Array(data) {
+   if(typeof data === 'string') {

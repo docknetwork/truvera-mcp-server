@@ -25,6 +25,27 @@
       },
       "isBackground": true,
       "problemMatcher": []
+    },
+    {
+      "label": "build:wallet",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "build"],
+      "options": {
+        "cwd": "${workspaceFolder}/apps/wallet-server"
+      },
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "dev:wallet",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "dev"],
+      "options": {
+        "cwd": "${workspaceFolder}/apps/wallet-server"
+      },
+      "isBackground": true,
+      "problemMatcher": []
     }
   ]
 }

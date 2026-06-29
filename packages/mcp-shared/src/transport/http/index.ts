@@ -1,6 +1,8 @@
-import http from "http";
+import http, { type IncomingMessage, type ServerResponse } from "node:http";
+import net from "node:net";
+import readline from "node:readline/promises";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { randomUUID } from "crypto";
+import { randomUUID } from "node:crypto";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ToolDef } from "../../tools/types.js";
@@ -14,7 +16,132 @@ export interface HTTPTransportArgs {
   serviceName?: string;
 }
 
-export function startHTTPTransport({
+interface ResolvePortConflictOptions {
+  isInteractive?: boolean;
+  findNextAvailablePort?: (startPort: number) => Promise<number>;
+  promptUser?: (message: string) => Promise<string>;
+}
+
+function isPortInUseError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "EADDRINUSE";
+}
+
+async function isPortAvailable(port: number): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    const probeServer = net.createServer();
+
+    probeServer.once("error", (error: Error) => {
+      if (isPortInUseError(error)) {
+        resolve(false);
+        return;
+      }
+
+      reject(error);
+    });
+
+    probeServer.once("listening", () => {
+      probeServer.close((closeError?: Error) => {
+        if (closeError) {
+          reject(closeError);
+          return;
+        }
+
+        resolve(true);
+      });
+    });
+
+    probeServer.listen(port, "0.0.0.0");
+  });
+}
+
+export async function findNextAvailablePort(startPort: number): Promise<number> {
+  for (let candidatePort = startPort; candidatePort <= 65535; candidatePort += 1) {
+    if (await isPortAvailable(candidatePort)) {
+      return candidatePort;
+    }
+  }
+
+  throw new Error(`No available port found starting at ${startPort}.`);
+}
+
+async function promptUserForAlternatePort(message: string): Promise<string> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stderr,
+  });
+
+  try {
+    return await rl.question(message);
+  } finally {
+    rl.close();
+  }
+}
+
+export async function resolvePortConflict(
+  requestedPort: number,
+  serviceName: string,
+  options: ResolvePortConflictOptions = {}
+): Promise<number> {
+  const isInteractive = options.isInteractive ?? Boolean(process.stdin.isTTY && process.stderr.isTTY);
+  const nextAvailablePort = await (options.findNextAvailablePort ?? findNextAvailablePort)(requestedPort + 1);
+
+  if (!isInteractive) {
+    throw new Error(
+      `Port ${requestedPort} is already in use. ${serviceName} can run on ${nextAvailablePort}, but no interactive terminal is available to confirm it.`
+    );
+  }
+
+  const answer = await (options.promptUser ?? promptUserForAlternatePort)(
+    `Port ${requestedPort} is already in use. Start ${serviceName} on port ${nextAvailablePort} instead? [Y/n] `
+  );
+  const normalizedAnswer = answer.trim().toLowerCase();
+
+  if (normalizedAnswer === "" || normalizedAnswer === "y" || normalizedAnswer === "yes") {
+    return nextAvailablePort;
+  }
+
+  throw new Error(`Startup cancelled because port ${requestedPort} is already in use.`);
+}
+
+async function listenOnPort(httpServer: http.Server, requestedPort: number, serviceName: string): Promise<number> {
+  let port = requestedPort;
+
+  while (true) {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const onError = (error: Error) => {
+          cleanup();
+          reject(error);
+        };
+
+        const onListening = () => {
+          cleanup();
+          resolve();
+        };
+
+        const cleanup = () => {
+          httpServer.off("error", onError);
+          httpServer.off("listening", onListening);
+        };
+
+        httpServer.once("error", onError);
+        httpServer.once("listening", onListening);
+        httpServer.listen(port, "0.0.0.0");
+      });
+
+      return port;
+    } catch (error) {
+      if (!isPortInUseError(error)) {
+        throw error;
+      }
+
+      port = await resolvePortConflict(port, serviceName);
+      console.error(`[HTTP] Retrying ${serviceName} on port ${port}`);
+    }
+  }
+}
+
+export async function startHTTPTransport({
   serverFactory,
   MCP_PORT,
   BUILD_INFO,
@@ -27,7 +154,7 @@ export function startHTTPTransport({
     return !!body && typeof body === "object" && "method" in body && (body as Record<string, unknown>).method === "initialize";
   }
 
-  const httpServer = http.createServer(async (req, res) => {
+  const httpServer = http.createServer(async (req: IncomingMessage, res: ServerResponse) => {
     // Debug: Log all incoming requests
     console.error("[DEBUG] Incoming request:", {
       method: req.method,
@@ -68,7 +195,7 @@ export function startHTTPTransport({
       if (req.method === "POST") {
         body = await new Promise((resolve, reject) => {
           let data = "";
-          req.on("data", (chunk) => {
+          req.on("data", (chunk: Buffer) => {
             data += chunk;
           });
           req.on("end", () => {
@@ -185,12 +312,12 @@ export function startHTTPTransport({
     res.end(JSON.stringify({ error: "Not found. Use POST /mcp for MCP communication." }));
   });
 
-  httpServer.listen(MCP_PORT, "0.0.0.0", () => {
-    console.error(`${serviceName} started (HTTP streaming mode on port ${MCP_PORT})`);
-    console.error(`  - Build: ${BUILD_INFO.buildNumber} (${BUILD_INFO.timestamp})`);
-    console.error(`  - MCP endpoint: POST http://localhost:${MCP_PORT}/mcp`);
-    console.error(`  - Health check: GET http://localhost:${MCP_PORT}/health`);
-  });
+  const activePort = await listenOnPort(httpServer, MCP_PORT, serviceName);
+
+  console.error(`${serviceName} started (HTTP streaming mode on port ${activePort})`);
+  console.error(`  - Build: ${BUILD_INFO.buildNumber} (${BUILD_INFO.timestamp})`);
+  console.error(`  - MCP endpoint: POST http://localhost:${activePort}/mcp`);
+  console.error(`  - Health check: GET http://localhost:${activePort}/health`);
 
   // Handle graceful shutdown
   process.on("SIGINT", () => {
