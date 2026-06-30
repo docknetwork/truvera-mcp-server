@@ -271,12 +271,43 @@ async function verifyPresentation(presentation: unknown): Promise<{ verified: bo
   throw new Error(`Unable to determine verified status from /verify response. Last body: ${lastBody}`);
 }
 
+/**
+ * Create a fresh OID4VCI credential issuer and offer bound to the given holder DID.
+ * Returns the openid-credential-offer:// URI ready for import_credential.
+ */
+async function createOfferForHolder(issuerDid: string, holderDid: string): Promise<string> {
+  const issuerResponse = await apiPost("/openid/issuers", {
+    credentialOptions: {
+      credential: {
+        name: "Proof of Employment",
+        type: ["VerifiableCredential", "ProofOfEmployment"],
+        issuer: issuerDid,
+        subject: {
+          id: holderDid,
+          jobTitle: "Software Engineer",
+          department: "Engineering",
+        },
+        issuanceDate: new Date().toISOString(),
+        expirationDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+    },
+    singleUse: true,
+  });
+  const localIssuerId: string = issuerResponse?.id ?? issuerResponse?.data?.id;
+  if (!localIssuerId) throw new Error(`Could not get issuer id: ${JSON.stringify(issuerResponse)}`);
+
+  const offerResponse = await apiPost("/openid/credential-offers", { id: localIssuerId });
+  const url: string = offerResponse?.url ?? offerResponse?.data?.url ?? offerResponse?.uri ?? offerResponse?.data?.uri;
+  if (!url) throw new Error(`Could not get offer URI: ${JSON.stringify(offerResponse)}`);
+  return url;
+}
+
 // ── Test suite ────────────────────────────────────────────────────────────────
 
 describe("e2e: credential import → proof request response (via MCP tool handlers)", () => {
   let walletClient: WalletClient;
   let handlers: Map<string, (args: unknown) => Promise<unknown>>;
-  let offerUri: string;
+  let issuerDid: string;
   let proofTemplateId: string;
 
   beforeAll(async () => {
@@ -296,30 +327,7 @@ describe("e2e: credential import → proof request response (via MCP tool handle
     ]) as Map<string, (args: unknown) => Promise<unknown>>;
 
     // ── Dynamic API setup ──────────────────────────────────────────────────────
-    const issuerDid = await fetchIssuerDid();
-
-    // Create a credential issuer (no singleUse so both test cases can import from it)
-    const issuerResponse = await apiPost("/openid/issuers", {
-      credentialOptions: {
-        credential: {
-          name: "Proof of Employment",
-          type: ["VerifiableCredential", "ProofOfEmployment"],
-          issuer: issuerDid,
-          subject: {
-            jobTitle: "Software Engineer",
-            department: "Engineering",
-          },
-          issuanceDate: new Date().toISOString(),
-          expirationDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-      },
-    });
-    const issuerId: string = issuerResponse?.id ?? issuerResponse?.data?.id;
-    if (!issuerId) throw new Error(`Could not get issuer id from response: ${JSON.stringify(issuerResponse)}`);
-
-    const offerResponse = await apiPost("/openid/credential-offers", { id: issuerId });
-    offerUri = offerResponse?.url ?? offerResponse?.data?.url ?? offerResponse?.uri ?? offerResponse?.data?.uri;
-    if (!offerUri) throw new Error(`Could not get offer URI from response: ${JSON.stringify(offerResponse)}`);
+    issuerDid = await fetchIssuerDid();
 
     // Create a proof template that matches the credential schema above
     const templateResponse = await apiPost("/proof-templates", {
@@ -364,8 +372,10 @@ describe("e2e: credential import → proof request response (via MCP tool handle
     const createDIDResult = parseToolResult(await handlers.get("create_did")!({})) as any;
     expect(createDIDResult.success).toBe(true);
     expect(createDIDResult.did).toMatch(/^did:/);
+    const holderDid: string = createDIDResult.did;
 
     // ── Step 2: import credential ────────────────────────────────────────────
+    const offerUri = await createOfferForHolder(issuerDid, holderDid);
     const importResult = parseToolResult(
       await handlers.get("import_credential")!({ uri: offerUri })
     ) as any;
@@ -407,7 +417,9 @@ describe("e2e: credential import → proof request response (via MCP tool handle
     const createDIDResult = parseToolResult(await handlers.get("create_did")!({})) as any;
     expect(createDIDResult.success).toBe(true);
     expect(createDIDResult.did).toMatch(/^did:/);
+    const holderDid: string = createDIDResult.did;
 
+    const offerUri = await createOfferForHolder(issuerDid, holderDid);
     const importResult = parseToolResult(
       await handlers.get("import_credential")!({ uri: offerUri })
     ) as any;
