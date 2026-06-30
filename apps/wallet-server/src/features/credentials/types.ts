@@ -60,6 +60,12 @@ export interface ProofSubmissionResult {
   verifierResponse?: unknown;
 }
 
+export interface GetCredentialResult {
+  success: boolean;
+  credential?: CredentialInfo;
+  message?: string;
+}
+
 export interface RespondToProofRequestResult {
   success: boolean;
   status: "completed" | "needs_input" | "failed";
