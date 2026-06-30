@@ -96,6 +96,8 @@ Restart Claude Desktop after saving.
 
 ### VS Code (GitHub Copilot)
 
+> **Requires VS Code 1.99 or later** (released March 2025). The workspace config uses the native `type: "http"` MCP format which is not supported in older versions — tools will silently not appear. If you're on an older version, use the [Claude Desktop manual config](#option-b-manual-config) instead.
+
 The workspace `.vscode/mcp.json` is already configured. Start the server, then:
 
 1. Open Copilot Chat (`Ctrl+Shift+I` / `Cmd+Shift+I`)

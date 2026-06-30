@@ -68,8 +68,11 @@ describe('integration: every tool handler should call TruveraClient.request', ()
       // If the handler returned an error (isError true), it's likely because required fields couldn't be inferred; still count as exercised
       if ((result as any).isError) continue;
 
-      // Otherwise, ensure TruveraClient.request was called at least once
-      expect(spy).toHaveBeenCalled();
+      // get_agent_card_details reads from in-memory tool list only — no API call
+      const NO_REQUEST_TOOLS = new Set(['get_agent_card_details']);
+      if (!NO_REQUEST_TOOLS.has(tool.name)) {
+        expect(spy).toHaveBeenCalled();
+      }
 
       // Basic sanity: the last call should have method & endpoint
       const lastCall = spy.mock.calls[spy.mock.calls.length - 1][0];
