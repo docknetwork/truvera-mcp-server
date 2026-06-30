@@ -297,9 +297,15 @@ async function createOfferForHolder(issuerDid: string, holderDid: string): Promi
   if (!localIssuerId) throw new Error(`Could not get issuer id: ${JSON.stringify(issuerResponse)}`);
 
   const offerResponse = await apiPost("/openid/credential-offers", { id: localIssuerId });
-  const url: string = offerResponse?.url ?? offerResponse?.data?.url ?? offerResponse?.uri ?? offerResponse?.data?.uri;
-  if (!url) throw new Error(`Could not get offer URI: ${JSON.stringify(offerResponse)}`);
-  return url;
+  // Use by-value credential_offer to avoid the unauthenticated credential_offer_uri fetch
+  // failing in CI (cloud IPs get rejected by the server while authenticated API calls succeed).
+  // Strip the draft-11 `credentials` field — having both `credentials` (draft 11) and
+  // `credential_configuration_ids` (draft 13) in the encoded URI string triggers a version
+  // conflict error in the Sphereon OID4VCI library's string-based version detection.
+  const rawOffer = offerResponse?.offer ?? offerResponse?.data?.offer;
+  if (!rawOffer) throw new Error(`Could not get offer data: ${JSON.stringify(offerResponse)}`);
+  const { credentials: _omit, ...offerData } = rawOffer;
+  return `openid-credential-offer://?credential_offer=${encodeURIComponent(JSON.stringify(offerData))}`;
 }
 
 // ── Test suite ────────────────────────────────────────────────────────────────

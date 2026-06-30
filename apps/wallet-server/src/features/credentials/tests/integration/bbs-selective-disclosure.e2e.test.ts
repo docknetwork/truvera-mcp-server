@@ -171,9 +171,10 @@ describe("e2e: BBS+ selective disclosure (respond_to_proof_request with attribut
     expect(typeof issuerId).toBe("string");
 
     const offerResponse = await apiPost("/openid/credential-offers", { id: issuerId });
-    const offerUri: string = offerResponse?.url ?? offerResponse?.data?.url ?? offerResponse?.uri ?? offerResponse?.data?.uri;
-    expect(typeof offerUri).toBe("string");
-    expect(offerUri).toMatch(/^openid-credential-offer:\/\//);
+    const rawOffer = offerResponse?.offer ?? offerResponse?.data?.offer;
+    expect(rawOffer).toBeDefined();
+    const { credentials: _omit, ...offerData } = rawOffer;
+    const offerUri = `openid-credential-offer://?credential_offer=${encodeURIComponent(JSON.stringify(offerData))}`;
 
     // ── Step 3: import credential into wallet ────────────────────────────────
     const importResult = parseToolResult(await handlers.get("import_credential")!({ uri: offerUri }));

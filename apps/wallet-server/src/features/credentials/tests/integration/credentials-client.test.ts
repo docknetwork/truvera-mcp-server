@@ -10,9 +10,42 @@ import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
 import { WalletClient } from "../../../../wallet-client";
 import { CredentialClient } from "../../client";
 import { DIDClient } from "../../../dids/client";
+import { requireLiveTestEnv, fetchIssuerDid, TRUVERA_API_ENDPOINT, liveApiKey } from "../../../../tests/helpers/live-test-gate";
 
-const OID4VCI_TEST_OFFER_URI =
-  "openid-credential-offer://?credential_offer_uri=https://api-testnet.truvera.io/openid/credential-offers/fbe0a6ed-2aa8-4363-833b-6aa8fe1c6d01";
+async function createByValueOfferForHolder(holderDid: string): Promise<string> {
+  const issuerDid = await fetchIssuerDid();
+  const issuerRes = await fetch(`${TRUVERA_API_ENDPOINT}/openid/issuers`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${liveApiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      credentialOptions: {
+        credential: {
+          name: "Test Credential",
+          type: ["VerifiableCredential"],
+          issuer: issuerDid,
+          subject: { id: holderDid, name: "Test" },
+          issuanceDate: new Date().toISOString(),
+          expirationDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+      },
+      singleUse: true,
+    }),
+  });
+  const issuerData: any = await issuerRes.json();
+  const issuerId: string = issuerData?.id ?? issuerData?.data?.id;
+  if (!issuerId) throw new Error(`Could not get issuer id: ${JSON.stringify(issuerData)}`);
+
+  const offerRes = await fetch(`${TRUVERA_API_ENDPOINT}/openid/credential-offers`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${liveApiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ id: issuerId }),
+  });
+  const offerData: any = await offerRes.json();
+  const rawOffer = offerData?.offer ?? offerData?.data?.offer;
+  if (!rawOffer) throw new Error(`Could not get offer data: ${JSON.stringify(offerData)}`);
+  const { credentials: _omit, ...offer } = rawOffer;
+  return `openid-credential-offer://?credential_offer=${encodeURIComponent(JSON.stringify(offer))}`;
+}
 
 describe("integration: CredentialClient with real Wallet SDK", () => {
   let walletClient: WalletClient;
@@ -144,12 +177,14 @@ describe("integration: CredentialClient with real Wallet SDK", () => {
     });
 
     it("imports credential from OID4VCI offer URL and stores it in the wallet SDK", async () => {
+      requireLiveTestEnv();
       // Ensure the wallet has a DID available before import.
-      await didClient.createDID();
+      const { did: holderDid } = await didClient.createDID();
 
       const before = await credentialClient.listCredentials();
 
-      const importResult = await credentialClient.importCredential(OID4VCI_TEST_OFFER_URI);
+      const offerUri = await createByValueOfferForHolder(holderDid);
+      const importResult = await credentialClient.importCredential(offerUri);
       expect(importResult.success).toBe(true);
       expect(importResult.credential).toBeDefined();
 
