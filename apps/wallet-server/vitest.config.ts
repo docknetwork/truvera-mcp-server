@@ -24,10 +24,6 @@ export default defineConfig({
     exclude: ["**/node_modules/**", "**/dist/**"],
     // Run integration tests sequentially to avoid database conflicts
     pool: "forks",
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
+    singleFork: true,
   },
 });

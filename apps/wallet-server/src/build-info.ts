@@ -1,6 +1,7 @@
 // Auto-generated build information
-export const BUILD_INFO = {
-  timestamp: '2026-05-27T17:50:33.097Z',
-  buildNumber: 20,
-  version: '0.1.0-build.20',
+import type { BuildInfo } from "@truvera/mcp-shared/types";
+export const BUILD_INFO: BuildInfo = {
+  timestamp: '2026-06-30T14:06:36.226Z',
+  buildNumber: 22,
+  version: '0.1.0-build.22',
 };
