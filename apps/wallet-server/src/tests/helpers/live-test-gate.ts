@@ -29,3 +29,29 @@ export function requireLiveTestEnv(): void {
     throw new Error(`Live test env not configured: ${liveTestSkipReason}`);
   }
 }
+
+/**
+ * Returns the DID to use as the credential issuer. Checks TRUVERA_API_ISSUER_DID
+ * first (explicit override), then falls back to the first DID registered in the
+ * account via GET /dids.
+ */
+export async function fetchIssuerDid(): Promise<string> {
+  if (process.env.TRUVERA_API_ISSUER_DID) {
+    return process.env.TRUVERA_API_ISSUER_DID;
+  }
+  const res = await fetch(`${TRUVERA_API_ENDPOINT}/dids`, {
+    headers: { Authorization: `Bearer ${liveApiKey}` },
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`GET /dids failed (${res.status}): ${text}`);
+  const parsed: any = JSON.parse(text);
+  const list: any[] = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.data) ? parsed.data : [];
+  const first = list[0];
+  const did = typeof first === "string" ? first : (first?.id ?? first?.did);
+  if (!did) {
+    throw new Error(
+      "No DIDs found in account. Set TRUVERA_API_ISSUER_DID or register a DID in the Truvera platform."
+    );
+  }
+  return did;
+}

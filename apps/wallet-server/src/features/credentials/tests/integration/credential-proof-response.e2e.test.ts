@@ -5,7 +5,7 @@
  * Flow:
  * 1) Create a DID via the `create_did` tool handler
  * 2) Import a credential via the `import_credential` tool handler
- * 3) Create a proof request from the predefined template via Truvera API (direct HTTP)
+ * 3) Create a proof request from a dynamically created template via Truvera API
  * 4) Respond to the proof request via the `respond_to_proof_request` tool handler
  *    → builds and auto-submits the presentation
  * 5) Assert verifier-side status reports the proof request as passed
@@ -29,13 +29,12 @@ import { DIDClient } from "../../../dids/client";
 import { CredentialClient } from "../../client";
 import { getDIDHandlers } from "../../../dids/tools";
 import { getCredentialHandlers } from "../../tools";
-import { requireLiveTestEnv, TRUVERA_API_ENDPOINT, liveApiKey } from "../../../../tests/helpers/live-test-gate";
-
-// ── Constants ────────────────────────────────────────────────────────────────
-
-const OID4VCI_TEST_OFFER_URI =
-  "openid-credential-offer://?credential_offer_uri=https://api-testnet.truvera.io/openid/credential-offers/f3a5398e-e991-4ff8-9e45-7c29873cc39b";
-const PROOF_TEMPLATE_ID = "caa741b3-aa21-4bbc-b51d-e82148a7e435";
+import {
+  requireLiveTestEnv,
+  fetchIssuerDid,
+  TRUVERA_API_ENDPOINT,
+  liveApiKey,
+} from "../../../../tests/helpers/live-test-gate";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -46,6 +45,20 @@ function parseToolResult(result: unknown): unknown {
   if (typeof text !== "string") {
     throw new Error(`Unexpected tool result shape: ${JSON.stringify(result)}`);
   }
+  return JSON.parse(text);
+}
+
+async function apiPost(endpoint: string, body: unknown): Promise<any> {
+  const res = await fetch(`${TRUVERA_API_ENDPOINT}${endpoint}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${liveApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`POST ${endpoint} failed (${res.status}): ${text}`);
   return JSON.parse(text);
 }
 
@@ -263,6 +276,8 @@ async function verifyPresentation(presentation: unknown): Promise<{ verified: bo
 describe("e2e: credential import → proof request response (via MCP tool handlers)", () => {
   let walletClient: WalletClient;
   let handlers: Map<string, (args: unknown) => Promise<unknown>>;
+  let offerUri: string;
+  let proofTemplateId: string;
 
   beforeAll(async () => {
     requireLiveTestEnv();
@@ -279,6 +294,55 @@ describe("e2e: credential import → proof request response (via MCP tool handle
       ...getDIDHandlers(didClient),
       ...getCredentialHandlers(credentialClient),
     ]) as Map<string, (args: unknown) => Promise<unknown>>;
+
+    // ── Dynamic API setup ──────────────────────────────────────────────────────
+    const issuerDid = await fetchIssuerDid();
+
+    // Create a credential issuer (no singleUse so both test cases can import from it)
+    const issuerResponse = await apiPost("/openid/issuers", {
+      credentialOptions: {
+        credential: {
+          name: "Proof of Employment",
+          type: ["VerifiableCredential", "ProofOfEmployment"],
+          issuer: issuerDid,
+          subject: {
+            jobTitle: "Software Engineer",
+            department: "Engineering",
+          },
+          issuanceDate: new Date().toISOString(),
+          expirationDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+      },
+    });
+    const issuerId: string = issuerResponse?.id ?? issuerResponse?.data?.id;
+    if (!issuerId) throw new Error(`Could not get issuer id from response: ${JSON.stringify(issuerResponse)}`);
+
+    const offerResponse = await apiPost("/openid/credential-offers", { id: issuerId });
+    offerUri = offerResponse?.url ?? offerResponse?.data?.url ?? offerResponse?.uri ?? offerResponse?.data?.uri;
+    if (!offerUri) throw new Error(`Could not get offer URI from response: ${JSON.stringify(offerResponse)}`);
+
+    // Create a proof template that matches the credential schema above
+    const templateResponse = await apiPost("/proof-templates", {
+      name: `proof-e2e-template-${Date.now()}`,
+      request: {
+        input_descriptors: [
+          {
+            id: "employment",
+            name: "Employment",
+            purpose: "Verify employment",
+            constraints: {
+              fields: [
+                {
+                  path: ["$.credentialSubject.jobTitle", "$.vc.credentialSubject.jobTitle"],
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+    proofTemplateId = templateResponse?.id ?? templateResponse?.data?.id;
+    if (!proofTemplateId) throw new Error(`Could not get template id from response: ${JSON.stringify(templateResponse)}`);
   });
 
   afterAll(async () => {
@@ -303,12 +367,12 @@ describe("e2e: credential import → proof request response (via MCP tool handle
 
     // ── Step 2: import credential ────────────────────────────────────────────
     const importResult = parseToolResult(
-      await handlers.get("import_credential")!({ uri: OID4VCI_TEST_OFFER_URI })
+      await handlers.get("import_credential")!({ uri: offerUri })
     ) as any;
     expect(importResult.success).toBe(true);
 
     // ── Step 3: create proof request via Truvera API ─────────────────────────
-    const { proofRequest, proofRequestId, responseUrl } = await createProofRequestFromTemplate(PROOF_TEMPLATE_ID);
+    const { proofRequest, proofRequestId, responseUrl } = await createProofRequestFromTemplate(proofTemplateId);
     expect(proofRequest).toBeDefined();
     expect(responseUrl).toMatch(/^https?:\/\//);
 
@@ -345,14 +409,14 @@ describe("e2e: credential import → proof request response (via MCP tool handle
     expect(createDIDResult.did).toMatch(/^did:/);
 
     const importResult = parseToolResult(
-      await handlers.get("import_credential")!({ uri: OID4VCI_TEST_OFFER_URI })
+      await handlers.get("import_credential")!({ uri: offerUri })
     ) as any;
     expect(importResult.success).toBe(true);
 
     const seededCredentialId = await seedSecondMatchingCredentialInWallet(walletClient);
     expect(typeof seededCredentialId).toBe("string");
 
-    const { proofRequest, proofRequestId, responseUrl } = await createProofRequestFromTemplate(PROOF_TEMPLATE_ID);
+    const { proofRequest, proofRequestId, responseUrl } = await createProofRequestFromTemplate(proofTemplateId);
     expect(responseUrl).toMatch(/^https?:\/\//);
 
     const firstAttempt = parseToolResult(

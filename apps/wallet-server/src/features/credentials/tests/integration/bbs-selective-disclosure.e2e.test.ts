@@ -16,7 +16,6 @@
  * Requirements:
  *   TRUVERA_RUN_LIVE_TESTS=true
  *   TRUVERA_API_KEY=<key>
- *   TRUVERA_API_ISSUER_DID=<did>   (the DID associated with the API key account)
  *
  * Run via: npm run test:integration
  */
@@ -32,7 +31,7 @@ import { DIDClient } from "../../../dids/client";
 import { CredentialClient } from "../../client";
 import { getDIDHandlers } from "../../../dids/tools";
 import { getCredentialHandlers } from "../../tools";
-import { requireLiveTestEnv, TRUVERA_API_ENDPOINT, liveApiKey } from "../../../../tests/helpers/live-test-gate";
+import { requireLiveTestEnv, fetchIssuerDid, TRUVERA_API_ENDPOINT, liveApiKey } from "../../../../tests/helpers/live-test-gate";
 import { blockchainService } from "@docknetwork/wallet-sdk-wasm/lib/services/blockchain/service.js";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -102,10 +101,7 @@ describe("e2e: BBS+ selective disclosure (respond_to_proof_request with attribut
   beforeAll(async () => {
     requireLiveTestEnv();
 
-    issuerDid = process.env.TRUVERA_API_ISSUER_DID ?? "";
-    if (!issuerDid) {
-      throw new Error("TRUVERA_API_ISSUER_DID is required for BBS+ e2e tests");
-    }
+    issuerDid = await fetchIssuerDid();
 
     // Install the localStorage shim — mirrors what index.ts does at server startup.
     lsDir = fs.mkdtempSync(path.join(os.tmpdir(), "wallet-bbs-e2e-ls-"));
