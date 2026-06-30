@@ -19,7 +19,7 @@ export interface ProcessedMessage {
 export interface FetchMessagesResult {
   success: boolean;
   messages: ProcessedMessage[];
-  fetchedCount: number;
+  decryptedCount: number;
   processedCount: number;
   message?: string;
 }

@@ -123,13 +123,13 @@ export class CredentialClient {
         return { success: false, message: `Credential not found: ${id}` };
       }
       const credential: CredentialInfo = {
+        ...doc,
         id: doc.id || doc.credential?.id || id,
         type: doc.type || doc.credential?.type || ["VerifiableCredential"],
         issuer: doc.issuer || doc.credential?.issuer || "unknown",
         issuanceDate: doc.issuanceDate || doc.credential?.issuanceDate || "",
         expirationDate: doc.expirationDate || doc.credential?.expirationDate,
         credentialSubject: doc.credentialSubject || doc.credential?.credentialSubject,
-        ...doc,
       };
       return { success: true, credential };
     } catch (error) {
@@ -203,13 +203,13 @@ export class CredentialClient {
     
     // Map credentials to our standardized format
     const credentials: CredentialInfo[] = allDocs.map((doc: any) => ({
+      ...doc,
       id: doc.id || doc.credential?.id,
       type: doc.type || doc.credential?.type || [],
       issuer: doc.issuer || doc.credential?.issuer || "unknown",
       issuanceDate: doc.issuanceDate || doc.credential?.issuanceDate || "",
       expirationDate: doc.expirationDate || doc.credential?.expirationDate,
       credentialSubject: doc.credentialSubject || doc.credential?.credentialSubject,
-      ...doc,
     }));
     
     return {
