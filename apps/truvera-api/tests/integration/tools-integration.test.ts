@@ -70,9 +70,9 @@ describe('integration: every tool handler should call TruveraClient.request', ()
 
       // get_agent_card_details reads from in-memory tool list only — no API call
       const NO_REQUEST_TOOLS = new Set(['get_agent_card_details']);
-      if (!NO_REQUEST_TOOLS.has(tool.name)) {
-        expect(spy).toHaveBeenCalled();
-      }
+      if (NO_REQUEST_TOOLS.has(tool.name)) continue;
+
+      expect(spy).toHaveBeenCalled();
 
       // Basic sanity: the last call should have method & endpoint
       const lastCall = spy.mock.calls[spy.mock.calls.length - 1][0];
