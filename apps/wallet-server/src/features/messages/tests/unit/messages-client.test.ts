@@ -20,7 +20,7 @@ function makeClient(overrides: Partial<{
     stop: vi.fn(),
     ...overrides,
   };
-  (client as any).messageProvider = mockProvider;
+  (client as any).providerPromise = Promise.resolve(mockProvider);
 
   // Inject a mock DID provider
   (client as any).didProvider = {
@@ -44,7 +44,7 @@ describe("unit: MessageClient", () => {
 
       expect(result.success).toBe(true);
       expect(result.messages).toEqual([]);
-      expect(result.fetchedCount).toBe(0);
+      expect(result.decryptedCount).toBe(0);
       expect(result.processedCount).toBe(0);
       expect(result.message).toBe("No new messages");
     });
@@ -97,7 +97,7 @@ describe("unit: MessageClient", () => {
       const result = await client.fetchMessages();
 
       expect(result.success).toBe(true);
-      expect(result.fetchedCount).toBe(1);
+      expect(result.decryptedCount).toBe(1);
       expect(result.messages[0].type).toBe("https://didcomm.org/present-proof/1.0/request-presentation");
       expect(result.messages[0].suggestedAction).toContain("respond_to_proof_request");
     });

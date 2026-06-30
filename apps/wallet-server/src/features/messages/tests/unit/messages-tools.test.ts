@@ -49,7 +49,7 @@ describe("unit: Message tools", () => {
             suggestedAction: "Call respond_to_proof_request...",
           },
         ],
-        fetchedCount: 1,
+        decryptedCount: 1,
         processedCount: 1,
         message: "Received 1 message",
       };
@@ -61,7 +61,7 @@ describe("unit: Message tools", () => {
       expect(result.isError).not.toBe(true);
       const response = JSON.parse(result.content[0].text);
       expect(response.success).toBe(true);
-      expect(response.fetchedCount).toBe(1);
+      expect(response.decryptedCount).toBe(1);
       expect(response.messages).toHaveLength(1);
       expect(response.messages[0].type).toBe("https://didcomm.org/present-proof/1.0/request-presentation");
     });
@@ -73,7 +73,7 @@ describe("unit: Message tools", () => {
       (mockClient.fetchMessages as any).mockResolvedValue({
         success: true,
         messages: [],
-        fetchedCount: 0,
+        decryptedCount: 0,
         processedCount: 0,
         message: "No new messages",
       });
@@ -93,7 +93,7 @@ describe("unit: Message tools", () => {
       (mockClient.fetchMessages as any).mockResolvedValue({
         success: false,
         messages: [],
-        fetchedCount: 0,
+        decryptedCount: 0,
         processedCount: 0,
         message: "relay service unavailable",
       });
@@ -226,7 +226,7 @@ describe("unit: Message tools", () => {
       (mockClient.fetchMessages as any).mockResolvedValue({
         success: true,
         messages: [],
-        fetchedCount: 0,
+        decryptedCount: 0,
         processedCount: 0,
         message: "No new messages",
       });

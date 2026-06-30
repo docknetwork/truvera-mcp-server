@@ -18,7 +18,7 @@ const ISSUE_WITH_DATA_TYPE = "https://didcomm.org/issue-credential/2.0/offer-cre
 export class MessageClient {
   private wallet: IWallet;
   private didProvider: IDIDProvider | null = null;
-  private messageProvider: IMessageProvider | null = null;
+  private providerPromise: Promise<IMessageProvider> | null = null;
 
   constructor(wallet: IWallet, didProvider?: IDIDProvider) {
     this.wallet = wallet;
@@ -33,16 +33,17 @@ export class MessageClient {
     return this.didProvider;
   }
 
-  private async ensureProvider(): Promise<IMessageProvider> {
-    if (!this.messageProvider) {
+  private ensureProvider(): Promise<IMessageProvider> {
+    this.providerPromise ??= (async () => {
       const didProvider = await this.ensureDIDProvider();
       const { createMessageProvider } = await import("@docknetwork/wallet-sdk-core/lib/message-provider.js");
-      this.messageProvider = createMessageProvider({ wallet: this.wallet, didProvider });
-    }
-    return this.messageProvider;
+      return createMessageProvider({ wallet: this.wallet, didProvider });
+    })();
+    return this.providerPromise;
   }
 
   private classifyMessage(decryptedMessage: any): ProcessedMessage {
+    const id: string | undefined = decryptedMessage?.id;
     const type: string | undefined = decryptedMessage?.type;
     const from: string | undefined = decryptedMessage?.from;
     const to: string | undefined = decryptedMessage?.to;
@@ -58,7 +59,7 @@ export class MessageClient {
         "Call import_credential with the credential offer URI from body to store the credential in the wallet.";
     }
 
-    return { type, from, to, body, suggestedAction };
+    return { id, type, from, to, body, suggestedAction };
   }
 
   /**
@@ -80,7 +81,7 @@ export class MessageClient {
         // Process all pending messages (high limit to drain the queue)
         await provider.processDIDCommMessages();
       } finally {
-        removeListener();
+        removeListener?.();
       }
 
       const messages: ProcessedMessage[] = decryptedMessages.map((msg) => this.classifyMessage(msg));
@@ -88,7 +89,7 @@ export class MessageClient {
       return {
         success: true,
         messages,
-        fetchedCount: decryptedMessages.length,
+        decryptedCount: decryptedMessages.length,
         processedCount: messages.length,
         message:
           messages.length === 0
@@ -99,7 +100,7 @@ export class MessageClient {
       return {
         success: false,
         messages: [],
-        fetchedCount: 0,
+        decryptedCount: 0,
         processedCount: 0,
         message: error instanceof Error ? error.message : String(error),
       };
@@ -124,6 +125,10 @@ export class MessageClient {
         from = defaultDIDDoc?.didDocument?.id?.trim();
       }
 
+      if (!from) {
+        return { success: false, message: "No default DID available — create a DID first" };
+      }
+
       await provider.sendMessage({
         from,
         to: params.to,
@@ -144,7 +149,10 @@ export class MessageClient {
    * Stop any background timers started by the message provider.
    * Should be called during wallet cleanup.
    */
-  stop(): void {
-    this.messageProvider?.stop();
+  async stop(): Promise<void> {
+    if (this.providerPromise) {
+      const provider = await this.providerPromise;
+      provider.stop();
+    }
   }
 }

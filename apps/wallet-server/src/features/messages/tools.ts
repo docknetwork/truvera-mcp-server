@@ -39,7 +39,7 @@ export function getMessageHandlers(client: MessageClient): Map<string, ToolHandl
               {
                 success: result.success,
                 messages: result.messages,
-                fetchedCount: result.fetchedCount,
+                decryptedCount: result.decryptedCount,
                 processedCount: result.processedCount,
                 message: result.message,
               },

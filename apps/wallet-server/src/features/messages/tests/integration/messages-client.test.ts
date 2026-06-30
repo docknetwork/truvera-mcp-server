@@ -38,7 +38,7 @@ describe("integration: MessageClient with real Wallet SDK", () => {
   });
 
   afterEach(async () => {
-    messageClient.stop();
+    await messageClient.stop();
 
     if (walletClient?.isInitialized()) {
       try {
@@ -57,7 +57,7 @@ describe("integration: MessageClient with real Wallet SDK", () => {
     const wallet = walletClient.getWallet();
     const didProvider = createDIDProvider({ wallet });
     const provider = createMessageProvider({ wallet, didProvider, relayService: stub });
-    (messageClient as any).messageProvider = provider;
+    (messageClient as any).providerPromise = Promise.resolve(provider);
     (messageClient as any).didProvider = didProvider;
   }
 
@@ -69,7 +69,7 @@ describe("integration: MessageClient with real Wallet SDK", () => {
 
       expect(result.success).toBe(true);
       expect(result.messages).toEqual([]);
-      expect(result.fetchedCount).toBe(0);
+      expect(result.decryptedCount).toBe(0);
       expect(result.message).toBe("No new messages");
     });
 
@@ -92,7 +92,7 @@ describe("integration: MessageClient with real Wallet SDK", () => {
       const result = await messageClient.fetchMessages();
 
       expect(result.success).toBe(true);
-      expect(result.fetchedCount).toBe(1);
+      expect(result.decryptedCount).toBe(1);
       expect(result.messages[0].type).toBe("https://didcomm.org/present-proof/1.0/request-presentation");
       expect(result.messages[0].suggestedAction).toContain("respond_to_proof_request");
       expect(result.messages[0].body).toMatchObject({ proofRequest: { id: "test-req" } });

@@ -91,6 +91,13 @@ async function main() {
   
   console.error(`  - Tools available: ${tools.length}`);
   
+  const shutdown = async () => {
+    await messageClient.stop();
+    process.exit(0);
+  };
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
+
   await bootstrapMCPServer(
     {
       name: "wallet-mcp-service",
