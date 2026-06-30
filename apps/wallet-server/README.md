@@ -21,6 +21,7 @@ A Model Context Protocol (MCP) server for interacting with the Truvera Wallet SD
 | DIDComm messaging | ✅ Implemented (`fetch_messages`, `send_message`) |
 | Agent Card (A2A identity) | ✅ Implemented (`get_agent_card_details`) |
 | SQLite persistence | ✅ Implemented (via `WALLET_DB_PATH`) |
+| Docker support | ✅ Included (`docker:build` / `docker:run` scripts + Dockerfile) |
 | Tests | ⏳ Minimal |
 | Production hardening | ⏳ Not yet |
 
