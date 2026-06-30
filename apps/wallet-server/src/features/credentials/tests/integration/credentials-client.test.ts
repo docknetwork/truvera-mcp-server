@@ -1,38 +1,80 @@
 /**
  * Integration tests for CredentialClient
- * These tests use the real Wallet SDK with in-memory storage
+ * These tests use the real Wallet SDK with SQLite storage (isolated per-test temp file)
  */
 
+import os from "os";
+import path from "path";
 import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
 
 import { WalletClient } from "../../../../wallet-client";
 import { CredentialClient } from "../../client";
+import { DIDClient } from "../../../dids/client";
+import { requireLiveTestEnv, fetchIssuerDid, TRUVERA_API_ENDPOINT, liveApiKey } from "../../../../tests/helpers/live-test-gate";
+
+async function createByValueOfferForHolder(holderDid: string): Promise<string> {
+  const issuerDid = await fetchIssuerDid();
+  const issuerRes = await fetch(`${TRUVERA_API_ENDPOINT}/openid/issuers`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${liveApiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      credentialOptions: {
+        credential: {
+          name: "Test Credential",
+          type: ["VerifiableCredential"],
+          issuer: issuerDid,
+          subject: { id: holderDid, name: "Test" },
+          issuanceDate: new Date().toISOString(),
+          expirationDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+      },
+      singleUse: true,
+    }),
+  });
+  const issuerData: any = await issuerRes.json();
+  const issuerId: string = issuerData?.id ?? issuerData?.data?.id;
+  if (!issuerId) throw new Error(`Could not get issuer id: ${JSON.stringify(issuerData)}`);
+
+  const offerRes = await fetch(`${TRUVERA_API_ENDPOINT}/openid/credential-offers`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${liveApiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ id: issuerId }),
+  });
+  const offerData: any = await offerRes.json();
+  const rawOffer = offerData?.offer ?? offerData?.data?.offer;
+  if (!rawOffer) throw new Error(`Could not get offer data: ${JSON.stringify(offerData)}`);
+  const { credentials: _omit, ...offer } = rawOffer;
+  return `openid-credential-offer://?credential_offer=${encodeURIComponent(JSON.stringify(offer))}`;
+}
 
 describe("integration: CredentialClient with real Wallet SDK", () => {
   let walletClient: WalletClient;
   let credentialClient: CredentialClient;
+  let didClient: DIDClient;
 
   beforeEach(async () => {
-    // Create a unique wallet for each test to avoid conflicts
-    const uniqueWalletName = `test-wallet-${Date.now()}-${Math.random()}`;
-    walletClient = new WalletClient(uniqueWalletName, "testnet");
-    
-    // Initialize wallet and credential client
+    const dbPath = path.join(os.tmpdir(), `wallet-test-${Date.now()}-${Math.random()}.db`);
+    walletClient = new WalletClient("test-wallet", "testnet", dbPath);
+
     const wallet = await walletClient.initialize();
     credentialClient = new CredentialClient(wallet);
+    didClient = new DIDClient(wallet);
   });
 
   afterEach(async () => {
+    if (walletClient) {
+      await walletClient.waitForIdle();
+    }
+
     // Clean up wallet resources after each test
     if (walletClient && walletClient.isInitialized()) {
       try {
         await walletClient.deleteWallet();
+        await walletClient.waitForIdle();
       } catch (error) {
         console.error("Error cleaning up wallet:", error);
       }
     }
-    // Wait for remaining async operations to complete
-    await new Promise((resolve) => setTimeout(resolve, 100));
   });
 
   describe("listCredentials", () => {
@@ -132,6 +174,37 @@ describe("integration: CredentialClient with real Wallet SDK", () => {
       expect(typeof result.success).toBe("boolean");
       // message is present on failure
       expect(result).toHaveProperty("message");
+    });
+
+    it("imports credential from OID4VCI offer URL and stores it in the wallet SDK", async () => {
+      requireLiveTestEnv();
+      // Ensure the wallet has a DID available before import.
+      const { did: holderDid } = await didClient.createDID();
+
+      const before = await credentialClient.listCredentials();
+
+      const offerUri = await createByValueOfferForHolder(holderDid);
+      const importResult = await credentialClient.importCredential(offerUri);
+      expect(importResult.success).toBe(true);
+      expect(importResult.credential).toBeDefined();
+
+      const after = await credentialClient.listCredentials();
+      expect(after.count).toBeGreaterThan(before.count);
+
+      // Verify the imported credential is visible via wallet-sdk provider storage too.
+      const { createCredentialProvider } = await import("@docknetwork/wallet-sdk-core/lib/credential-provider.js");
+      const provider = createCredentialProvider({ wallet: walletClient.getWallet() });
+      const sdkCredentials = await provider.getCredentials();
+      expect(sdkCredentials.length).toBeGreaterThan(0);
+
+      const importedId = importResult.credential?.id;
+      if (importedId) {
+        const inSdkStore = sdkCredentials.some((doc: any) => {
+          const id = doc?.id || doc?.credential?.id;
+          return id === importedId;
+        });
+        expect(inSdkStore).toBe(true);
+      }
     });
   });
 });

@@ -145,6 +145,7 @@ npm run build                # Build all packages and apps
 npm run test                 # Run all tests
 npm run docker:build:api     # Build the truvera-api Docker image
 npm run docker:run:api       # Run the truvera-api container on port 3000
+npm run docker:run:wallet    # Run wallet container (auto-selects host port if 3001 is busy)
 ```
 
 For development server with hot-reload (HTTP transport):

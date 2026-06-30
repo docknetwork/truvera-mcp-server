@@ -3,52 +3,24 @@
  * Manages wallet initialization and lifecycle
  */
 
-import { createDataStore as createBaseDataStore } from "@docknetwork/wallet-sdk-data-store/lib/index.js";
-import type { DataStore, LocalStorage } from "@docknetwork/wallet-sdk-data-store/lib/types.js";
-import {
-  createDocument,
-  removeDocument,
-  updateDocument,
-  getDocumentById,
-  getDocumentsByType,
-  getDocumentsById,
-  getAllDocuments,
-  removeAllDocuments,
-  getDocumentCorrelations,
-} from "@docknetwork/wallet-sdk-data-store-web/lib/entities/document/index.js";
-import {
-  createWallet as createWalletRecord,
-  getWallet,
-  updateWallet,
-} from "@docknetwork/wallet-sdk-data-store-web/lib/entities/wallet.entity.js";
+import path from "path";
+import { createDataStore } from "@docknetwork/wallet-sdk-data-store-typeorm/lib/index.js";
+import type { DataStore } from "@docknetwork/wallet-sdk-data-store/lib/types.js";
 import { createWallet } from "@docknetwork/wallet-sdk-core/lib/wallet.js";
 import type { IWallet } from "@docknetwork/wallet-sdk-core/lib/types.js";
-
-class InMemoryLocalStorage implements LocalStorage {
-  private readonly storage = new Map<string, string>();
-
-  async getItem(key: string): Promise<string | null> {
-    return this.storage.has(key) ? this.storage.get(key)! : null;
-  }
-
-  async setItem(key: string, value: string): Promise<void> {
-    this.storage.set(key, value);
-  }
-
-  async removeItem(key: string): Promise<void> {
-    this.storage.delete(key);
-  }
-}
 
 export class WalletClient {
   private wallet: IWallet | null = null;
   private walletName: string;
   private networkId: string;
   private dataStore: DataStore | null = null;
+  private databasePath: string;
 
-  constructor(walletName: string = "default-wallet", networkId: string = "testnet") {
+  constructor(walletName: string = "default-wallet", networkId: string = "testnet", databasePath?: string) {
     this.walletName = walletName;
     this.networkId = networkId;
+    // Use provided path or default to /data/wallet-db
+    this.databasePath = databasePath || path.join("/data", "wallet-db");
   }
 
   /**
@@ -59,62 +31,49 @@ export class WalletClient {
       return this.wallet;
     }
 
-    let dataStore: DataStore;
-    const localStorageImpl = new InMemoryLocalStorage();
-
-    const dataSource = {
-      destroy: async () => {},
-      initialize: async () => {},
-    };
-
-    dataStore = await createBaseDataStore({
-      configs: {
-        // Use in-memory database for tests to avoid persistent files and resource leaks
-        databasePath: `:memory:${Date.now()}`,
-        defaultNetwork: this.networkId,
-      },
-      dataSource,
-      documentStore: {
-        addDocument: (json, options) => createDocument({ dataStore, json, options }),
-        removeDocument: (id, options) => removeDocument({ dataStore, id, options }),
-        updateDocument: (document, options) => updateDocument({ dataStore, document, options }),
-        getDocumentById: (id) => getDocumentById({ dataStore, id }),
-        getDocumentsByType: (type) => getDocumentsByType({ dataStore, type }),
-        getDocumentsById: (idList) => getDocumentsById({ dataStore, idList }),
-        getAllDocuments: (allNetworks) => getAllDocuments({ dataStore, allNetworks }),
-        removeAllDocuments: () => removeAllDocuments({ dataStore }),
-        getDocumentCorrelations: (documentId) => getDocumentCorrelations({ dataStore, documentId }),
-      },
-      localStorageImpl,
-      walletStore: {
-        getWallet: () => getWallet({ dataStore }),
-        updateWallet: () => updateWallet({ dataStore }),
-      },
+    // Create data store using TypeORM + SQLite
+    const dataStore = await createDataStore({
+      databasePath: this.databasePath,
+      defaultNetwork: this.networkId,
     });
 
     // Store dataStore reference for cleanup
     this.dataStore = dataStore;
 
-    let walletRecord = await dataStore.wallet.getWallet();
-    if (!walletRecord) {
-      walletRecord = await createWalletRecord({ dataStore });
-    }
-
-    dataStore.networkId = walletRecord.networkId;
-    dataStore.network = dataStore.networks.find((item) => item.id === walletRecord.networkId)!;
-
-    // Create wallet instance using core SDK directly
+    // Create wallet instance using core SDK
     this.wallet = await createWallet({
       dataStore,
     });
 
-    // Ensure wallet starts on requested network.
+    // Ensure wallet starts on requested network
     if (this.wallet.getNetworkId() !== this.networkId) {
       await this.wallet.setNetwork(this.networkId);
     }
 
-    console.error(`[Wallet] Initialized wallet: ${this.walletName} (network: ${this.wallet.getNetworkId()})`);
+    console.info(
+      `[Wallet] Initialized wallet: ${this.walletName} (network: ${this.wallet.getNetworkId()}, database: ${this.databasePath})`
+    );
     return this.wallet;
+  }
+
+  /**
+   * @internal Test cleanup only. Drains the SDK write mutex so in-flight writes
+   * complete before Jest exits. Must not be called in production code — does not
+   * guarantee all writes have been enqueued yet (see inline comment).
+   */
+  async waitForIdle(): Promise<void> {
+    // Drain the SDK's global write mutex. Both createDocument and updateDocument
+    // run inside writeMutex.runExclusive, so acquiring it here blocks until the
+    // current in-flight write finishes. This is more reliable than a fixed delay.
+    //
+    // Note: syncCredentialStatus (fired without await in the SDK) makes network
+    // calls between its writes, so there is a window where the mutex is free but
+    // more writes are queued. Jest's forceExit handles that residual gap.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { writeMutex } = await import(
+      "@docknetwork/wallet-sdk-data-store-typeorm/lib/entities/document/create-document.js" as string
+    );
+    await writeMutex.runExclusive(async () => {});
   }
 
   /**
@@ -150,15 +109,6 @@ export class WalletClient {
         clearInterval(walletAny.networkCheckInterval);
       }
 
-      // Remove all documents from the dataStore
-      if (this.dataStore && typeof (this.dataStore as any).documents?.removeAllDocuments === "function") {
-        try {
-          await (this.dataStore as any).documents.removeAllDocuments();
-        } catch (err) {
-          console.debug("Error removing all documents:", err);
-        }
-      }
-
       // Call wallet cleanup
       try {
         await this.wallet.deleteWallet();
@@ -166,13 +116,10 @@ export class WalletClient {
         console.debug("Error in wallet.deleteWallet():", err);
       }
 
-      // Wait for async operations to settle before cleanup
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
       // Null out references to allow garbage collection
       this.wallet = null;
       this.dataStore = null;
-      console.error(`[Wallet] Deleted wallet: ${this.walletName}`);
+      console.info(`[Wallet] Deleted wallet: ${this.walletName}`);
     } catch (error) {
       // Log the error but don't rethrow to allow cleanup to complete
       console.error(`[Wallet] Error during cleanup for ${this.walletName}:`, error);
