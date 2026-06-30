@@ -1,7 +1,7 @@
 # Multi-stage build for Wallet MCP Service
 ARG BUILD_NUMBER=1
 
-FROM node:22-alpine3.23 AS builder
+FROM node:24-alpine3.22 AS builder
 
 ARG BUILD_NUMBER
 
@@ -30,7 +30,7 @@ COPY apps/wallet-server/tsconfig.json ./apps/wallet-server/
 
 RUN BUILD_NUMBER=$BUILD_NUMBER npm run build --workspace=apps/wallet-server
 
-FROM node:22-alpine3.23
+FROM node:24-alpine3.22
 
 WORKDIR /app
 
