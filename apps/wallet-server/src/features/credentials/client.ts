@@ -219,6 +219,7 @@ export class CredentialClient {
 
       const candidateCredentials: ProofResponseCandidate[] = [];
       const credentialById = new Map<string, any>();
+      const candidateById = new Map<string, ProofResponseCandidate>();
 
       for (const credential of filteredCredentials) {
         const credentialId = this.getCredentialId(credential);
@@ -230,7 +231,7 @@ export class CredentialClient {
           !!credential?._sd_jwt || !!(await controller.isBBSPlusCredential(credential));
         const availableAttributes = this.getCredentialAttributeKeys(credential);
 
-        candidateCredentials.push({
+        const candidate: ProofResponseCandidate = {
           credentialId,
           type: Array.isArray(credential?.type)
             ? credential.type
@@ -251,9 +252,10 @@ export class CredentialClient {
                 : undefined,
           availableAttributes,
           supportsSelectiveDisclosure,
-        });
-
+        };
+        candidateCredentials.push(candidate);
         credentialById.set(credentialId, credential);
+        candidateById.set(credentialId, candidate);
       }
 
       if (candidateCredentials.length === 0) {
@@ -291,7 +293,7 @@ export class CredentialClient {
         resolvedCredentialIds.length > 0 &&
         !attributesToRevealByCredential &&
         resolvedCredentialIds.some((id) => {
-          const candidate = candidateCredentials.find((item) => item.credentialId === id);
+          const candidate = candidateById.get(id);
           return !!candidate && candidate.supportsSelectiveDisclosure && candidate.availableAttributes.length > 0;
         });
 
@@ -327,6 +329,9 @@ export class CredentialClient {
       }
 
       const presentation = await controller.createPresentation();
+      if (!presentation) {
+        return { success: false, status: "failed", message: "createPresentation returned no presentation." };
+      }
       const evaluation = controller.evaluatePresentation(presentation);
       const sharedPresentationDetails = this.summarizePresentation(presentation);
 

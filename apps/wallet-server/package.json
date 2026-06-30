@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
-    "test": "vitest run src/features/credentials/tests/unit/credentials-tools.test.ts src/features/dids/tests/unit/dids-tools.test.ts",
+    "test": "vitest run src/features/credentials/tests/unit/credentials-tools.test.ts src/features/credentials/tests/unit/credentials-client.test.ts src/features/dids/tests/unit/dids-tools.test.ts",
     "test:watch": "vitest src/features/credentials/tests/unit/credentials-tools.test.ts src/features/dids/tests/unit/dids-tools.test.ts",
     "test:integration": "jest --config jest.integration.config.cjs --runInBand",
     "docker:build": "cd ../.. && docker build --build-arg BUILD_NUMBER=\"$(cat apps/wallet-server/.buildnumber)\" -t truvera-wallet-mcp:latest -t truvera-wallet-mcp:$(cat apps/wallet-server/.buildnumber) -f apps/wallet-server/Dockerfile .",

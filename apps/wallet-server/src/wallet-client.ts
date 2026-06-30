@@ -57,7 +57,9 @@ export class WalletClient {
   }
 
   /**
-   * Wait until wallet operations settle
+   * @internal Test cleanup only. Drains the SDK write mutex so in-flight writes
+   * complete before Jest exits. Must not be called in production code — does not
+   * guarantee all writes have been enqueued yet (see inline comment).
    */
   async waitForIdle(): Promise<void> {
     // Drain the SDK's global write mutex. Both createDocument and updateDocument

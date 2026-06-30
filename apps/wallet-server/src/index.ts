@@ -10,9 +10,8 @@ import { CredentialClient, credentialToolDefs, getCredentialHandlers } from "./f
 // wallet-sdk-wasm's storageService calls global.localStorage for DID resolution
 // caching during BBS+ proof generation. Node.js has no native localStorage, so
 // we use node-localstorage backed by the same /data volume as the wallet DB.
-const _lsPath = process.env.WALLET_DB_PATH
-  ? `${process.env.WALLET_DB_PATH}-localstorage`
-  : "/data/localstorage";
+const WALLET_DB_PATH_RESOLVED = process.env.WALLET_DB_PATH || "/data/wallet-db";
+const _lsPath = `${WALLET_DB_PATH_RESOLVED}-localstorage`;
 (globalThis as any).localStorage = new LocalStorage(_lsPath);
 
 // cheqd DID documents store BBS+ keys as JSON-stringified objects in
@@ -33,6 +32,8 @@ function normalizeDIDDocument(doc: any): any {
         if (parsed && typeof parsed === "object" && parsed.id) {
           extra.push(parsed);
           return parsed.id;
+        } else if (parsed && typeof parsed === "object") {
+          console.warn(`[normalizeDIDDocument] embedded key object missing id, leaving as string: ${entry.slice(0, 80)}`);
         }
       } catch {}
       return entry;
@@ -49,7 +50,6 @@ const MCP_PORT = parseInt(process.env.MCP_PORT || "3001", 10);
 const MCP_MODE = process.env.MCP_MODE || "stdio"; // "stdio" or "http"
 const WALLET_NAME = process.env.WALLET_NAME || "mcp-wallet";
 const CHEQD_NETWORK = process.env.CHEQD_NETWORK || "testnet"; // "testnet" or "mainnet"
-const WALLET_DB_PATH = process.env.WALLET_DB_PATH; // defaults to /data/wallet-db inside WalletClient
 
 // Validate required environment variables
 const WALLET_MASTER_KEY = process.env.WALLET_MASTER_KEY;
@@ -60,7 +60,7 @@ if (!WALLET_MASTER_KEY) {
 
 // Initialize wallet and clients
 async function initializeClients() {
-  const walletClient = new WalletClient(WALLET_NAME, CHEQD_NETWORK, WALLET_DB_PATH);
+  const walletClient = new WalletClient(WALLET_NAME, CHEQD_NETWORK, WALLET_DB_PATH_RESOLVED);
   await walletClient.initialize();
   
   const wallet = walletClient.getWallet();

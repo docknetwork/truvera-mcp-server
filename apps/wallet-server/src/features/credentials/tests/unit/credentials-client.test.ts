@@ -1,5 +1,16 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { CredentialClient } from "../../client.js";
+import { createVerificationController } from "@docknetwork/wallet-sdk-core/lib/verification-controller.js";
+
+vi.mock("@docknetwork/wallet-sdk-core/lib/verification-controller.js", () => ({
+  createVerificationController: vi.fn(),
+}));
+vi.mock("@docknetwork/wallet-sdk-core/lib/credential-provider.js", () => ({
+  createCredentialProvider: vi.fn().mockReturnValue({}),
+}));
+vi.mock("@docknetwork/wallet-sdk-core/lib/did-provider.js", () => ({
+  createDIDProvider: vi.fn().mockReturnValue({}),
+}));
 
 function makeClient(): CredentialClient {
   const mockWallet = {} as any;
@@ -110,5 +121,37 @@ describe("unit: CredentialClient attribute helpers", () => {
       const result = (client as any).normalizeAttributesToReveal(["unknownField"], credential);
       expect(result).toEqual(["unknownField"]);
     });
+  });
+});
+
+describe("unit: CredentialClient.respondToProofRequest", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns failed when createPresentation returns null", async () => {
+    const mockController = {
+      start: vi.fn().mockResolvedValue(undefined),
+      getFilteredCredentials: vi.fn().mockReturnValue([
+        {
+          id: "cred-1",
+          type: ["VerifiableCredential"],
+          issuer: "did:example:issuer",
+          issuanceDate: "2024-01-01",
+          credentialSubject: { name: "Alice" },
+        },
+      ]),
+      isBBSPlusCredential: vi.fn().mockResolvedValue(false),
+      selectedCredentials: new Map(),
+      createPresentation: vi.fn().mockResolvedValue(null),
+    };
+    vi.mocked(createVerificationController).mockReturnValue(mockController as any);
+
+    const client = new CredentialClient({} as any);
+    const result = await client.respondToProofRequest({ proofRequest: { id: "proof-1" } as any });
+
+    expect(result.success).toBe(false);
+    expect(result.status).toBe("failed");
+    expect(result.message).toBe("createPresentation returned no presentation.");
   });
 });
