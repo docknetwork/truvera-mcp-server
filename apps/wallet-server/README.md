@@ -14,19 +14,21 @@ A Model Context Protocol (MCP) server for interacting with the Truvera Wallet SD
 
 | Area | Status |
 |------|--------|
-| MCP server transport (stdio/http) | ✅ Scaffolded |
+| MCP server transport (stdio/http) | ✅ Implemented |
 | Wallet SDK integration | ✅ Direct SDK integration (core + data-store packages) |
 | DID management tools | ✅ Implemented (`get_default_did`, `create_did`, `list_dids`) |
-| Credential management | ⏳ Planned |
-| DIDComm messaging | ⏳ Planned |
+| Credential management | ✅ Implemented (`list_credentials`, `get_credential`, `import_credential`, `respond_to_proof_request`) |
+| DIDComm messaging | ✅ Implemented (`fetch_messages`, `send_message`) |
+| Agent Card (A2A identity) | ✅ Implemented (`get_agent_card_details`) |
+| SQLite persistence | ✅ Implemented (via `WALLET_DB_PATH`) |
+| Docker support | ✅ Included (`docker:build` / `docker:run` scripts + Dockerfile) |
 | Tests | ⏳ Minimal |
-| Docker support | ✅ Included |
 | Production hardening | ⏳ Not yet |
 
 ### Known limitations
 
-- **In-memory storage only:** The current wallet-server wiring uses in-memory local storage adapters. This is suitable for development and tests, but persistence and cloud sync hardening are still pending.
-- **Local-only wallet state:** Containerized runs are useful for MCP integration testing, but the wallet still uses in-memory backing stores today.
+- **No cloud sync:** The wallet uses a local SQLite database. Credentials and DIDs are not automatically synced to a cloud EDV.
+- **Production hardening pending:** Key management, backup strategies, and multi-user isolation are not yet implemented.
 
 ---
 
@@ -141,18 +143,33 @@ npm run test:integration
 npm run typecheck
 ```
 
-## Planned architecture
+## Available tools
 
-See [WALLET_MCP_PLAN.md](../../WALLET_MCP_PLAN.md) at the repo root for the full development plan.
+| Tool | Description |
+|------|-------------|
+| `get_default_did` | Get the default DID for this wallet |
+| `create_did` | Create a new DID in the wallet |
+| `list_dids` | List all DIDs in the wallet |
+| `list_credentials` | List all credentials stored in the wallet |
+| `get_credential` | Get a credential by ID |
+| `import_credential` | Import a verifiable credential into the wallet |
+| `respond_to_proof_request` | Respond to a DIDComm proof request using stored credentials |
+| `fetch_messages` | Fetch and decrypt pending DIDComm messages from the relay |
+| `send_message` | Send a DIDComm message to a recipient DID |
+| `get_agent_card_details` | Return this wallet server's A2A identity (holder DID, skills) |
+
+## Code structure
 
 ```
 apps/wallet-server/
 ├── src/
 │   ├── index.ts              # Server entry point
-│   ├── wallet-client.ts      # Wallet SDK wrapper
+│   ├── wallet-client.ts      # Wallet SDK wrapper (TypeORM + SQLite)
 │   └── features/
 │       ├── dids/             # DID management tools
-│       └── credentials/      # Credential tools (planned)
+│       ├── credentials/      # Credential tools
+│       ├── messages/         # DIDComm messaging tools
+│       └── agent-card/       # A2A identity tools
 ├── package.json
 ├── tsconfig.json
 └── README.md
