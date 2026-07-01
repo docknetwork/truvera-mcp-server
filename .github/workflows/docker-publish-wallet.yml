@@ -29,6 +29,7 @@ jobs:
       contents: read
       packages: write
       id-token: write
+    secrets: inherit
     with:
       docker_image: docknetwork/truvera-wallet-mcp
       dockerfile: ./apps/wallet-server/Dockerfile
