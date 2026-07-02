@@ -33,6 +33,18 @@ export const importCredentialSchema = {
   additionalProperties: false,
 };
 
+export const removeCredentialSchema = {
+  type: "object" as const,
+  properties: {
+    id: {
+      type: "string" as const,
+      description: "The credential ID (usually a URI such as urn:uuid:... or https://...)",
+    },
+  },
+  required: ["id"],
+  additionalProperties: false,
+};
+
 export const respondToProofRequestSchema = {
   type: "object" as const,
   properties: {

@@ -10,6 +10,7 @@ describe("unit: Credential tools", () => {
       listCredentials: vi.fn(),
       getCredential: vi.fn(),
       importCredential: vi.fn(),
+      removeCredential: vi.fn(),
       respondToProofRequest: vi.fn(),
       ensureProvider: vi.fn(),
     } as any;
@@ -17,12 +18,13 @@ describe("unit: Credential tools", () => {
 
   describe("Tool Definitions", () => {
     it("exports correct tool definitions", () => {
-      expect(credentialToolDefs).toHaveLength(4);
+      expect(credentialToolDefs).toHaveLength(5);
 
       const toolNames = credentialToolDefs.map((t) => t.name);
       expect(toolNames).toContain("list_credentials");
       expect(toolNames).toContain("get_credential");
       expect(toolNames).toContain("import_credential");
+      expect(toolNames).toContain("remove_credential");
       expect(toolNames).toContain("respond_to_proof_request");
     });
 
@@ -111,11 +113,12 @@ describe("unit: Credential tools", () => {
   describe("Handler registration", () => {
     it("registers all credential handlers", () => {
       const handlers = getCredentialHandlers(mockClient);
-      
-      expect(handlers.size).toBe(4);
+
+      expect(handlers.size).toBe(5);
       expect(handlers.has("list_credentials")).toBe(true);
       expect(handlers.has("get_credential")).toBe(true);
       expect(handlers.has("import_credential")).toBe(true);
+      expect(handlers.has("remove_credential")).toBe(true);
       expect(handlers.has("respond_to_proof_request")).toBe(true);
     });
 
@@ -261,6 +264,71 @@ describe("unit: Credential tools", () => {
       
       // Verify it's valid JSON
       expect(() => JSON.parse(result.content[0].text)).not.toThrow();
+    });
+  });
+
+  describe("remove_credential handler", () => {
+    it("returns success when credential is removed", async () => {
+      const handlers = getCredentialHandlers(mockClient);
+      const handler = handlers.get("remove_credential")!;
+      expect(handler).toBeDefined();
+
+      vi.mocked(mockClient.removeCredential).mockResolvedValue({
+        success: true,
+        message: "Credential urn:uuid:abc123 removed successfully",
+      });
+
+      const result = await handler({ id: "urn:uuid:abc123" });
+
+      expect(mockClient.removeCredential).toHaveBeenCalledWith("urn:uuid:abc123");
+      expect(result.isError).toBeUndefined();
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(true);
+      expect(response.message).toContain("removed successfully");
+    });
+
+    it("returns error when credential is not found", async () => {
+      const handlers = getCredentialHandlers(mockClient);
+      const handler = handlers.get("remove_credential")!;
+
+      vi.mocked(mockClient.removeCredential).mockResolvedValue({
+        success: false,
+        message: "Credential not found: urn:uuid:missing",
+      });
+
+      const result = await handler({ id: "urn:uuid:missing" });
+
+      expect(result.isError).toBe(true);
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(false);
+      expect(response.error).toContain("not found");
+    });
+
+    it("returns error when id is missing", async () => {
+      const handlers = getCredentialHandlers(mockClient);
+      const handler = handlers.get("remove_credential")!;
+
+      const result = await handler({});
+
+      expect(mockClient.removeCredential).not.toHaveBeenCalled();
+      expect(result.isError).toBe(true);
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(false);
+      expect(response.error).toContain("id parameter is required");
+    });
+
+    it("handles thrown errors gracefully", async () => {
+      const handlers = getCredentialHandlers(mockClient);
+      const handler = handlers.get("remove_credential")!;
+
+      vi.mocked(mockClient.removeCredential).mockRejectedValue(new Error("Database error"));
+
+      const result = await handler({ id: "urn:uuid:abc123" });
+
+      expect(result.isError).toBe(true);
+      const response = JSON.parse(result.content[0].text);
+      expect(response.success).toBe(false);
+      expect(response.error).toBe("Database error");
     });
   });
 

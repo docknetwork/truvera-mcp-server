@@ -124,6 +124,65 @@ describe("unit: CredentialClient attribute helpers", () => {
   });
 });
 
+describe("unit: CredentialClient.removeCredential", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("removes the credential when found", async () => {
+    const mockDoc = { id: "urn:uuid:abc123", type: ["VerifiableCredential"] };
+    const mockRemoveCredential = vi.fn().mockResolvedValue(undefined);
+    const mockProvider = {
+      getById: vi.fn().mockResolvedValue(mockDoc),
+      removeCredential: mockRemoveCredential,
+    };
+
+    const { createCredentialProvider } = await import("@docknetwork/wallet-sdk-core/lib/credential-provider.js");
+    vi.mocked(createCredentialProvider).mockReturnValue(mockProvider as any);
+
+    const client = new CredentialClient({} as any);
+    const result = await client.removeCredential("urn:uuid:abc123");
+
+    expect(mockProvider.getById).toHaveBeenCalledWith("urn:uuid:abc123");
+    expect(mockRemoveCredential).toHaveBeenCalledWith(mockDoc);
+    expect(result.success).toBe(true);
+  });
+
+  it("returns failure when credential is not found", async () => {
+    const mockProvider = {
+      getById: vi.fn().mockResolvedValue(null),
+      removeCredential: vi.fn(),
+    };
+
+    const { createCredentialProvider } = await import("@docknetwork/wallet-sdk-core/lib/credential-provider.js");
+    vi.mocked(createCredentialProvider).mockReturnValue(mockProvider as any);
+
+    const client = new CredentialClient({} as any);
+    const result = await client.removeCredential("urn:uuid:missing");
+
+    expect(mockProvider.removeCredential).not.toHaveBeenCalled();
+    expect(result.success).toBe(false);
+    expect(result.message).toContain("not found");
+  });
+
+  it("returns failure when removeCredential throws", async () => {
+    const mockDoc = { id: "urn:uuid:abc123" };
+    const mockProvider = {
+      getById: vi.fn().mockResolvedValue(mockDoc),
+      removeCredential: vi.fn().mockRejectedValue(new Error("Storage error")),
+    };
+
+    const { createCredentialProvider } = await import("@docknetwork/wallet-sdk-core/lib/credential-provider.js");
+    vi.mocked(createCredentialProvider).mockReturnValue(mockProvider as any);
+
+    const client = new CredentialClient({} as any);
+    const result = await client.removeCredential("urn:uuid:abc123");
+
+    expect(result.success).toBe(false);
+    expect(result.message).toBe("Storage error");
+  });
+});
+
 describe("unit: CredentialClient.respondToProofRequest", () => {
   beforeEach(() => {
     vi.clearAllMocks();

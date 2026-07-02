@@ -10,6 +10,7 @@ import type {
   CredentialInfo,
   GetCredentialResult,
   ImportCredentialResult,
+  RemoveCredentialResult,
   ProofResponseCandidate,
   PresentedCredentialDetail,
   RespondToProofRequestParams,
@@ -216,6 +217,26 @@ export class CredentialClient {
       credentials,
       count: credentials.length,
     };
+  }
+
+  /**
+   * Remove a credential from the wallet by its ID
+   */
+  async removeCredential(id: string): Promise<RemoveCredentialResult> {
+    try {
+      const provider = await this.ensureProvider();
+      const doc = await (provider.getById(id) as Promise<any> | any);
+      if (!doc) {
+        return { success: false, message: `Credential not found: ${id}` };
+      }
+      await provider.removeCredential(doc);
+      return { success: true, message: `Credential ${id} removed successfully` };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 
   /**

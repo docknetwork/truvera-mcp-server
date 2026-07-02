@@ -5,7 +5,7 @@
 
 import type { ToolDef, ToolHandler } from "@truvera/mcp-shared/tools";
 import type { CredentialClient } from "./client.js";
-import { listCredentialsSchema, getCredentialSchema, importCredentialSchema, respondToProofRequestSchema } from "./schemas.js";
+import { listCredentialsSchema, getCredentialSchema, importCredentialSchema, removeCredentialSchema, respondToProofRequestSchema } from "./schemas.js";
 
 export const credentialToolDefs: ToolDef[] = [
   {
@@ -25,6 +25,12 @@ export const credentialToolDefs: ToolDef[] = [
     title: "Import Credential",
     description: "Import a verifiable credential from an OpenID credential offer URI. Accepts credential offers in the format: openid-credential-offer://?credential_offer_uri=https://...",
     inputSchema: importCredentialSchema,
+  },
+  {
+    name: "remove_credential",
+    title: "Remove Credential",
+    description: "Remove a verifiable credential from the wallet by its ID. This permanently deletes the credential and cannot be undone.",
+    inputSchema: removeCredentialSchema,
   },
   {
     name: "respond_to_proof_request",
@@ -188,6 +194,39 @@ export function getCredentialHandlers(client: CredentialClient): Map<string, Too
             ),
           },
         ],
+        isError: true,
+      };
+    }
+  });
+
+  // Remove credential
+  handlers.set("remove_credential", async (args: unknown) => {
+    try {
+      const params = args as Record<string, unknown>;
+      const id = params.id as string;
+
+      if (!id || typeof id !== "string") {
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, error: "id parameter is required and must be a string" }, null, 2) }],
+          isError: true,
+        };
+      }
+
+      const result = await client.removeCredential(id);
+
+      if (result.success) {
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: true, message: result.message }, null, 2) }],
+        };
+      }
+
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: false, error: result.message }, null, 2) }],
+        isError: true,
+      };
+    } catch (error) {
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }, null, 2) }],
         isError: true,
       };
     }
