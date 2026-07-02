@@ -1,0 +1,51 @@
+#!/bin/sh
+set -e
+
+STAGED=$(git diff --cached --name-only)
+
+WALLET_STAGED=$(echo "$STAGED" | grep -c '^apps/wallet-server/' || true)
+API_STAGED=$(echo "$STAGED" | grep -c '^apps/truvera-api/' || true)
+SHARED_STAGED=$(echo "$STAGED" | grep -c '^packages/mcp-shared/' || true)
+
+# Shared changes affect all consumers
+if [ "$SHARED_STAGED" -gt 0 ]; then
+  WALLET_STAGED=1
+  API_STAGED=1
+fi
+
+if [ "$WALLET_STAGED" -eq 0 ] && [ "$API_STAGED" -eq 0 ]; then
+  exit 0
+fi
+
+if [ "$SHARED_STAGED" -gt 0 ]; then
+  echo "packages/mcp-shared files staged — running checks for all packages..."
+else
+  echo "staged files detected — running checks..."
+fi
+
+if [ "$WALLET_STAGED" -gt 0 ]; then
+  echo "  [wallet-server] lint..."
+  npm run lint --workspace=apps/wallet-server
+  echo "  [wallet-server] typecheck..."
+  npm run typecheck --workspace=apps/wallet-server
+  echo "  [wallet-server] test..."
+  npm run test --workspace=apps/wallet-server
+fi
+
+if [ "$API_STAGED" -gt 0 ]; then
+  echo "  [truvera-api] lint..."
+  npm run lint --workspace=apps/truvera-api
+  echo "  [truvera-api] typecheck..."
+  npm run typecheck --workspace=apps/truvera-api
+  echo "  [truvera-api] test..."
+  npm run test --workspace=apps/truvera-api
+fi
+
+if [ "$SHARED_STAGED" -gt 0 ]; then
+  echo "  [mcp-shared] typecheck..."
+  npm run typecheck --workspace=packages/mcp-shared
+  echo "  [mcp-shared] test..."
+  npm run test --workspace=packages/mcp-shared
+fi
+
+echo "  checks passed."
