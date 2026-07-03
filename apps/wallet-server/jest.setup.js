@@ -6,7 +6,7 @@
 // _realInit in beforeAll, which replaces _resolver with a real CoreResolver that also
 // natively normalises cheqd's double-encoded BBS+ keys (via CheqdVerificationMethodAssertionLegacy).
 {
-  const { blockchainService } = require('@docknetwork/wallet-sdk-wasm/src/services/blockchain/service');
+  const { blockchainService } = require('@docknetwork/wallet-sdk-wasm/lib/services/blockchain/service');
 
   // Save the real init so e2e tests can connect to cheqd for accumulator queries
   blockchainService._realInit = blockchainService.init.bind(blockchainService);

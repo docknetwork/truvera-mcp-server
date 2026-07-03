@@ -45,6 +45,8 @@ module.exports = {
     "^@digitalbazaar/security-document-loader$": "@digitalbazaar/security-document-loader/lib/main",
     "^@digitalbazaar/minimal-cipher$": "@digitalbazaar/minimal-cipher/Cipher",
     "^@docknetwork/wallet-sdk-wasm/lib/(.*?)(?:\\.js)?$": "@docknetwork/wallet-sdk-wasm/src/$1",
+    // typeorm is required from deep inside node_modules; pin it to the workspace root copy
+    "^typeorm$": "<rootDir>/../../node_modules/typeorm",
     "^@docknetwork/wallet-sdk-data-store/src/(.*)$": "@docknetwork/wallet-sdk-data-store/lib/$1",
     "^@docknetwork/wallet-sdk-data-store/src$": "@docknetwork/wallet-sdk-data-store/lib",
     // Not installed — mocked here so message-provider can be loaded in tests
