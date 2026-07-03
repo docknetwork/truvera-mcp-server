@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "postinstall": "node scripts/apply-wallet-patches.js && git config core.hooksPath .githooks",
+    "postinstall": "node scripts/apply-wallet-patches.js && (git config core.hooksPath .githooks 2>/dev/null || true)",
     "build": "npm run build --workspace=packages/mcp-shared && npm run build --workspace=apps/truvera-api && npm run build --workspace=apps/wallet-server",
     "build:shared": "npm run build --workspace=packages/mcp-shared",
     "build:api": "npm run build --workspace=apps/truvera-api",
