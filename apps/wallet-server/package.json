@@ -19,9 +19,9 @@
     "docker:run": "docker rm -f truvera-wallet-mcp || true && docker run -d --name truvera-wallet-mcp --env-file ./.env -e MCP_MODE=http -e MCP_PORT=3001 -p 3001:3001 -v truvera-wallet-mcp-data:/data truvera-wallet-mcp:latest"
   },
   "dependencies": {
-    "@docknetwork/wallet-sdk-core": "^1.7.0",
-    "@docknetwork/wallet-sdk-data-store": "^1.7.0",
-    "@docknetwork/wallet-sdk-data-store-typeorm": "^1.7.0",
+    "@docknetwork/wallet-sdk-core": "^1.9.0",
+    "@docknetwork/wallet-sdk-data-store": "^1.9.0",
+    "@docknetwork/wallet-sdk-data-store-typeorm": "^1.9.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@truvera/mcp-shared": "file:../../packages/mcp-shared",
     "dotenv": "^16.6.1",

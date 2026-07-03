@@ -11,7 +11,6 @@ import type {
   IntentMandate,
   PaymentMandate,
   DisplayItem,
-  Amount,
   ShoppingIntent,
 } from "./types.js";
 import { getCachedSchema } from "./schema-fetcher.js";

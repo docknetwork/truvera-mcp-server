@@ -5,7 +5,6 @@
  */
 
 import { components as shared } from "../shared/schemas.js";
-import { getCachedSchema } from "./schema-fetcher.js";
 
 export const components = {
   schemas: {

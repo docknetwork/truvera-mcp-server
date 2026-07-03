@@ -11,9 +11,25 @@ import type {
   SendMessageResult,
 } from "./types.js";
 
-// RequestPresentation is the key type for AP2/A2A verification flows
-const REQUEST_PRESENTATION_TYPE = "https://didcomm.org/present-proof/1.0/request-presentation";
-const ISSUE_WITH_DATA_TYPE = "https://didcomm.org/issue-credential/2.0/offer-credential";
+// Simple type → suggested action for messages that don't need goal_code discrimination
+const MESSAGE_ACTIONS: Record<string, string> = {
+  "https://didcomm.org/present-proof/1.0/request-presentation":
+    "Call respond_to_proof_request with the proofRequest from body.proofRequest to create and submit a verifiable presentation.",
+  "https://didcomm.org/issue-credential/2.0/offer-credential":
+    "Call import_credential with the credential offer URI from body to store the credential in the wallet.",
+};
+
+// goal_code → type → suggested action for messages that share a type but differ by goal
+const GOAL_CODE_ACTIONS: Record<string, Record<string, string>> = {
+  "dock.offer-delegation": {
+    "https://didcomm.org/issue-credential/3.0/request-credential":
+      "A delegatee has accepted your delegation offer. Call handle_delegation_message with this message to issue the delegated credential.",
+    "https://didcomm.org/issue-credential/3.0/issue-credential":
+      "A delegated credential has been issued to you. Call handle_delegation_message with this message to store it in the wallet.",
+    "https://didcomm.org/issue-credential/3.0/ack":
+      "The delegatee has acknowledged receipt of the delegated credential. Call handle_delegation_message with this message to finalise the offer.",
+  },
+};
 
 export class MessageClient {
   private wallet: IWallet;
@@ -49,15 +65,11 @@ export class MessageClient {
     const to: string | undefined = decryptedMessage?.to;
     const body: Record<string, unknown> | undefined = decryptedMessage?.body ?? undefined;
 
-    let suggestedAction: string | undefined;
-
-    if (type === REQUEST_PRESENTATION_TYPE) {
-      suggestedAction =
-        "Call respond_to_proof_request with the proofRequest from body.proofRequest to create and submit a verifiable presentation.";
-    } else if (type === ISSUE_WITH_DATA_TYPE) {
-      suggestedAction =
-        "Call import_credential with the credential offer URI from body to store the credential in the wallet.";
-    }
+    const goalCode = typeof body?.goal_code === "string" ? body.goal_code : undefined;
+    const suggestedAction: string | undefined =
+      (goalCode && type && GOAL_CODE_ACTIONS[goalCode]?.[type]) ||
+      (type && MESSAGE_ACTIONS[type]) ||
+      undefined;
 
     return { id, type, from, to, body, suggestedAction };
   }
