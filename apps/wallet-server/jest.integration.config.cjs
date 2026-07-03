@@ -17,6 +17,7 @@ module.exports = {
       "ts-jest",
       {
         tsconfig: "<rootDir>/tsconfig.json",
+        isolatedModules: true,
       },
     ],
     "^.+\\.(js|jsx|mjs|cjs|ts|tsx)$": [
@@ -43,11 +44,11 @@ module.exports = {
     "^@digitalbazaar/lru-memoize$": "@digitalbazaar/lru-memoize/lib/main",
     "^@digitalbazaar/security-document-loader$": "@digitalbazaar/security-document-loader/lib/main",
     "^@digitalbazaar/minimal-cipher$": "@digitalbazaar/minimal-cipher/Cipher",
-    "^@docknetwork/wallet-sdk-wasm/src/(.*)$": "@docknetwork/wallet-sdk-wasm/lib/$1",
+    "^@docknetwork/wallet-sdk-wasm/lib/(.*?)(?:\\.js)?$": "@docknetwork/wallet-sdk-wasm/src/$1",
     "^@docknetwork/wallet-sdk-data-store/src/(.*)$": "@docknetwork/wallet-sdk-data-store/lib/$1",
     "^@docknetwork/wallet-sdk-data-store/src$": "@docknetwork/wallet-sdk-data-store/lib",
     // Not installed — mocked here so message-provider can be loaded in tests
-    "^@docknetwork/wallet-sdk-relay-service/lib$": "<rootDir>/src/__mocks__/wallet-sdk-relay-service.cjs",
+    "^@docknetwork/wallet-sdk-relay-service/(lib|src)$": "<rootDir>/src/__mocks__/wallet-sdk-relay-service.cjs",
   },
   transformIgnorePatterns: [
     "/node_modules/(?!@babel|@docknetwork|@digitalbazaar|base58-universal|multiformats|p-limit|yocto-queue|@cheqd/ts-proto|ky|did-jwt-cjs|@scure/base)",

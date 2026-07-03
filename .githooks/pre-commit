@@ -30,6 +30,8 @@ if [ "$WALLET_STAGED" -gt 0 ]; then
   npm run typecheck --workspace=apps/wallet-server
   echo "  [wallet-server] test..."
   npm run test --workspace=apps/wallet-server
+  echo "  [wallet-server] test:integration..."
+  npm run test:integration --workspace=apps/wallet-server
 fi
 
 if [ "$API_STAGED" -gt 0 ]; then
