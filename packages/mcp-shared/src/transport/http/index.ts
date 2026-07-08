@@ -7,13 +7,16 @@ import { randomUUID } from "node:crypto";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ToolDef } from "../../tools/types.js";
 import type { BuildInfo } from "../../types/build-info.js";
+import { resolveAuthContext, AuthError } from "../../auth/index.js";
+import type { AuthConfig, AuthContext } from "../../auth/index.js";
 
 export interface HTTPTransportArgs {
-  serverFactory: () => McpServer;
+  serverFactory: (context: AuthContext) => McpServer | Promise<McpServer>;
   MCP_PORT: number;
   BUILD_INFO: BuildInfo;
   tools: ToolDef[];
   serviceName?: string;
+  authConfig?: AuthConfig;
 }
 
 interface ResolvePortConflictOptions {
@@ -147,6 +150,7 @@ export async function startHTTPTransport({
   BUILD_INFO,
   tools,
   serviceName = "MCP service",
+  authConfig,
 }: HTTPTransportArgs) {
   const transports: { [key: string]: { transport: StreamableHTTPServerTransport; server: McpServer } } = {};
 
@@ -244,9 +248,20 @@ export async function startHTTPTransport({
         transport = session.transport;
         server = session.server;
       } else if (!sessionId && initializeRequest) {
-        // New session: create transport and server instance
+        // New session: resolve auth then create transport and server instance
+        let authContext;
+        try {
+          authContext = await resolveAuthContext(req, authConfig ?? { mode: "none" });
+        } catch (err) {
+          if (err instanceof AuthError) {
+            res.writeHead(err.statusCode, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: err.message }));
+            return;
+          }
+          throw err;
+        }
         console.error("[DEBUG] Creating new MCP session for initialize request");
-        server = serverFactory();
+        server = await serverFactory(authContext);
         transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: randomUUID,
           onsessioninitialized: (newSessionId: string) => {
