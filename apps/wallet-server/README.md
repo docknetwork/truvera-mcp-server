@@ -127,6 +127,61 @@ Use the shared MCP Inspector instructions in the repo root README:
 | `CHEQD_NETWORK` | No | `testnet` | Cheqd network: `testnet` or `mainnet` |
 | `EDV_STORAGE_URL` | No | `https://edv.dock.io` | EDV cloud storage endpoint |
 | `WALLET_NAME` | No | `mcp-wallet` | Wallet label |
+| `MCP_JWT_PUBLIC_KEY` | In HTTP mode | — | ES256 public key (PEM) for verifying tenant JWTs. Required when `MCP_AUTH_MODE=jwt`. |
+| `MCP_MASTER_SECRET` | In HTTP mode | — | Secret used to derive per-tenant wallet encryption keys via HMAC-SHA256. Required when `MCP_AUTH_MODE=jwt`. |
+| `MCP_AUTH_MODE` | No | `none` | Auth mode: `jwt` (require signed tokens) or `none` (no auth, local dev only). |
+
+---
+
+## Authentication (ECS / remote deployments)
+
+In HTTP mode, the server supports JWT-based multi-tenant auth. Each tenant gets an isolated wallet, identified by the `sub` claim of their JWT.
+
+### How it works
+
+- The server holds a **public key** (`MCP_JWT_PUBLIC_KEY`) and a **master secret** (`MCP_MASTER_SECRET`).
+- The admin holds the corresponding **private key** in AWS Secrets Manager.
+- Each tenant authenticates with a signed JWT as a Bearer token: `Authorization: Bearer <jwt>`.
+- The server derives the tenant's wallet path (`/data/wallets/<sub>`) and wallet encryption key (`HMAC-SHA256(masterSecret, sub)`) from the JWT `sub` claim.
+- Adding a new tenant requires no server redeployment — just mint them a JWT.
+
+### One-time setup: generate a keypair
+
+```bash
+node scripts/generate-keypair.js
+```
+
+This outputs two PEM blocks:
+- **Private key** — store in AWS Secrets Manager (e.g. `prod/wallet-server/jwt-private-key`). Never commit it.
+- **Public key** — set as `MCP_JWT_PUBLIC_KEY` in the ECS task definition.
+
+### Mint a JWT for a new tenant
+
+```bash
+node scripts/mint-jwt.js <tenantId> --secret <secretManagerId> [--profile <awsProfile>] [--expires-in <duration>]
+```
+
+| Argument | Description |
+|----------|-------------|
+| `<tenantId>` | Unique identifier for the tenant (e.g. `alice`). Becomes the wallet path `/data/wallets/alice`. |
+| `--secret` | AWS Secrets Manager secret name or ARN containing the private key PEM. Defaults to `MCP_JWT_PRIVATE_KEY_SECRET` env var. |
+| `--profile` | AWS profile to use (e.g. `dev`, `prod`). Defaults to `AWS_PROFILE` env var or the default profile. |
+| `--expires-in` | Token lifetime (e.g. `30d`, `90d`, `1y`). Default: `1y`. |
+
+**Examples:**
+
+```bash
+# Mint a 90-day token for "alice" using the prod AWS profile
+node scripts/mint-jwt.js alice \
+  --secret prod/wallet-server/jwt-private-key \
+  --profile prod \
+  --expires-in 90d
+
+# Using npm script shorthand (prompts for args)
+npm run admin:mint-jwt -- alice --secret dev/wallet-server/jwt-private-key --profile dev
+```
+
+The token is printed to stdout — send it to the tenant to use as their Bearer token.
 
 ---
 

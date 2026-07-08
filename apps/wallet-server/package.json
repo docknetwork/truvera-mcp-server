@@ -16,7 +16,9 @@
     "test:watch": "vitest src/features/credentials/tests/unit/credentials-tools.test.ts src/features/credentials/tests/unit/credentials-client.test.ts src/features/dids/tests/unit/dids-tools.test.ts src/features/messages/tests/unit/messages-client.test.ts src/features/messages/tests/unit/messages-tools.test.ts src/features/agent-card/tests/unit/agent-card-tools.test.ts src/features/delegation/tests/unit/delegation-tools.test.ts",
     "test:integration": "jest --config jest.integration.config.cjs --runInBand",
     "docker:build": "cd ../.. && docker build --build-arg BUILD_NUMBER=\"$(cat apps/wallet-server/.buildnumber)\" -t truvera-wallet-mcp:latest -t truvera-wallet-mcp:$(cat apps/wallet-server/.buildnumber) -f apps/wallet-server/Dockerfile .",
-    "docker:run": "docker rm -f truvera-wallet-mcp || true && docker run -d --name truvera-wallet-mcp --env-file ./.env -e MCP_MODE=http -e MCP_PORT=3001 -p 3001:3001 -v truvera-wallet-mcp-data:/data truvera-wallet-mcp:latest"
+    "docker:run": "docker rm -f truvera-wallet-mcp || true && docker run -d --name truvera-wallet-mcp --env-file ./.env -e MCP_MODE=http -e MCP_PORT=3001 -p 3001:3001 -v truvera-wallet-mcp-data:/data truvera-wallet-mcp:latest",
+    "admin:generate-keypair": "node scripts/generate-keypair.js",
+    "admin:mint-jwt": "node scripts/mint-jwt.js"
   },
   "dependencies": {
     "@docknetwork/wallet-sdk-core": "1.9.1",
@@ -32,6 +34,8 @@
     "typeorm": "^0.3.30"
   },
   "devDependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.1082.0",
+    "@aws-sdk/credential-providers": "^3.1082.0",
     "@babel/core": "^7.26.0",
     "@babel/preset-env": "^7.26.0",
     "@types/jest": "^29.5.14",
