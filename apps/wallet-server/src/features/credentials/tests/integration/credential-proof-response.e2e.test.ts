@@ -394,7 +394,7 @@ describe("e2e: credential import → proof request response (via MCP tool handle
 
     // ── Step 4: respond to proof request via MCP tool (auto-submit enabled) ──
     const presentationResult = parseToolResult(
-      await handlers.get("respond_to_proof_request")!({ proofRequest })
+      await handlers.get("respond_to_proof_request")!({ proofRequest, autoSubmit: true })
     ) as any;
     expect(presentationResult.success).toBe(true);
     expect(presentationResult.status).toBe("completed");
