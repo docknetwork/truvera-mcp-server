@@ -20,10 +20,15 @@ const _lsPath = `${WALLET_DB_PATH_RESOLVED}-localstorage`;
 // processes them, so publicKeyBase58 is always reachable.
 function normalizeDIDDocument(doc: any): any {
   if (!doc || typeof doc !== "object") return doc;
+  // Clone before mutating — the resolver caches documents in node-localstorage and
+  // deserialises them on each cache hit, so mutating in place would cause a fresh
+  // copy to be processed again on the next resolution of the same DID, accumulating
+  // duplicate entries in verificationMethod.
+  const result = structuredClone(doc);
   const extra: any[] = [];
   for (const prop of ["assertionMethod", "authentication", "capabilityInvocation", "capabilityDelegation"]) {
-    if (!Array.isArray(doc[prop])) continue;
-    doc[prop] = doc[prop].map((entry: any) => {
+    if (!Array.isArray(result[prop])) continue;
+    result[prop] = result[prop].map((entry: any) => {
       if (typeof entry !== "string") return entry;
       try {
         // cheqd DID documents can be double-JSON-encoded (string → string → object)
@@ -39,8 +44,8 @@ function normalizeDIDDocument(doc: any): any {
       return entry;
     });
   }
-  if (extra.length) doc.verificationMethod = [...(doc.verificationMethod ?? []), ...extra];
-  return doc;
+  if (extra.length) result.verificationMethod = [...(result.verificationMethod ?? []), ...extra];
+  return result;
 }
 const _origResolve = blockchainService.resolver.resolve.bind(blockchainService.resolver);
 (blockchainService.resolver as any).resolve = async (did: string) => normalizeDIDDocument(await _origResolve(did));
