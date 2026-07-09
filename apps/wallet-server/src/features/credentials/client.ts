@@ -291,7 +291,7 @@ export class CredentialClient {
       const needsAttributeDecision =
         interactive &&
         resolvedCredentialIds.length > 0 &&
-        !attributesToRevealByCredential &&
+        attributesToRevealByCredential == null &&
         resolvedCredentialIds.some((id) => {
           const candidate = candidateById.get(id);
           return !!candidate && candidate.supportsSelectiveDisclosure && candidate.availableAttributes.length > 0;
