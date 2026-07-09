@@ -1,0 +1,43 @@
+# Copy to terraform.tfvars and fill in values before applying.
+# terraform.tfvars is gitignored — never commit real values.
+
+environment = "prod"
+aws_region  = "us-west-1"
+
+# Networking — create or reference an existing VPC with at least two subnets
+# across different AZs (required for ALB and EFS multi-AZ mount targets).
+vpc_id     = "vpc-xxxxxxxx"
+subnet_ids = ["subnet-xxxxxxxx", "subnet-yyyyyyyy"]
+
+# ACM certificate covering both service hostnames.
+# Create with: aws acm request-certificate --domain-name "*.truvera.io" --validation-method DNS
+acm_certificate_arn = "arn:aws:acm:us-west-1:ACCOUNT_ID:certificate/xxxxxxxx"
+
+# Docker images — use the build number tag from CI, not "latest".
+truvera_api_image   = "docknetwork/truvera-api-mcp:123"
+wallet_server_image = "docknetwork/truvera-wallet-mcp:123"
+
+# Public hostnames — DNS must point to alb_dns_name after first apply.
+truvera_api_hostname   = "mcp-api.truvera.io"
+wallet_server_hostname = "mcp-wallet.truvera.io"
+
+# ARN of the Secrets Manager secret created before first apply:
+#
+#   aws secretsmanager create-secret \
+#     --name "prod/mcp/wallet-server" \
+#     --secret-string '{
+#       "MCP_JWT_PUBLIC_KEY": "<output of scripts/generate-keypair.js>",
+#       "WALLET_MASTER_KEY":  "<32+ bytes of random hex>"
+#     }'
+#
+# WALLET_MASTER_KEY is the HMAC root for all tenant wallet derivation.
+# Treat it as a master password — rotation destroys all existing wallets.
+wallet_secret_arn = "arn:aws:secretsmanager:us-west-1:ACCOUNT_ID:secret:prod/mcp/wallet-server-xxxxxx"
+
+# Optional overrides
+# cheqd_network        = "mainnet"
+# truvera_api_endpoint = "https://api.truvera.com"
+# truvera_api_cpu      = 512
+# truvera_api_memory   = 1024
+# wallet_server_cpu    = 1024
+# wallet_server_memory = 2048
