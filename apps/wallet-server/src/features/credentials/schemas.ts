@@ -50,7 +50,8 @@ export const respondToProofRequestSchema = {
     },
     autoSubmit: {
       type: "boolean" as const,
-      description: "When true (default), submit presentation to proofRequest.response_url after creation.",
+      description:
+        "When true, submit presentation to proofRequest.response_url after creation. Defaults to false (build only, do not submit).",
     },
   },
   required: ["proofRequest"],

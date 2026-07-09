@@ -196,7 +196,7 @@ export class CredentialClient {
     try {
       const { proofRequest, selectedCredentialIds, attributesToRevealByCredential } = params;
       const interactive = params.interactive !== false;
-      const autoSubmit = params.autoSubmit !== false;
+      const autoSubmit = params.autoSubmit === true;
 
       const credentialProvider = await this.ensureProvider();
       const didProvider = await this.ensureDIDProvider();
@@ -345,7 +345,7 @@ export class CredentialClient {
           message: "Generated presentation did not satisfy the proof request.",
           presentation,
           selectedCredentialIds: resolvedCredentialIds,
-          selectedDID: controller.getSelectedDID(),
+          selectedDID: controller.getSelectedDID() ?? undefined,
           sharedPresentationDetails,
           errors: evaluation.errors,
           warnings: evaluation.warnings,
@@ -366,7 +366,7 @@ export class CredentialClient {
             message: "proofRequest.response_url is required to auto-submit the presentation.",
             presentation,
             selectedCredentialIds: resolvedCredentialIds,
-            selectedDID: controller.getSelectedDID(),
+            selectedDID: controller.getSelectedDID() ?? undefined,
             sharedPresentationDetails,
           };
         }
@@ -384,7 +384,7 @@ export class CredentialClient {
         status: "completed",
         presentation,
         selectedCredentialIds: resolvedCredentialIds,
-        selectedDID: controller.getSelectedDID(),
+        selectedDID: controller.getSelectedDID() ?? undefined,
         submission,
         sharedPresentationDetails,
         warnings: evaluation.warnings,

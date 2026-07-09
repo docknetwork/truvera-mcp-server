@@ -17,6 +17,11 @@ export class WalletClient {
   private dataStore: DataStore | null = null;
   private databasePath: string;
 
+  /**
+   * @param walletName Log-only label; wallet identity is determined by `databasePath`,
+   * not by this name. Two instances with different names but the same `databasePath`
+   * share the same underlying wallet.
+   */
   constructor(walletName: string = "default-wallet", networkId: string = "testnet", databasePath?: string) {
     this.walletName = walletName;
     this.networkId = networkId;
