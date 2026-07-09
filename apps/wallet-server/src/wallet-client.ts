@@ -116,6 +116,17 @@ export class WalletClient {
         console.debug("Error in wallet.deleteWallet():", err);
       }
 
+      // Close the TypeORM/SQLite connection so the file handle is released.
+      // Without this, the next createDataStore call on the same path may hit
+      // SQLITE_BUSY if the SDK does not close the connection internally.
+      try {
+        if (this.dataStore && typeof (this.dataStore as any).destroy === "function") {
+          await (this.dataStore as any).destroy();
+        }
+      } catch (err) {
+        console.debug("Error closing dataStore:", err);
+      }
+
       // Null out references to allow garbage collection
       this.wallet = null;
       this.dataStore = null;
