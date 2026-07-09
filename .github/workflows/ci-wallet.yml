@@ -2,28 +2,32 @@ name: Wallet CI
 
 on:
   pull_request:
-    paths:
-      - 'apps/wallet-server/**'
-      - 'packages/mcp-shared/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'scripts/**'
-      - '.github/workflows/ci-wallet.yml'
-      - '.github/workflows/ci-server-reusable.yml'
   push:
     branches:
       - master
-    paths:
-      - 'apps/wallet-server/**'
-      - 'packages/mcp-shared/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'scripts/**'
-      - '.github/workflows/ci-wallet.yml'
-      - '.github/workflows/ci-server-reusable.yml'
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.filter.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            run:
+              - 'apps/wallet-server/**'
+              - 'packages/mcp-shared/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'scripts/**'
+              - '.github/workflows/ci-wallet.yml'
+              - '.github/workflows/ci-server-reusable.yml'
+
   wallet:
+    needs: changes
     uses: ./.github/workflows/ci-server-reusable.yml
     permissions:
       actions: read
@@ -31,6 +35,7 @@ jobs:
       security-events: write
     secrets: inherit
     with:
+      should_run: ${{ needs.changes.outputs.run == 'true' }}
       job_name: Build and Test Wallet Server
       build_script: npm run build:wallet
       test_script: npm test

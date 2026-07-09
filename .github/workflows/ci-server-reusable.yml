@@ -3,6 +3,10 @@ name: Server CI Reusable
 on:
   workflow_call:
     inputs:
+      should_run:
+        required: false
+        default: true
+        type: boolean
       job_name:
         required: true
         type: string
@@ -52,9 +56,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
+        if: inputs.should_run
         uses: actions/checkout@v4
 
       - name: Use Node.js 24.x
+        if: inputs.should_run
         uses: actions/setup-node@v4
         with:
           node-version: 24.x
@@ -62,31 +68,37 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install dependencies (monorepo)
+        if: inputs.should_run
         run: npm ci --workspaces
 
       - name: Build shared package
+        if: inputs.should_run
         run: npm run build:shared
 
       - name: Build target server
+        if: inputs.should_run
         run: ${{ inputs.build_script }}
 
       - name: Run tests
+        if: inputs.should_run
         run: ${{ inputs.test_script }}
         working-directory: ${{ inputs.test_working_directory }}
 
       - name: Run integration tests
-        if: inputs.run_integration_tests
+        if: inputs.should_run && inputs.run_integration_tests
         run: ${{ inputs.integration_test_script }}
         working-directory: ${{ inputs.integration_test_working_directory }}
         env:
           TRUVERA_RUN_LIVE_TESTS: ${{ vars.TRUVERA_RUN_LIVE_TESTS }}
           TRUVERA_API_ENDPOINT: ${{ vars.TRUVERA_API_ENDPOINT }}
           TRUVERA_API_KEY: ${{ secrets.TRUVERA_API_KEY }}
-          
+
       - name: Set up Docker Buildx
+        if: inputs.should_run
         uses: docker/setup-buildx-action@v3
 
       - name: Build image for scanning
+        if: inputs.should_run
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -98,6 +110,7 @@ jobs:
 
       - name: Scan image for HIGH and CRITICAL vulnerabilities
         id: trivy_scan
+        if: inputs.should_run
         continue-on-error: true
         uses: aquasecurity/trivy-action@v0.35.0
         with:
@@ -110,7 +123,7 @@ jobs:
           trivyignores: .trivyignore
 
       - name: Add Trivy report to job summary
-        if: always()
+        if: always() && inputs.should_run
         run: |
           {
             echo "## ${{ inputs.trivy_scan_label }}"
@@ -130,7 +143,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Generate Trivy SARIF report
-        if: always()
+        if: always() && inputs.should_run
         uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: ${{ inputs.image_ref }}
@@ -144,14 +157,14 @@ jobs:
       - name: Upload Trivy SARIF to GitHub Security
         id: trivy_sarif_upload
         continue-on-error: true
-        if: always()
+        if: always() && inputs.should_run
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: ${{ inputs.trivy_sarif_file }}
           category: ${{ inputs.sarif_category }}
 
       - name: Add SARIF upload status to job summary
-        if: always() && steps.trivy_sarif_upload.outcome == 'failure'
+        if: always() && inputs.should_run && steps.trivy_sarif_upload.outcome == 'failure'
         run: |
           echo >> "$GITHUB_STEP_SUMMARY"
           echo "## SARIF Upload" >> "$GITHUB_STEP_SUMMARY"
@@ -159,7 +172,7 @@ jobs:
           echo "SARIF upload was skipped or failed. GitHub code scanning may not be enabled for this repository." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Fail job if Trivy found HIGH/CRITICAL issues
-        if: steps.trivy_scan.outcome == 'failure'
+        if: inputs.should_run && steps.trivy_scan.outcome == 'failure'
         run: |
           echo "Trivy detected HIGH/CRITICAL vulnerabilities. See job summary and Security tab for details."
           exit 1
