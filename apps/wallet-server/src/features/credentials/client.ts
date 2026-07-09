@@ -227,8 +227,11 @@ export class CredentialClient {
           continue;
         }
 
-        const supportsSelectiveDisclosure =
-          !!credential?._sd_jwt || !!(await controller.isBBSPlusCredential(credential));
+        const isBBS = await controller.isBBSPlusCredential(credential).catch((err: unknown) => {
+          console.warn("[respondToProofRequest] isBBSPlusCredential failed for credential, treating as non-BBS:", err);
+          return false;
+        });
+        const supportsSelectiveDisclosure = !!credential?._sd_jwt || isBBS;
         const availableAttributes = this.getCredentialAttributeKeys(credential);
 
         const candidate: ProofResponseCandidate = {
