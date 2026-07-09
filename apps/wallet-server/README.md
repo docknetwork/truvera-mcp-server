@@ -86,7 +86,10 @@ From the repo root:
 # Build the image
 npm run docker:build:wallet
 
-# Start the container in HTTP mode on port 3001
+# Start the container in HTTP mode.
+# Uses host port 3001 by default, and automatically falls back to the next
+# available host port if 3001 is already in use.
+# Optional override: WALLET_HOST_PORT=3010 npm run docker:run:wallet
 npm run docker:run:wallet
 ```
 
@@ -99,10 +102,10 @@ docker-compose up -d
 ### 6. Verify the server is running
 
 ```bash
-curl http://localhost:3001/health
+curl http://localhost:<printed-port>/health
 ```
 
-If port 3001 is already in use and you start the server from an interactive terminal, the server now prompts to continue on the next available port instead of exiting immediately.
+`npm run docker:run:wallet` prints the host port it selected.
 
 ### MCP Inspector (shared docs)
 

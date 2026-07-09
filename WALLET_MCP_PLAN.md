@@ -601,3 +601,7 @@ Proceeding with fast, iterative implementation in this order:
 4. Phase 3.6: Credential client (4-5 hours)
 5. Phase 3.7: Message client (3-4 hours)
 6. Testing & iteration
+
+
+TODO:
+* Persistent wallet storage - currently only in memory so is wiped whenever you restart the server

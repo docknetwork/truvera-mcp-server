@@ -1,9 +1,48 @@
 import "dotenv/config";
+import { blockchainService } from "@docknetwork/wallet-sdk-wasm/lib/services/blockchain/service.js";
 import { bootstrapMCPServer } from "@truvera/mcp-shared/server";
 import { BUILD_INFO } from "./build-info.js";
 import { WalletClient } from "./wallet-client.js";
 import { DIDClient, didToolDefs, getDIDHandlers } from "./features/dids/index.js";
 import { CredentialClient, credentialToolDefs, getCredentialHandlers } from "./features/credentials/index.js";
+
+const WALLET_DB_PATH_RESOLVED = process.env.WALLET_DB_PATH || "/data/wallet-db";
+
+// cheqd DID documents store BBS+ keys as JSON-stringified objects in
+// assertionMethod/authentication rather than as proper objects in
+// verificationMethod. Wrap the resolver to normalise these before jsonld.frame
+// processes them, so publicKeyBase58 is always reachable.
+function normalizeDIDDocument(doc: any): any {
+  if (!doc || typeof doc !== "object") return doc;
+  // Clone before mutating — the resolver caches documents in node-localstorage and
+  // deserialises them on each cache hit, so mutating in place would cause a fresh
+  // copy to be processed again on the next resolution of the same DID, accumulating
+  // duplicate entries in verificationMethod.
+  const result = structuredClone(doc);
+  const extra: any[] = [];
+  for (const prop of ["assertionMethod", "authentication", "capabilityInvocation", "capabilityDelegation"]) {
+    if (!Array.isArray(result[prop])) continue;
+    result[prop] = result[prop].map((entry: any) => {
+      if (typeof entry !== "string") return entry;
+      try {
+        // cheqd DID documents can be double-JSON-encoded (string → string → object)
+        let parsed: any = JSON.parse(entry);
+        if (typeof parsed === "string") parsed = JSON.parse(parsed);
+        if (parsed && typeof parsed === "object" && parsed.id) {
+          extra.push(parsed);
+          return parsed.id;
+        } else if (parsed && typeof parsed === "object") {
+          console.warn(`[normalizeDIDDocument] embedded key object missing id, leaving as string: ${entry.slice(0, 80)}`);
+        }
+      } catch {}
+      return entry;
+    });
+  }
+  if (extra.length) result.verificationMethod = [...(result.verificationMethod ?? []), ...extra];
+  return result;
+}
+const _origResolve = blockchainService.resolver.resolve.bind(blockchainService.resolver);
+(blockchainService.resolver as any).resolve = async (did: string) => normalizeDIDDocument(await _origResolve(did));
 
 // Configuration from environment variables
 const MCP_PORT = parseInt(process.env.MCP_PORT || "3001", 10);
@@ -20,7 +59,7 @@ if (!WALLET_MASTER_KEY) {
 
 // Initialize wallet and clients
 async function initializeClients() {
-  const walletClient = new WalletClient(WALLET_NAME, CHEQD_NETWORK);
+  const walletClient = new WalletClient(WALLET_NAME, CHEQD_NETWORK, WALLET_DB_PATH_RESOLVED);
   await walletClient.initialize();
   
   const wallet = walletClient.getWallet();

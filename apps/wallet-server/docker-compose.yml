@@ -12,9 +12,12 @@ services:
       - MCP_PORT=3001
       - CHEQD_NETWORK=${CHEQD_NETWORK:-testnet}
       - WALLET_NAME=${WALLET_NAME:-mcp-wallet}
+      - WALLET_DB_PATH=${WALLET_DB_PATH:-/data/wallet-db}
       - NODE_ENV=production
     ports:
       - "3001:3001"
+    volumes:
+      - wallet-db-data:/data
     restart: unless-stopped
     networks:
       - mcp-network
@@ -22,3 +25,6 @@ services:
 networks:
   mcp-network:
     driver: bridge
+
+volumes:
+  wallet-db-data:

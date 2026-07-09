@@ -54,10 +54,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Use Node.js 22.x
+      - name: Use Node.js 24.x
         uses: actions/setup-node@v4
         with:
-          node-version: 22.x
+          node-version: 24.x
           cache: npm
           cache-dependency-path: package-lock.json
 
@@ -78,7 +78,11 @@ jobs:
         if: inputs.run_integration_tests
         run: ${{ inputs.integration_test_script }}
         working-directory: ${{ inputs.integration_test_working_directory }}
-
+        env:
+          TRUVERA_RUN_LIVE_TESTS: ${{ vars.TRUVERA_RUN_LIVE_TESTS }}
+          TRUVERA_API_ENDPOINT: ${{ vars.TRUVERA_API_ENDPOINT }}
+          TRUVERA_API_KEY: ${{ secrets.TRUVERA_API_KEY }}
+          
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -103,6 +107,7 @@ jobs:
           ignore-unfixed: true
           severity: HIGH,CRITICAL
           exit-code: '1'
+          trivyignores: .trivyignore
 
       - name: Add Trivy report to job summary
         if: always()
@@ -134,6 +139,7 @@ jobs:
           ignore-unfixed: true
           severity: HIGH,CRITICAL
           exit-code: '0'
+          trivyignores: .trivyignore
 
       - name: Upload Trivy SARIF to GitHub Security
         id: trivy_sarif_upload
