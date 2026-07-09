@@ -82,9 +82,9 @@ export async function initializeAP2Schemas(): Promise<{
 }> {
   // Placeholder URLs - AP2 has not published JSON-LD schemas yet
   // See: https://github.com/google-agentic-commerce/AP2
-  const cartUrl = process.env.AP2_CART_MANDATE_SCHEMA_URL || "https://ap2-protocol.org/schemas/cart-mandate/v1";
-  const intentUrl = process.env.AP2_INTENT_MANDATE_SCHEMA_URL || "https://ap2-protocol.org/schemas/intent-mandate/v1";
-  const paymentUrl = process.env.AP2_PAYMENT_MANDATE_SCHEMA_URL || "https://ap2-protocol.org/schemas/payment-mandate/v1";
+  const cartUrl = process.env.AP2_CART_MANDATE_SCHEMA_URL || "https://schema.truvera.io/CartMandateHumanPresent-V1-1772663227477.json";
+  const intentUrl = process.env.AP2_INTENT_MANDATE_SCHEMA_URL || "https://schema.truvera.io/IntentMandateHumanNotPresent-V1-1772663293733.json";
+  const paymentUrl = process.env.AP2_PAYMENT_MANDATE_SCHEMA_URL || "https://schema.truvera.io/PaymentMandate-V1-1772663322422.json";
   
   console.error("[AP2] Initializing schemas...");
   console.error(`  - Cart Mandate: ${cartUrl}`);

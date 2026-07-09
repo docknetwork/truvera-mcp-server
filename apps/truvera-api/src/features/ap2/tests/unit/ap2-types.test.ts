@@ -8,7 +8,6 @@ import type {
   CartMandate,
   IntentMandate,
   PaymentMandate,
-  MandateType,
 } from "../../types.js";
 import { MandateType as MandateTypeEnum } from "../../types.js";
 

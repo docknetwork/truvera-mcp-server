@@ -12,23 +12,23 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
-    "test": "vitest run src/features/credentials/tests/unit/credentials-tools.test.ts src/features/credentials/tests/unit/credentials-client.test.ts src/features/dids/tests/unit/dids-tools.test.ts src/features/messages/tests/unit/messages-client.test.ts src/features/messages/tests/unit/messages-tools.test.ts",
-    "test:watch": "vitest src/features/credentials/tests/unit/credentials-tools.test.ts src/features/credentials/tests/unit/credentials-client.test.ts src/features/dids/tests/unit/dids-tools.test.ts src/features/messages/tests/unit/messages-client.test.ts src/features/messages/tests/unit/messages-tools.test.ts",
+    "test": "vitest run src/features/credentials/tests/unit/credentials-tools.test.ts src/features/credentials/tests/unit/credentials-client.test.ts src/features/dids/tests/unit/dids-tools.test.ts src/features/messages/tests/unit/messages-client.test.ts src/features/messages/tests/unit/messages-tools.test.ts src/features/agent-card/tests/unit/agent-card-tools.test.ts src/features/delegation/tests/unit/delegation-tools.test.ts",
+    "test:watch": "vitest src/features/credentials/tests/unit/credentials-tools.test.ts src/features/credentials/tests/unit/credentials-client.test.ts src/features/dids/tests/unit/dids-tools.test.ts src/features/messages/tests/unit/messages-client.test.ts src/features/messages/tests/unit/messages-tools.test.ts src/features/agent-card/tests/unit/agent-card-tools.test.ts src/features/delegation/tests/unit/delegation-tools.test.ts",
     "test:integration": "jest --config jest.integration.config.cjs --runInBand",
     "docker:build": "cd ../.. && docker build --build-arg BUILD_NUMBER=\"$(cat apps/wallet-server/.buildnumber)\" -t truvera-wallet-mcp:latest -t truvera-wallet-mcp:$(cat apps/wallet-server/.buildnumber) -f apps/wallet-server/Dockerfile .",
     "docker:run": "docker rm -f truvera-wallet-mcp || true && docker run -d --name truvera-wallet-mcp --env-file ./.env -e MCP_MODE=http -e MCP_PORT=3001 -p 3001:3001 -v truvera-wallet-mcp-data:/data truvera-wallet-mcp:latest"
   },
   "dependencies": {
-    "@docknetwork/wallet-sdk-core": "^1.7.0",
-    "@docknetwork/wallet-sdk-data-store": "^1.7.0",
-    "@docknetwork/wallet-sdk-data-store-typeorm": "^1.7.0",
+    "@docknetwork/wallet-sdk-core": "^1.9.0",
+    "@docknetwork/wallet-sdk-data-store": "^1.9.0",
+    "@docknetwork/wallet-sdk-data-store-typeorm": "^1.9.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@truvera/mcp-shared": "file:../../packages/mcp-shared",
     "dotenv": "^16.6.1",
     "module-alias": "^2.2.3",
     "node-localstorage": "^3.0.5",
     "sqlite3": "^6.0.1",
-    "typeorm": "^1.0.0"
+    "typeorm": "^0.3.30"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",

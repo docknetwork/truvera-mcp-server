@@ -4,12 +4,14 @@
 
 A monorepo containing Model Context Protocol (MCP) servers for Truvera API integrations. MCP servers let AI assistants (Claude, GitHub Copilot, etc.) call real Truvera API operations as tools.
 
+**New to MCP?** MCP (Model Context Protocol) is a standard that lets an AI assistant talk to external services. Once connected, you can ask Claude (or another AI) to perform real actions — like issuing a credential or verifying a DID — by typing natural-language requests. No API calls required on your part.
+
 ## Available Servers
 
 | Server | Status | Description |
 |--------|--------|-------------|
-| [`apps/truvera-api`](apps/truvera-api/README.md) | ✅ Production-ready | Verifiable credentials, DIDs, presentations, schemas, profiles, AP2 mandates |
-| [`apps/wallet-server`](apps/wallet-server/README.md) | 🚧 Work in progress | Truvera Wallet SDK integration — not ready for use |
+| [`apps/truvera-api`](apps/truvera-api/README.md) | ✅ Production-ready | Verifiable credentials, DIDs, proof requests, schemas, profiles, AP2 mandates |
+| [`apps/wallet-server`](apps/wallet-server/README.md) | 🚧 Work in progress | Truvera Wallet SDK — hold credentials, DIDComm messaging, proof responses |
 
 ## Quickstart (5 minutes)
 
@@ -65,25 +67,93 @@ Once the server is running in HTTP mode on port 3000:
 
 ### Claude Desktop
 
-Add to your Claude Desktop config:
+**Option A — Settings UI (recommended, no config file editing)**
+
+1. Open Claude Desktop and go to **Settings → Integrations**
+2. Click **+ Add Integration**
+3. Enter a name (`Truvera`) and the URL: `http://localhost:3000/mcp`
+4. Click **Add**, then restart Claude Desktop
+
+**Option B — Manual config file** (if the Integrations UI is unavailable)
+
+Edit the config file for your OS:
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **Linux**: `~/.config/Claude/claude_desktop_config.json`
 
 ```json
 {
-   "mcpServers": {
-      "truvera": {
-         "command": "npx",
-         "args": ["-y", "mcp-remote", "http://localhost:3000/mcp", "--insecure"]
-      }
-   }
+  "mcpServers": {
+    "truvera": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:3000/mcp", "--insecure"]
+    }
+  }
 }
 ```
 
-### GitHub Copilot (VS Code)
+Restart Claude Desktop after saving.
 
-The workspace `.vscode/mcp.json` is already configured. Start the server, then in the Copilot chat pane click **Configure tools...** → **Update tools** under `truvera-mcp-service-vs-code`.
+### VS Code (GitHub Copilot)
+
+> **Requires VS Code 1.99 or later** (released March 2025). The workspace config uses the native `type: "http"` MCP format which is not supported in older versions — tools will silently not appear. If you're on an older version, use the [Claude Desktop manual config](#option-b-manual-config) instead.
+
+The workspace `.vscode/mcp.json` is already configured. Start the server, then:
+
+1. Open Copilot Chat (`Ctrl+Shift+I` / `Cmd+Shift+I`)
+2. Switch to **Agent** mode using the dropdown at the top of the chat pane (MCP tools are only available in Agent mode)
+3. The Truvera tools will be listed in the tools panel
+
+To add the server to your personal VS Code (all projects), open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and run **MCP: Open User Configuration**, then add:
+
+```json
+{
+  "servers": {
+    "truvera": {
+      "type": "http",
+      "url": "http://localhost:3000/mcp"
+    }
+  }
+}
+```
+
+### Cursor
+
+1. Open **Cursor Settings** (`Ctrl+,` / `Cmd+,`)
+2. Go to **Features → MCP**
+3. Click **+ Add new MCP server**
+4. Set type to **HTTP** and enter URL: `http://localhost:3000/mcp`
+5. Save and restart Cursor
+
+### What to try once connected
+
+After connecting, ask your AI assistant things like:
+
+- *"List all my DIDs."*
+- *"Issue a credential with type EmploymentCredential to DID `did:cheqd:testnet:abc123`."*
+- *"Verify this credential: `<paste JSON>`."*
+- *"Create a proof request for an EmailCredential and give me the QR code link."*
+- *"List my credential schemas."*
+- *"What Truvera tools do you have available?"*
+
+The AI will call the appropriate Truvera API tools and return real results. No code or API knowledge required.
+
+## Troubleshooting
+
+**Server won't start**
+- Make sure `TRUVERA_API_KEY` is set in `apps/truvera-api/.env` (not blank, not the placeholder `your-api-key-here`).
+- Run `curl http://localhost:3000/health` — if that returns an error, check the Docker container logs: `docker logs truvera-mcp-service`.
+
+**Claude doesn't show Truvera tools**
+- Restart Claude Desktop after adding the integration or editing the config file.
+- Confirm the server is running first: `curl http://localhost:3000/health`.
+- In VS Code, make sure you're in **Agent** mode — MCP tools are invisible in Ask or Edit mode.
+
+**`--insecure` flag in the manual Claude Desktop config**
+- Only needed when using the `mcp-remote` fallback config (Option B). It allows `mcp-remote` to connect to a plain `http://` URL. It does **not** affect your Truvera API key security. The Settings UI method (Option A) does not require this flag.
+
+**Tools appear but calls fail with auth errors**
+- The API key in your `.env` may be for the wrong environment. Testnet keys only work with `https://api-testnet.truvera.io`; production keys with `https://api.truvera.com`. Check `TRUVERA_API_ENDPOINT` in your `.env`.
 
 ## MCP Inspector (Shared for All Servers)
 

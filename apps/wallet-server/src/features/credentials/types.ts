@@ -66,6 +66,11 @@ export interface GetCredentialResult {
   message?: string;
 }
 
+export interface RemoveCredentialResult {
+  success: boolean;
+  message?: string;
+}
+
 export interface RespondToProofRequestResult {
   success: boolean;
   status: "completed" | "needs_input" | "failed";

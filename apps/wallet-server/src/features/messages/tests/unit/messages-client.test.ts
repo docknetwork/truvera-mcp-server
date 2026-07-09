@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { MessageClient } from "../../client.js";
 
 function makeClient(overrides: Partial<{
@@ -123,6 +123,97 @@ describe("unit: MessageClient", () => {
       const result = await client.fetchMessages();
 
       expect(result.messages[0].suggestedAction).toContain("import_credential");
+    });
+
+    it("classifies dock.offer-delegation request-credential as a delegation offer acceptance", async () => {
+      const decryptedMsg = {
+        type: "https://didcomm.org/issue-credential/3.0/request-credential",
+        from: "did:key:z6MkDelegatee",
+        body: { goal_code: "dock.offer-delegation" },
+      };
+
+      let capturedListener: ((msg: any) => void) | null = null;
+      const addMessageListener = vi.fn().mockImplementation((handler: (msg: any) => void) => {
+        capturedListener = handler;
+        return vi.fn();
+      });
+      const processDIDCommMessages = vi.fn().mockImplementation(async () => {
+        if (capturedListener) capturedListener(decryptedMsg);
+      });
+
+      const client = makeClient({ addMessageListener, processDIDCommMessages });
+      const result = await client.fetchMessages();
+
+      expect(result.messages[0].suggestedAction).toContain("handle_delegation_message");
+      expect(result.messages[0].suggestedAction).toContain("delegat");
+    });
+
+    it("classifies dock.offer-delegation issue-credential as a delegated credential issuance", async () => {
+      const decryptedMsg = {
+        type: "https://didcomm.org/issue-credential/3.0/issue-credential",
+        from: "did:key:z6MkIssuer",
+        body: { goal_code: "dock.offer-delegation" },
+      };
+
+      let capturedListener: ((msg: any) => void) | null = null;
+      const addMessageListener = vi.fn().mockImplementation((handler: (msg: any) => void) => {
+        capturedListener = handler;
+        return vi.fn();
+      });
+      const processDIDCommMessages = vi.fn().mockImplementation(async () => {
+        if (capturedListener) capturedListener(decryptedMsg);
+      });
+
+      const client = makeClient({ addMessageListener, processDIDCommMessages });
+      const result = await client.fetchMessages();
+
+      expect(result.messages[0].suggestedAction).toContain("handle_delegation_message");
+      expect(result.messages[0].suggestedAction).toContain("store it in the wallet");
+    });
+
+    it("classifies dock.offer-delegation ack as a delegation finalisation", async () => {
+      const decryptedMsg = {
+        type: "https://didcomm.org/issue-credential/3.0/ack",
+        from: "did:key:z6MkDelegatee",
+        body: { goal_code: "dock.offer-delegation" },
+      };
+
+      let capturedListener: ((msg: any) => void) | null = null;
+      const addMessageListener = vi.fn().mockImplementation((handler: (msg: any) => void) => {
+        capturedListener = handler;
+        return vi.fn();
+      });
+      const processDIDCommMessages = vi.fn().mockImplementation(async () => {
+        if (capturedListener) capturedListener(decryptedMsg);
+      });
+
+      const client = makeClient({ addMessageListener, processDIDCommMessages });
+      const result = await client.fetchMessages();
+
+      expect(result.messages[0].suggestedAction).toContain("handle_delegation_message");
+      expect(result.messages[0].suggestedAction).toContain("finalise the offer");
+    });
+
+    it("produces no suggestedAction for unknown message types without a goal_code", async () => {
+      const decryptedMsg = {
+        type: "https://example.org/unknown-type",
+        from: "did:key:z6MkSender",
+        body: {},
+      };
+
+      let capturedListener: ((msg: any) => void) | null = null;
+      const addMessageListener = vi.fn().mockImplementation((handler: (msg: any) => void) => {
+        capturedListener = handler;
+        return vi.fn();
+      });
+      const processDIDCommMessages = vi.fn().mockImplementation(async () => {
+        if (capturedListener) capturedListener(decryptedMsg);
+      });
+
+      const client = makeClient({ addMessageListener, processDIDCommMessages });
+      const result = await client.fetchMessages();
+
+      expect(result.messages[0].suggestedAction).toBeUndefined();
     });
 
     it("returns error result when provider throws", async () => {

@@ -5,7 +5,6 @@
  */
 
 import { components as shared } from "../shared/schemas.js";
-import { getCachedSchema } from "./schema-fetcher.js";
 
 export const components = {
   schemas: {
@@ -242,9 +241,9 @@ export function getSchemaWithContext(schemaKey: keyof typeof components.schemas)
   const schema = components.schemas[schemaKey];
   
   const schemaUrls = {
-    cart: process.env.AP2_CART_MANDATE_SCHEMA_URL || "https://ap2-protocol.org/schemas/cart-mandate/v1",
-    intent: process.env.AP2_INTENT_MANDATE_SCHEMA_URL || "https://ap2-protocol.org/schemas/intent-mandate/v1",
-    payment: process.env.AP2_PAYMENT_MANDATE_SCHEMA_URL || "https://ap2-protocol.org/schemas/payment-mandate/v1",
+    cart: process.env.AP2_CART_MANDATE_SCHEMA_URL || "https://schema.truvera.io/CartMandateHumanPresent-V1-1772663227477.json",
+    intent: process.env.AP2_INTENT_MANDATE_SCHEMA_URL || "https://schema.truvera.io/IntentMandateHumanNotPresent-V1-1772663293733.json",
+    payment: process.env.AP2_PAYMENT_MANDATE_SCHEMA_URL || "https://schema.truvera.io/PaymentMandate-V1-1772663322422.json",
   };
   
   return {

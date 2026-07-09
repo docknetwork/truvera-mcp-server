@@ -49,11 +49,12 @@ describe('integration: every tool handler should call TruveraClient.request', ()
   it('invokes request for each tool handler and returns a response', async () => {
     const tools = buildToolList();
     expect(Array.isArray(tools)).toBeTruthy();
-    const handlers = buildHandlerMapFromTruvera(new TruveraClient('test-key', 'http://localhost'));
+    const handlers = buildHandlerMapFromTruvera(new TruveraClient('test-key', 'http://localhost'), tools);
 
     for (const tool of tools) {
       const handler = handlers.get(tool.name);
       expect(handler).toBeDefined();
+      if (!handler) continue;
 
       const args = constructArgsFromSchema((tool as any).inputSchema);
       spy.mockClear();
@@ -67,7 +68,10 @@ describe('integration: every tool handler should call TruveraClient.request', ()
       // If the handler returned an error (isError true), it's likely because required fields couldn't be inferred; still count as exercised
       if ((result as any).isError) continue;
 
-      // Otherwise, ensure TruveraClient.request was called at least once
+      // get_agent_card_details reads from in-memory tool list only — no API call
+      const NO_REQUEST_TOOLS = new Set(['get_agent_card_details']);
+      if (NO_REQUEST_TOOLS.has(tool.name)) continue;
+
       expect(spy).toHaveBeenCalled();
 
       // Basic sanity: the last call should have method & endpoint
