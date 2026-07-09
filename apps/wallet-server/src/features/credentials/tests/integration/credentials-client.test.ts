@@ -207,4 +207,20 @@ describe("integration: CredentialClient with real Wallet SDK", () => {
       }
     });
   });
+
+  describe("getCredential", () => {
+    it("returns not-found result for unknown ID", async () => {
+      const result = await credentialClient.getCredential("urn:uuid:does-not-exist");
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("not found");
+    });
+
+    it("returns success:false gracefully for empty wallet", async () => {
+      // Fresh wallet has no credentials
+      const result = await credentialClient.getCredential("urn:uuid:any-id");
+      expect(result).toHaveProperty("success");
+      expect(result.success).toBe(false);
+    });
+  });
 });

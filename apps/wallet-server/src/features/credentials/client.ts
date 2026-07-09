@@ -8,6 +8,7 @@ import { createVerificationController } from "@docknetwork/wallet-sdk-core/lib/v
 import type {
   CredentialListResult,
   CredentialInfo,
+  GetCredentialResult,
   ImportCredentialResult,
   ProofResponseCandidate,
   PresentedCredentialDetail,
@@ -111,6 +112,35 @@ export class CredentialClient {
   }
 
   /**
+   * Retrieve a single credential by its ID
+   */
+  async getCredential(id: string): Promise<GetCredentialResult> {
+    try {
+      const provider = await this.ensureProvider();
+      // getById is typed as synchronous but the underlying dataStore call is async
+      const doc = await (provider.getById(id) as Promise<any> | any);
+      if (!doc) {
+        return { success: false, message: `Credential not found: ${id}` };
+      }
+      const credential: CredentialInfo = {
+        ...doc,
+        id: doc.id || doc.credential?.id || id,
+        type: doc.type || doc.credential?.type || ["VerifiableCredential"],
+        issuer: doc.issuer || doc.credential?.issuer || "unknown",
+        issuanceDate: doc.issuanceDate || doc.credential?.issuanceDate || "",
+        expirationDate: doc.expirationDate || doc.credential?.expirationDate,
+        credentialSubject: doc.credentialSubject || doc.credential?.credentialSubject,
+      };
+      return { success: true, credential };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  /**
    * Import a credential from an OpenID credential offer URI
    */
   async importCredential(uri: string): Promise<ImportCredentialResult> {
@@ -173,13 +203,13 @@ export class CredentialClient {
     
     // Map credentials to our standardized format
     const credentials: CredentialInfo[] = allDocs.map((doc: any) => ({
+      ...doc,
       id: doc.id || doc.credential?.id,
       type: doc.type || doc.credential?.type || [],
       issuer: doc.issuer || doc.credential?.issuer || "unknown",
       issuanceDate: doc.issuanceDate || doc.credential?.issuanceDate || "",
       expirationDate: doc.expirationDate || doc.credential?.expirationDate,
       credentialSubject: doc.credentialSubject || doc.credential?.credentialSubject,
-      ...doc,
     }));
     
     return {

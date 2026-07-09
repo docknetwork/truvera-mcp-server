@@ -2,22 +2,30 @@ name: Shared Package CI
 
 on:
   pull_request:
-    paths:
-      - 'packages/mcp-shared/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.github/workflows/ci-shared.yml'
   push:
     branches:
       - master
-    paths:
-      - 'packages/mcp-shared/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.github/workflows/ci-shared.yml'
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.filter.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            run:
+              - 'packages/mcp-shared/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci-shared.yml'
+
   shared:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     name: Build and Test mcp-shared
     runs-on: ubuntu-latest
     permissions:
