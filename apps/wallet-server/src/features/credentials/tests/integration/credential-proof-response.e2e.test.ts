@@ -459,6 +459,7 @@ describe("e2e: credential import → proof request response (via MCP tool handle
         interactive: true,
         selectedCredentialIds: [selectedCredentialId],
         attributesToRevealByCredential: {},
+        autoSubmit: true,
       })
     ) as any;
 
