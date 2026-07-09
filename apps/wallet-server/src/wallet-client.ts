@@ -4,6 +4,7 @@
  */
 
 import path from "path";
+import { LocalStorage } from "node-localstorage";
 import { createDataStore } from "@docknetwork/wallet-sdk-data-store-typeorm/lib/index.js";
 import type { DataStore } from "@docknetwork/wallet-sdk-data-store/lib/types.js";
 import { createWallet } from "@docknetwork/wallet-sdk-core/lib/wallet.js";
@@ -30,6 +31,13 @@ export class WalletClient {
     if (this.wallet) {
       return this.wallet;
     }
+
+    // wallet-sdk-wasm's storageService calls global.localStorage for DID resolution
+    // caching during BBS+ proof generation. Install the polyfill here so any code
+    // path that uses WalletClient gets it automatically, without requiring the
+    // caller (index.ts, tests) to set it up first. ??= avoids overwriting a shim
+    // already installed by tests or other code.
+    (globalThis as any).localStorage ??= new LocalStorage(`${this.databasePath}-localstorage`);
 
     // Create data store using TypeORM + SQLite
     const dataStore = await createDataStore({

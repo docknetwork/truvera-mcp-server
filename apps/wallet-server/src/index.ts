@@ -1,5 +1,4 @@
 import "dotenv/config";
-import { LocalStorage } from "node-localstorage";
 import { blockchainService } from "@docknetwork/wallet-sdk-wasm/lib/services/blockchain/service.js";
 import { bootstrapMCPServer } from "@truvera/mcp-shared/server";
 import { BUILD_INFO } from "./build-info.js";
@@ -7,12 +6,7 @@ import { WalletClient } from "./wallet-client.js";
 import { DIDClient, didToolDefs, getDIDHandlers } from "./features/dids/index.js";
 import { CredentialClient, credentialToolDefs, getCredentialHandlers } from "./features/credentials/index.js";
 
-// wallet-sdk-wasm's storageService calls global.localStorage for DID resolution
-// caching during BBS+ proof generation. Node.js has no native localStorage, so
-// we use node-localstorage backed by the same /data volume as the wallet DB.
 const WALLET_DB_PATH_RESOLVED = process.env.WALLET_DB_PATH || "/data/wallet-db";
-const _lsPath = `${WALLET_DB_PATH_RESOLVED}-localstorage`;
-(globalThis as any).localStorage = new LocalStorage(_lsPath);
 
 // cheqd DID documents store BBS+ keys as JSON-stringified objects in
 // assertionMethod/authentication rather than as proper objects in
