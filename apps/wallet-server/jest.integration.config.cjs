@@ -44,7 +44,6 @@ module.exports = {
     "^@digitalbazaar/lru-memoize$": "@digitalbazaar/lru-memoize/lib/main",
     "^@digitalbazaar/security-document-loader$": "@digitalbazaar/security-document-loader/lib/main",
     "^@digitalbazaar/minimal-cipher$": "@digitalbazaar/minimal-cipher/Cipher",
-    "^@docknetwork/wallet-sdk-wasm/lib/(.*?)(?:\\.js)?$": "@docknetwork/wallet-sdk-wasm/src/$1",
     "^typeorm$": require.resolve("typeorm"),
     "^@docknetwork/wallet-sdk-data-store/src/(.*)$": "@docknetwork/wallet-sdk-data-store/lib/$1",
     "^@docknetwork/wallet-sdk-data-store/src$": "@docknetwork/wallet-sdk-data-store/lib",

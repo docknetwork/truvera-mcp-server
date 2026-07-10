@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
 import { WalletClient } from "../../../../wallet-client";
 import { CredentialClient } from "../../client";
 import { DIDClient } from "../../../dids/client";
-import { requireLiveTestEnv, fetchIssuerDid, TRUVERA_API_ENDPOINT, liveApiKey } from "../../../../tests/helpers/live-test-gate";
+import { shouldRunLiveTests, fetchIssuerDid, TRUVERA_API_ENDPOINT, liveApiKey } from "../../../../tests/helpers/live-test-gate";
 
 async function createByValueOfferForHolder(holderDid: string): Promise<string> {
   const issuerDid = await fetchIssuerDid();
@@ -176,8 +176,7 @@ describe("integration: CredentialClient with real Wallet SDK", () => {
       expect(result).toHaveProperty("message");
     });
 
-    it("imports credential from OID4VCI offer URL and stores it in the wallet SDK", async () => {
-      requireLiveTestEnv();
+    (shouldRunLiveTests ? it : it.skip)("imports credential from OID4VCI offer URL and stores it in the wallet SDK", async () => {
       // Ensure the wallet has a DID available before import.
       const { did: holderDid } = await didClient.createDID();
 
