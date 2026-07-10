@@ -64,6 +64,7 @@ COPY --from=builder /app/packages/mcp-shared/dist ./packages/mcp-shared/dist
 COPY --from=builder /app/packages/mcp-shared/package.json ./packages/mcp-shared/
 COPY --from=builder /app/apps/wallet-server/dist ./apps/wallet-server/dist
 COPY --from=builder /app/apps/wallet-server/register-aliases.cjs ./apps/wallet-server/register-aliases.cjs
+COPY apps/wallet-server/http-client-stub.cjs ./apps/wallet-server/http-client-stub.cjs
 COPY apps/wallet-server/entrypoint.sh ./apps/wallet-server/entrypoint.sh
 
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
