@@ -11,7 +11,7 @@ acm_certificate_arn = "arn:aws:acm:us-west-1:252098842926:certificate/441c2984-e
 wallet_secret_arn = "arn:aws:secretsmanager:us-west-1:252098842926:secret:prod/mcp/wallet-server-wNzqdL"
 
 # Update these with the current build number on each deploy
-truvera_api_image   = "docknetwork/truvera-api-mcp:latest"
-wallet_server_image = "docknetwork/truvera-wallet-mcp:1"
+truvera_api_image   = "docknetwork/truvera-api-mcp:1"
+wallet_server_image = "docknetwork/truvera-wallet-mcp:7"
 
 cheqd_network = "testnet"
