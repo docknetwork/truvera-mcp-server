@@ -4,10 +4,9 @@
 environment = "prod"
 aws_region  = "us-west-1"
 
-# Networking — create or reference an existing VPC with at least two subnets
-# across different AZs (required for ALB and EFS multi-AZ mount targets).
-vpc_id     = "vpc-xxxxxxxx"
-subnet_ids = ["subnet-xxxxxxxx", "subnet-yyyyyyyy"]
+# Networking — Terraform creates the VPC, subnets, IGW, and route tables.
+# Override vpc_cidr only if 10.0.0.0/16 conflicts with existing peered networks.
+# vpc_cidr = "10.0.0.0/16"
 
 # ACM certificate covering both service hostnames.
 # Create with: aws acm request-certificate --domain-name "*.truvera.io" --validation-method DNS

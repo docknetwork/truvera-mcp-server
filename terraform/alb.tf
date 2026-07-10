@@ -5,7 +5,7 @@ resource "aws_lb" "mcp" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
-  subnets            = var.subnet_ids
+  subnets            = aws_subnet.public[*].id
 
   enable_deletion_protection = true
 
@@ -53,7 +53,7 @@ resource "aws_lb_target_group" "truvera_api" {
   name        = "truvera-api-mcp-${var.environment}-tg"
   port        = local.truvera_api_port
   protocol    = "HTTP"
-  vpc_id      = var.vpc_id
+  vpc_id      = aws_vpc.main.id
   target_type = "ip" # required for Fargate awsvpc networking
 
   health_check {
@@ -87,7 +87,7 @@ resource "aws_lb_target_group" "wallet_server" {
   name        = "wallet-mcp-${var.environment}-tg"
   port        = local.wallet_server_port
   protocol    = "HTTP"
-  vpc_id      = var.vpc_id
+  vpc_id      = aws_vpc.main.id
   target_type = "ip"
 
   health_check {

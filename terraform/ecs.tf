@@ -73,7 +73,7 @@ resource "aws_ecs_service" "truvera_api" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = var.subnet_ids
+    subnets          = aws_subnet.public[*].id
     security_groups  = [aws_security_group.truvera_api_task.id]
     assign_public_ip = true
   }
@@ -185,7 +185,7 @@ resource "aws_ecs_service" "wallet_server" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = var.subnet_ids
+    subnets          = aws_subnet.public[*].id
     security_groups  = [aws_security_group.wallet_server_task.id]
     assign_public_ip = true
   }
