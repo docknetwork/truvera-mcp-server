@@ -14,18 +14,12 @@
 #     --bucket truvera-mcp-terraform-state \
 #     --versioning-configuration Status=Enabled
 #
-#   aws dynamodb create-table \
-#     --table-name truvera-mcp-terraform-locks \
-#     --attribute-definitions AttributeName=LockID,AttributeType=S \
-#     --key-schema AttributeName=LockID,KeyType=HASH \
-#     --billing-mode PAY_PER_REQUEST \
-#     --region us-west-1
 terraform {
   backend "s3" {
-    bucket         = "truvera-mcp-terraform-state"
-    key            = "mcp/terraform.tfstate"
-    region         = "us-west-1"
-    dynamodb_table = "truvera-mcp-terraform-locks"
-    encrypt        = true
+    bucket       = "truvera-mcp-terraform-state"
+    key          = "mcp/terraform.tfstate"
+    region       = "us-west-1"
+    use_lockfile = true
+    encrypt      = true
   }
 }
