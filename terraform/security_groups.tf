@@ -7,7 +7,7 @@ locals {
 resource "aws_security_group" "alb" {
   name        = "truvera-mcp-${var.environment}-alb-sg"
   description = "Allow inbound HTTPS to the MCP ALB"
-  vpc_id      = var.vpc_id
+  vpc_id      = aws_vpc.main.id
 
   ingress {
     description = "HTTPS from internet"
@@ -34,7 +34,7 @@ resource "aws_security_group" "alb" {
 resource "aws_security_group" "truvera_api_task" {
   name        = "truvera-api-mcp-${var.environment}-fargate-sg"
   description = "Allow ALB ingress to truvera-api MCP task"
-  vpc_id      = var.vpc_id
+  vpc_id      = aws_vpc.main.id
 
   ingress {
     description     = "From ALB"
@@ -61,7 +61,7 @@ resource "aws_security_group" "truvera_api_task" {
 resource "aws_security_group" "wallet_server_task" {
   name        = "wallet-mcp-${var.environment}-fargate-sg"
   description = "Allow ALB ingress to wallet-server MCP task"
-  vpc_id      = var.vpc_id
+  vpc_id      = aws_vpc.main.id
 
   ingress {
     description     = "From ALB"
@@ -87,7 +87,7 @@ resource "aws_security_group" "wallet_server_task" {
 resource "aws_security_group" "efs" {
   name        = "wallet-mcp-${var.environment}-efs-sg"
   description = "NFS access from wallet-server task only"
-  vpc_id      = var.vpc_id
+  vpc_id      = aws_vpc.main.id
 
   ingress {
     description     = "NFS from wallet-server task"

@@ -24,10 +24,10 @@ resource "aws_efs_file_system" "wallets" {
 # One mount target per subnet so the Fargate scheduler can place the task in
 # any AZ without losing access to the file system.
 resource "aws_efs_mount_target" "wallets" {
-  for_each = toset(var.subnet_ids)
+  count = length(aws_subnet.public)
 
   file_system_id  = aws_efs_file_system.wallets.id
-  subnet_id       = each.value
+  subnet_id       = aws_subnet.public[count.index].id
   security_groups = [aws_security_group.efs.id]
 }
 
