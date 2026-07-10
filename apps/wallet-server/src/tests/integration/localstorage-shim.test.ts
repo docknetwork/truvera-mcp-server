@@ -38,13 +38,13 @@ describe("integration: node-localstorage shim → wallet-sdk-wasm storageService
   });
 
   it("storageService.getItem returns null for a missing key without throwing", async () => {
-    const { storageService } = await import("@docknetwork/wallet-sdk-wasm/src/services/storage/service");
+    const { storageService } = await import("@docknetwork/wallet-sdk-wasm/lib/services/storage/service.js");
     const result = storageService.getItem("missing-key");
     expect(result).toBeNull();
   });
 
   it("storageService set/get round-trips through node-localstorage", async () => {
-    const { storageService } = await import("@docknetwork/wallet-sdk-wasm/src/services/storage/service");
+    const { storageService } = await import("@docknetwork/wallet-sdk-wasm/lib/services/storage/service.js");
     const payload = JSON.stringify({ did: "did:example:123", timestamp: 1000000 });
     await storageService.setItem("did-cache:did:example:123", payload);
     const result = storageService.getItem("did-cache:did:example:123");
@@ -52,7 +52,7 @@ describe("integration: node-localstorage shim → wallet-sdk-wasm storageService
   });
 
   it("storageService.removeItem clears the stored value", async () => {
-    const { storageService } = await import("@docknetwork/wallet-sdk-wasm/src/services/storage/service");
+    const { storageService } = await import("@docknetwork/wallet-sdk-wasm/lib/services/storage/service.js");
     await storageService.setItem("did-cache:did:example:remove", "value");
     await storageService.removeItem("did-cache:did:example:remove");
     const result = storageService.getItem("did-cache:did:example:remove");
@@ -60,7 +60,7 @@ describe("integration: node-localstorage shim → wallet-sdk-wasm storageService
   });
 
   it("persists values across separate LocalStorage instances (file-backed)", async () => {
-    const { storageService } = await import("@docknetwork/wallet-sdk-wasm/src/services/storage/service");
+    const { storageService } = await import("@docknetwork/wallet-sdk-wasm/lib/services/storage/service.js");
     const key = "did-cache:did:example:persist-check";
     const value = JSON.stringify({ persisted: true });
     await storageService.setItem(key, value);

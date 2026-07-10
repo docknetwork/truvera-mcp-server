@@ -21,8 +21,18 @@ export const liveTestSkipReason = !LIVE_MODE
     : undefined;
 
 /**
+ * Drop-in replacement for `describe` that skips the entire suite when live-test
+ * env vars are not configured. Prefer this over calling requireLiveTestEnv()
+ * from beforeAll, which marks tests as failed rather than skipped.
+ *
+ *   ifLive("my suite", () => { ... });
+ */
+export const ifLive: jest.Describe = (shouldRunLiveTests ? describe : describe.skip) as jest.Describe;
+
+/**
  * Call at the start of a `beforeAll` to make the suite fail loudly instead of
  * silently skipping when live-test env vars are not configured.
+ * @deprecated Use ifLive() at the describe level instead.
  */
 export function requireLiveTestEnv(): void {
   if (liveTestSkipReason) {

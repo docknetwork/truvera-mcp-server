@@ -22,7 +22,7 @@
 
 import os from "os";
 import path from "path";
-import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
+import { it, expect, beforeAll, afterAll } from "@jest/globals";
 
 import { WalletClient } from "../../../../wallet-client";
 import { DIDClient } from "../../../dids/client";
@@ -30,7 +30,7 @@ import { CredentialClient } from "../../client";
 import { getDIDHandlers } from "../../../dids/tools";
 import { getCredentialHandlers } from "../../tools";
 import {
-  requireLiveTestEnv,
+  ifLive,
   fetchIssuerDid,
   TRUVERA_API_ENDPOINT,
   liveApiKey,
@@ -310,15 +310,13 @@ async function createOfferForHolder(issuerDid: string, holderDid: string): Promi
 
 // ── Test suite ────────────────────────────────────────────────────────────────
 
-describe("e2e: credential import → proof request response (via MCP tool handlers)", () => {
+ifLive("e2e: credential import → proof request response (via MCP tool handlers)", () => {
   let walletClient: WalletClient;
   let handlers: Map<string, (args: unknown) => Promise<unknown>>;
   let issuerDid: string;
   let proofTemplateId: string;
 
   beforeAll(async () => {
-    requireLiveTestEnv();
-
     const uniqueWalletName = `proof-e2e-wallet-${Date.now()}-${Math.random()}`;
     const dbPath = path.join(os.tmpdir(), `${uniqueWalletName}.db`);
     walletClient = new WalletClient(uniqueWalletName, "testnet", dbPath);

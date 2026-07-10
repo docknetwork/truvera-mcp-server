@@ -23,7 +23,7 @@
 import os from "os";
 import path from "path";
 import fs from "fs";
-import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
+import { it, expect, beforeAll, afterAll } from "@jest/globals";
 import { LocalStorage } from "node-localstorage";
 
 import { WalletClient } from "../../../../wallet-client";
@@ -31,7 +31,7 @@ import { DIDClient } from "../../../dids/client";
 import { CredentialClient } from "../../client";
 import { getDIDHandlers } from "../../../dids/tools";
 import { getCredentialHandlers } from "../../tools";
-import { requireLiveTestEnv, fetchIssuerDid, TRUVERA_API_ENDPOINT, liveApiKey } from "../../../../tests/helpers/live-test-gate";
+import { ifLive, fetchIssuerDid, TRUVERA_API_ENDPOINT, liveApiKey } from "../../../../tests/helpers/live-test-gate";
 import { blockchainService } from "@docknetwork/wallet-sdk-wasm/lib/services/blockchain/service.js";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -92,15 +92,13 @@ async function verifyPresentation(presentation: unknown): Promise<boolean> {
 
 // ── Test suite ────────────────────────────────────────────────────────────────
 
-describe("e2e: BBS+ selective disclosure (respond_to_proof_request with attributesToRevealByCredential)", () => {
+ifLive("e2e: BBS+ selective disclosure (respond_to_proof_request with attributesToRevealByCredential)", () => {
   let walletClient: WalletClient;
   let handlers: Map<string, (args: unknown) => Promise<unknown>>;
   let lsDir: string;
   let issuerDid: string;
 
   beforeAll(async () => {
-    requireLiveTestEnv();
-
     issuerDid = await fetchIssuerDid();
 
     // Install the localStorage shim — mirrors what index.ts does at server startup.
