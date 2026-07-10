@@ -21,6 +21,11 @@ on:
         required: false
         default: true
         type: boolean
+      tag:
+        description: Image tag (leave blank to use sanitized branch name)
+        required: false
+        default: ''
+        type: string
 
 jobs:
   api:
@@ -35,3 +40,4 @@ jobs:
       dockerfile: ./apps/truvera-api/Dockerfile
       build_number_file: apps/truvera-api/.buildnumber
       should_push: ${{ github.event_name != 'workflow_dispatch' || inputs.push }}
+      tag: ${{ inputs.tag }}
