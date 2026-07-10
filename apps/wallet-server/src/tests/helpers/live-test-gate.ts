@@ -1,3 +1,4 @@
+import { describe } from "@jest/globals";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -21,18 +22,28 @@ export const liveTestSkipReason = !LIVE_MODE
     : undefined;
 
 /**
- * Drop-in replacement for `describe` that skips the entire suite when live-test
- * env vars are not configured. Prefer this over calling requireLiveTestEnv()
- * from beforeAll, which marks tests as failed rather than skipped.
+ * Drop-in replacement for `describe` that behaves differently in CI vs local:
+ * - CI (process.env.CI=true): always runs the suite so missing credentials
+ *   cause a loud failure rather than a silent skip
+ * - Local: skips the suite when live-test env vars are not configured
  *
- *   ifLive("my suite", () => { ... });
+ * Pair with requireLiveTestEnv() in beforeAll to get a clear error message
+ * when credentials are absent in CI.
+ *
+ *   ifLive("my suite", () => {
+ *     beforeAll(() => { requireLiveTestEnv(); });
+ *     ...
+ *   });
  */
-export const ifLive: jest.Describe = (shouldRunLiveTests ? describe : describe.skip) as jest.Describe;
+const isCI = process.env.CI === "true";
+export function ifLive(description: string, fn: () => void): void {
+  (shouldRunLiveTests || isCI ? describe : describe.skip)(description, fn);
+}
 
 /**
- * Call at the start of a `beforeAll` to make the suite fail loudly instead of
- * silently skipping when live-test env vars are not configured.
- * @deprecated Use ifLive() at the describe level instead.
+ * Call at the start of a `beforeAll` to fail loudly when live-test env vars
+ * are not configured. In CI this surfaces a clear error; locally the suite is
+ * already skipped by ifLive() so this is never reached.
  */
 export function requireLiveTestEnv(): void {
   if (liveTestSkipReason) {

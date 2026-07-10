@@ -31,6 +31,7 @@ import { getDIDHandlers } from "../../../dids/tools";
 import { getCredentialHandlers } from "../../tools";
 import {
   ifLive,
+  requireLiveTestEnv,
   fetchIssuerDid,
   TRUVERA_API_ENDPOINT,
   liveApiKey,
@@ -317,6 +318,7 @@ ifLive("e2e: credential import → proof request response (via MCP tool handlers
   let proofTemplateId: string;
 
   beforeAll(async () => {
+    requireLiveTestEnv();
     const uniqueWalletName = `proof-e2e-wallet-${Date.now()}-${Math.random()}`;
     const dbPath = path.join(os.tmpdir(), `${uniqueWalletName}.db`);
     walletClient = new WalletClient(uniqueWalletName, "testnet", dbPath);
