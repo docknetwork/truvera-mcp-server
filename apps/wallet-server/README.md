@@ -1,13 +1,5 @@
 # Wallet MCP Server
 
-> ## 🚧 Work in Progress — Not Ready for Use
->
-> This server is under active development and is **not production-ready**. APIs, tool names, and environment variables may change without notice. Do not rely on this server for anything beyond experimentation.
->
-> For a fully functional MCP server, use [`apps/truvera-api`](../truvera-api/README.md).
-
----
-
 A Model Context Protocol (MCP) server for interacting with the Truvera Wallet SDK using direct core/data-store packages (`@docknetwork/wallet-sdk-core` + `@docknetwork/wallet-sdk-data-store-web`). When complete, it will allow AI assistants to manage DIDs, hold credentials, and support DIDComm messaging via a local wallet.
 
 ## Current state
