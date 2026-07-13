@@ -4,7 +4,7 @@ import type { IncomingMessage } from "node:http";
 
 export type AuthConfig =
   | { mode: "jwt"; publicKeyPem: string }
-  | { mode: "passthrough" }
+  | { mode: "passthrough"; fallbackApiKey?: string }
   | { mode: "none" };
 
 export type AuthContext =
@@ -69,6 +69,11 @@ export async function resolveAuthContext(
 
   const token = extractBearerToken(req);
   if (!token) {
+    if (config.mode === "passthrough" && config.fallbackApiKey) {
+      // No per-request key supplied — fall back to the server's own key, so a
+      // single-account/shared-team deployment can skip per-client headers.
+      return { mode: "passthrough", apiKey: config.fallbackApiKey };
+    }
     throw new AuthError("Missing Authorization header");
   }
 

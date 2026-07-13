@@ -15,6 +15,7 @@ This is a monorepo containing multiple Model Context Protocol (MCP) servers buil
 This repository uses an `apps/` directory to organize multiple MCP servers:
 
 - `apps/truvera-api/` - Main Truvera MCP Server for verifiable credentials and DIDs
+- `apps/wallet-server/` - Wallet MCP Server for holding credentials, DIDs, and DIDComm messaging via the Truvera Wallet SDK
 
 Each app is a self-contained MCP server with its own:
 - `package.json` - Dependencies and scripts
@@ -44,7 +45,8 @@ Each app is a self-contained MCP server with its own:
 
 - See `apps/truvera-api/README.md` for comprehensive setup and usage instructions
 - **See `apps/truvera-api/copilot-instructions.md` for detailed development guidelines**
-- See `apps/truvera-api/Dockerfile` for production container build configuration
+- See `apps/wallet-server/README.md` for the wallet server's setup, auth, and tool docs
+- See `apps/truvera-api/Dockerfile` / `apps/wallet-server/Dockerfile` for production container build configuration
 - See `docker-compose.yml` for multi-service deployment
 - See `.vscode/tasks.json` for VS Code task configuration
 - See `.vscode/launch.json` for VS Code debugging setup
@@ -75,9 +77,29 @@ npm run typecheck   # Run TypeScript type checking
 Or from root:
 
 ```bash
-npm run build:truvera
-npm run dev:truvera
-npm run test:truvera
+npm run build:api
+npm run dev:api
+npm run test:api
+```
+
+### Wallet Server Specific
+
+```bash
+cd apps/wallet-server
+npm install
+npm run dev
+npm run build
+npm start
+npm run typecheck
+```
+
+Or from root:
+
+```bash
+npm run build:wallet
+npm run dev:wallet
+npm run test:wallet
+npm run test:wallet:integration
 ```
 
 ## Docker Commands
@@ -107,7 +129,7 @@ VS Code tasks and launch configurations are set up at the workspace root level:
 5. Add Dockerfile for containerization
 6. Update `docker-compose.yml` to include new service
 7. Add build tasks to `.vscode/tasks.json`
-8. Add CI steps to `.github/workflows/ci.yml`
+8. Add a dedicated, path-filtered CI workflow (see `.github/workflows/ci-wallet.yml` for the pattern) rather than editing `.github/workflows/ci.yml`, which is scoped to `apps/truvera-api` only
 9. Create README.md with server-specific documentation
 
 ## Security Notes

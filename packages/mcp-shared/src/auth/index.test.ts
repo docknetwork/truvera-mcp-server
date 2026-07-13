@@ -142,6 +142,22 @@ describe("resolveAuthContext", () => {
     ).rejects.toBeInstanceOf(AuthError);
   });
 
+  it("falls back to fallbackApiKey when no header is sent in passthrough mode", async () => {
+    const ctx = await resolveAuthContext(
+      mockReq({}),
+      { mode: "passthrough", fallbackApiKey: "shared-team-key" }
+    );
+    expect(ctx).toEqual({ mode: "passthrough", apiKey: "shared-team-key" });
+  });
+
+  it("prefers the per-request header over fallbackApiKey when both are present", async () => {
+    const ctx = await resolveAuthContext(
+      mockReq({ authorization: "Bearer per-request-key" }),
+      { mode: "passthrough", fallbackApiKey: "shared-team-key" }
+    );
+    expect(ctx).toEqual({ mode: "passthrough", apiKey: "per-request-key" });
+  });
+
   it("returns jwt context with the tenantId from the sub claim", async () => {
     const { publicKeyPem, privateKey } = await makeKeypair();
     const token = await signJWT(privateKey, "alice");

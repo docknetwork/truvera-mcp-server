@@ -63,8 +63,10 @@ async function main() {
 
   if (MCP_MODE === "http") {
     // HTTP mode: the bearer token IS the caller's Truvera API key.
-    // TRUVERA_API_KEY is not required — each session supplies its own key.
-    const authConfig: AuthConfig = { mode: "passthrough" };
+    // If a client omits the Authorization header, fall back to TRUVERA_API_KEY
+    // from the environment — useful for a single-account/shared-team deployment
+    // that doesn't want every client to supply its own key.
+    const authConfig: AuthConfig = { mode: "passthrough", fallbackApiKey: process.env.TRUVERA_API_KEY };
 
     async function toolHandlerFactory(context: AuthContext): Promise<Map<string, ToolHandler>> {
       if (context.mode !== "passthrough") {
