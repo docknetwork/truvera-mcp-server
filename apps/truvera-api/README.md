@@ -23,6 +23,8 @@ cp .env.example .env
 
 The `.env.example` defaults to the testnet endpoint (`https://api-testnet.truvera.io`). Change `TRUVERA_API_ENDPOINT` to `https://api.truvera.com` for production.
 
+> **Note:** in HTTP mode (the recommended mode), `TRUVERA_API_KEY` is optional — it's only used as a fallback for clients that don't send their own `Authorization: Bearer <key>` header. Set it if you want a single shared key for every client; leave it blank if each client should authenticate with its own key. See [Connecting to AI Assistants](../../README.md#connecting-to-ai-assistants) for both options. It's mandatory only in STDIO mode.
+
 ### Step 2 — Install dependencies
 
 From the repo root (or this directory):
@@ -53,7 +55,7 @@ docker-compose up -d
 
 ```bash
 curl http://localhost:3000/health
-# Expected: {"status":"ok","service":"truvera-mcp-service","toolCount":31,...}
+# Expected: {"status":"ok","service":"truvera-mcp-service","toolCount":34,...} (31 core tools + 3 AP2 tools, enabled by default)
 ```
 
 The server is ready. Jump to [Connecting to AI Assistants](#connecting-to-ai-assistants) to wire it up.
@@ -97,7 +99,7 @@ The server must be running in HTTP mode on port 3000 before connecting. Full con
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `TRUVERA_API_KEY` | **Yes** | — | Truvera API authentication key |
+| `TRUVERA_API_KEY` | In STDIO mode | — | Truvera API authentication key. In HTTP mode this is optional and only used as a fallback for clients that don't send their own `Authorization: Bearer <key>` header. |
 | `TRUVERA_API_ENDPOINT` | No | `https://api.truvera.com` | API base URL. Use `https://api-testnet.truvera.io` for testnet |
 | `MCP_MODE` | No | `stdio` | Transport mode: `http` (recommended) or `stdio` (experimental) |
 | `MCP_PORT` | No | `3000` | HTTP server port (only used when `MCP_MODE=http`) |
@@ -118,7 +120,7 @@ The server must be running in HTTP mode on port 3000 before connecting. Full con
 
 ## Supported tools
 
-The server exposes 31 tools across these areas:
+The server exposes 34 tools by default: 31 core tools plus 3 AP2 tools (AP2 is enabled by default; set `AP2_ENABLED=false` to drop to 31).
 
 ### Truvera API tools
 - **Credentials** — `issue_credential`, `list_credentials`, `get_credential`, `delete_credential`
@@ -128,6 +130,7 @@ The server exposes 31 tools across these areas:
 - **Profiles** — `create_profile`, `list_profiles`, `get_profile`, `update_profile`, `delete_profile`
 - **Verification** — `verify` (credentials, presentations, JWTs)
 - **OpenID** — `list_issuers`, `create_issuer`, `create_credential_offer`, `get_credential_offer`
+- **Delegation** — `list_delegation_rules`, `get_delegation_rule`, `revoke_delegatable_credential`
 - **Agent Card** — `get_agent_card_details` (returns this server's A2A identity contribution)
 
 ### AP2 (Agent Payments Protocol) tools
@@ -179,6 +182,8 @@ src/
     ├── verify/                 # Verification
     ├── openid/                 # OpenID credential flows
     ├── ap2/                    # AP2 mandate tools
+    ├── delegation/             # Delegation rule management
+    ├── agent-card/             # A2A identity endpoint
     └── shared/                 # Common types (VC format, DID types, errors)
 ```
 
@@ -198,4 +203,5 @@ To add a new feature, create the folder, implement the pattern, and import the f
 - Treat `TRUVERA_API_KEY` as a secret — never commit it to source control.
 - Use HTTPS and a secrets manager in production environments.
 - The Docker image runs as a non-root user.
+- If you set `TRUVERA_API_KEY` in a multi-user deployment, remember it becomes a **shared fallback key** — anyone who can reach the server without sending their own Authorization header will act as that account. For per-user attribution or a multi-tenant deployment, leave it unset and require each client to send its own key.
 

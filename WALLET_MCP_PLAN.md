@@ -13,7 +13,10 @@
 | Phase 2: Wallet client (SQLite/TypeORM) | ✅ Complete |
 | Phase 3: DID feature | ✅ Complete |
 | Phase 4: Credential feature | ✅ Complete |
-| Phase 5: Messages / DIDComm feature | 🚧 In progress |
+| Phase 5: Messages / DIDComm feature | ✅ Complete |
+| Phase 6: Delegation feature | ✅ Complete |
+| Phase 7: Agent Card (A2A identity) feature | ✅ Complete |
+| Phase 8: Multi-tenant JWT auth (ECS) | ✅ Complete |
 | Cloud wallet / EDV sync | ❌ Descoped — see decision below |
 | Document management tools | ❌ Descoped (focus on credentials) |
 | Biometric authentication | ❌ Descoped |
@@ -25,14 +28,14 @@
 ### Local storage (SQLite) over cloud EDV
 Customer feedback: cloud EDV latency is unacceptable for agent flows. Many instances are short-lived. SQLite on a mounted Docker volume (`/data/wallet-db`) is the persistence strategy. No cloud wallet sync tools will be built.
 
-### Single wallet per server instance
-One wallet, initialized at startup from `WALLET_NAME` and `CHEQD_NETWORK` env vars. Multi-wallet is out of scope.
+### Single wallet per server instance (`MCP_AUTH_MODE=none`) — or one per tenant (`MCP_AUTH_MODE=jwt`)
+In `none` mode (local dev, single-user), one wallet is initialized at startup from `WALLET_NAME` and `CHEQD_NETWORK` env vars. In `jwt` mode (multi-tenant ECS deployments — see Phase 8), `WalletClientPool` lazily creates and caches one wallet per tenant, keyed by the JWT `sub` claim, each backed by its own SQLite file under `WALLET_DB_BASE_PATH`.
 
 ### Stateful, persistent wallet
 Unlike truvera-api (stateless REST), the wallet server maintains state across tool calls. Credentials and DIDs survive restarts via SQLite.
 
 ### Feature module pattern
-Each feature (`dids`, `credentials`, `messages`) contains: `client.ts`, `tools.ts`, `types.ts`, `schemas.ts`, `index.ts`, and a `tests/` directory with unit + integration tests.
+Each feature (`dids`, `credentials`, `messages`, `delegation`, `agent-card`) contains: `client.ts`, `tools.ts`, `types.ts`, `schemas.ts`, `index.ts`, and a `tests/` directory with unit + integration tests.
 
 ---
 
@@ -40,14 +43,17 @@ Each feature (`dids`, `credentials`, `messages`) contains: `client.ts`, `tools.t
 
 ```bash
 # Required for full functionality
-WALLET_MASTER_KEY=your-master-key-here   # BIP39 key for wallet operations
+WALLET_MASTER_KEY=your-master-key-here   # Reserved for a future wallet encryption key (not yet wired in — see apps/wallet-server/README.md)
 
 # Optional
-WALLET_NAME=mcp-wallet                   # Wallet identifier
-WALLET_DB_PATH=/data/wallet-db           # SQLite database path (default: /data/wallet-db)
+WALLET_NAME=mcp-wallet                   # Wallet identifier (MCP_AUTH_MODE=none only)
+WALLET_DB_PATH=/data/wallet-db           # SQLite database path in MCP_AUTH_MODE=none (default: /data/wallet-db)
+WALLET_DB_BASE_PATH=/data/wallets        # Base dir for per-tenant SQLite files in MCP_AUTH_MODE=jwt (default: /data/wallets)
 CHEQD_NETWORK=testnet                    # testnet or mainnet
 MCP_MODE=stdio                           # stdio or http
 MCP_PORT=3001                            # HTTP port (when MCP_MODE=http)
+MCP_AUTH_MODE=none                       # none (single shared wallet) or jwt (multi-tenant, see Phase 8)
+MCP_JWT_PUBLIC_KEY=                      # ES256 public key PEM, required when MCP_AUTH_MODE=jwt
 ```
 
 ---
@@ -67,13 +73,28 @@ MCP_PORT=3001                            # HTTP port (when MCP_MODE=http)
 | `list_credentials` | List all credentials with metadata |
 | `get_credential` | Retrieve a specific credential by ID |
 | `import_credential` | Import a credential from an OpenID credential offer URI |
+| `remove_credential` | Remove a credential from the wallet |
 | `respond_to_proof_request` | Create and submit a verifiable presentation satisfying a proof request |
 
-### Message Tools (in progress)
+### Message Tools
 | Tool | Description |
 |------|-------------|
 | `fetch_messages` | Fetch DIDComm messages from the relay service and return decrypted messages |
 | `send_message` | Send a DIDComm message to a recipient DID |
+
+### Delegation Tools
+| Tool | Description |
+|------|-------------|
+| `create_delegation_offer` | Create an offer delegating authority to another agent |
+| `accept_delegation_offer` | Accept a received delegation offer |
+| `handle_delegation_message` | Process an incoming delegation-related DIDComm message |
+| `list_delegation_offers` | List delegation offers sent or received |
+| `get_delegation_details` | Get details of a specific delegation |
+
+### Agent Card Tools
+| Tool | Description |
+|------|-------------|
+| `get_agent_card_details` | Return this wallet server's A2A identity (holder DID, skills) |
 
 ---
 
@@ -141,7 +162,7 @@ Key implementation details:
 
 ---
 
-### 🚧 Phase 5: Messages / DIDComm Feature
+### ✅ Phase 5: Messages / DIDComm Feature
 
 **Tools:** `fetch_messages`, `send_message`
 
@@ -153,15 +174,38 @@ Key implementation details:
 
 **Message types (from `message-helpers.js`):**
 ```
+Invitation           → 'https://didcomm.org/out-of-band/2.0/invitation'
 RequestPresentation  → 'https://didcomm.org/present-proof/1.0/request-presentation'
 Presentation         → 'https://didcomm.org/present-proof/1.0/presentation'
-IssueWithData        → 'https://didcomm.org/issue-credential/2.0/offer-credential'
-Invitation           → 'https://didcomm.org/out-of-band/2.0/invitation'
 Ack                  → 'https://didcomm.org/ack/1.0/ack'
+IssuerDirect         → 'https://didcomm.org/issue-credential/2.0/issue-credential'
 Basic                → 'https://didcomm.org/basicmessage/1.0/message'
+IssueWithData        → 'https://didcomm.org/issue-credential/2.0/offer-credential'
 ```
 
 **Design:** `fetch_messages` does fetch + process in one call (sets a listener before calling `processDIDCommMessages`, collects decrypted messages). Returns messages with classified type hints so the LLM knows which subsequent tool to call (e.g. `respond_to_proof_request` for `RequestPresentation` type).
+
+---
+
+### ✅ Phase 6: Delegation Feature
+
+**Tools:** `create_delegation_offer`, `accept_delegation_offer`, `handle_delegation_message`, `list_delegation_offers`, `get_delegation_details`
+
+Lets one agent delegate authority to another over DIDComm — offer/accept handshake plus message handling for delegation-related DIDComm traffic.
+
+---
+
+### ✅ Phase 7: Agent Card Feature
+
+**Tool:** `get_agent_card_details`
+
+Returns this wallet server's A2A (Agent-to-Agent) identity — holder DID and declared skills — so peer agents can discover what it can do.
+
+---
+
+### ✅ Phase 8: Multi-tenant JWT Auth
+
+Adds `MCP_AUTH_MODE=jwt`, backed by `@truvera/mcp-shared/auth`: each tenant authenticates with a signed JWT (`sub` claim identifies the tenant), and `WalletClientPool` gives each tenant an isolated SQLite wallet under `WALLET_DB_BASE_PATH`. See [apps/wallet-server/README.md](apps/wallet-server/README.md#authentication-ecs--remote-deployments) for the full auth flow and its current limitations (no per-tenant encryption yet).
 
 ---
 
@@ -202,11 +246,14 @@ Basic                → 'https://didcomm.org/basicmessage/1.0/message'
 apps/wallet-server/src/
 ├── index.ts                        # Server entry point, client init, tool registration
 ├── wallet-client.ts                # WalletClient (SQLite lifecycle)
+├── wallet-client-pool.ts           # One WalletClient per tenant (jwt mode) or a single shared one (none mode)
 ├── build-info.ts                   # Version metadata
+├── tools/                          # Misc/placeholder tool helpers
+├── __mocks__/                      # Shared test mocks for SDK modules
 ├── features/
 │   ├── credentials/
 │   │   ├── client.ts               # CredentialClient
-│   │   ├── tools.ts                # list_credentials, get_credential, import_credential, respond_to_proof_request
+│   │   ├── tools.ts                # list_credentials, get_credential, import_credential, remove_credential, respond_to_proof_request
 │   │   ├── types.ts
 │   │   ├── schemas.ts
 │   │   ├── index.ts
@@ -222,15 +269,29 @@ apps/wallet-server/src/
 │   │   └── tests/
 │   │       ├── unit/
 │   │       └── integration/
-│   └── messages/
-│       ├── client.ts               # MessageClient
-│       ├── tools.ts                # fetch_messages, send_message
+│   ├── messages/
+│   │   ├── client.ts               # MessageClient
+│   │   ├── tools.ts                # fetch_messages, send_message
+│   │   ├── types.ts
+│   │   ├── schemas.ts
+│   │   ├── index.ts
+│   │   └── tests/
+│   │       ├── unit/
+│   │       └── integration/
+│   ├── delegation/
+│   │   ├── client.ts               # DelegationClient
+│   │   ├── tools.ts                # create_delegation_offer, accept_delegation_offer, handle_delegation_message, list_delegation_offers, get_delegation_details
+│   │   ├── types.ts
+│   │   ├── schemas.ts
+│   │   ├── index.ts
+│   │   └── tests/
+│   └── agent-card/
+│       ├── client.ts               # AgentCardClient
+│       ├── tools.ts                # get_agent_card_details
 │       ├── types.ts
 │       ├── schemas.ts
 │       ├── index.ts
 │       └── tests/
-│           ├── unit/
-│           └── integration/
 └── types/
     └── wallet-sdk-wasm.d.ts
 
@@ -238,5 +299,6 @@ packages/mcp-shared/src/
 ├── index.ts
 ├── server/                         # bootstrapMCPServer
 ├── transport/                      # stdio + http transports
+├── auth/                           # JWT/passthrough auth resolution, deriveWalletKey
 └── tools/                          # ToolDef, ToolHandler types
 ```

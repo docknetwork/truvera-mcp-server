@@ -91,6 +91,8 @@ AP2_PAYMENT_MANDATE_SCHEMA_URL=https://schema.truvera.io/PaymentMandate-V1-17726
 
 ## Available MCP Tools
 
+> **`subject_did` is optional on all three tools below**, though the examples show it set. Pass it to issue the credential directly to a known holder DID. Omit it and the tool instead creates a **credential offer** (via `create_credential_offer`) that a holder can claim later — e.g. by scanning a QR code — with `subject_did` filled in at claim time. This dual-flow behavior isn't a separate tool; it's controlled entirely by whether you supply `subject_did`.
+
 ### `issue_cart_mandate`
 Issue a Cart Mandate for human-present transactions.
 
@@ -102,7 +104,9 @@ Issue a Cart Mandate for human-present transactions.
 - `merchant_id`: Merchant DID or identifier
 - `payer_id`: Payer DID or identifier
 - `issuer_did`: Credential issuer DID (must exist in Truvera)
-- `subject_did`: Credential subject DID
+
+**Optional Parameters:**
+- `subject_did`: Credential subject DID — see the note above on the direct-issuance vs. offer/QR flow
 
 ### `issue_intent_mandate`
 Issue an Intent Mandate for human-not-present transactions.
@@ -114,9 +118,9 @@ Issue an Intent Mandate for human-not-present transactions.
 - `budget_max_value`: Maximum budget amount
 - `payer_id`: Payer DID or identifier
 - `issuer_did`: Credential issuer DID
-- `subject_did`: Credential subject DID
 
 **Optional Parameters:**
+- `subject_did`: Credential subject DID — see the note above on the direct-issuance vs. offer/QR flow
 - `ttl_seconds`: Time-to-live (default: 3600)
 - `product_categories`: Allowed product categories
 - `specific_skus`: Specific SKUs allowed
@@ -138,9 +142,9 @@ Note: This tool currently emits the repository's bundled Payment Mandate profile
 - `payment_method`: Payment method being used
 - `human_present`: Boolean indicating modality
 - `issuer_did`: Credential issuer DID
-- `subject_did`: Credential subject DID
 
 **Optional Parameters:**
+- `subject_did`: Credential subject DID — see the note above on the direct-issuance vs. offer/QR flow
 - `merchant_agent`: Merchant agent identifier
 - `shopping_agent`: Shopping agent identifier
 - `refund_period_days`: Refund eligibility period
@@ -164,9 +168,12 @@ ap2/
 ├── tools.ts           # MCP tool definitions and handlers
 ├── index.ts           # Module exports
 └── tests/
-    └── unit/
-        ├── ap2-schemas.test.ts
-        └── ap2-types.test.ts
+    ├── unit/
+    │   ├── ap2-client.test.ts
+    │   ├── ap2-schemas.test.ts
+    │   └── ap2-types.test.ts
+    └── integration/
+        └── ap2-live.integration.test.ts
 ```
 
 ### Flow
