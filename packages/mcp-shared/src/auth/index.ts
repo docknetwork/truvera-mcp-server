@@ -3,7 +3,17 @@ import { jwtVerify, importSPKI } from "jose";
 import type { IncomingMessage } from "node:http";
 
 export type AuthConfig =
-  | { mode: "jwt"; publicKeyPem: string }
+  | {
+      mode: "jwt";
+      publicKeyPem: string;
+      /**
+       * Per-tenant revocation check, called with the token's `sub` and `iat`
+       * claims after signature/expiry verification succeeds. If provided and
+       * it returns true, the token is rejected even though it is otherwise valid.
+       * If omitted, no revocation check is performed (expiry is the only cutoff).
+       */
+      isRevoked?: (tenantId: string, issuedAt: number) => boolean | Promise<boolean>;
+    }
   | { mode: "passthrough"; fallbackApiKey?: string }
   | { mode: "none" };
 
@@ -32,7 +42,7 @@ export function extractBearerToken(req: IncomingMessage): string | null {
 export async function verifyJWT(
   token: string,
   publicKeyPem: string
-): Promise<{ sub: string }> {
+): Promise<{ sub: string; iat: number }> {
   let key;
   try {
     key = await importSPKI(publicKeyPem, "ES256");
@@ -52,7 +62,11 @@ export async function verifyJWT(
     throw new AuthError("Token missing required sub claim");
   }
 
-  return { sub: payload.sub };
+  if (typeof payload.iat !== "number") {
+    throw new AuthError("Token missing required iat claim");
+  }
+
+  return { sub: payload.sub, iat: payload.iat };
 }
 
 export function deriveWalletKey(masterSecret: string, tenantId: string): string {
@@ -81,6 +95,11 @@ export async function resolveAuthContext(
     return { mode: "passthrough", apiKey: token };
   }
 
-  const { sub } = await verifyJWT(token, config.publicKeyPem);
+  const { sub, iat } = await verifyJWT(token, config.publicKeyPem);
+
+  if (config.isRevoked && (await config.isRevoked(sub, iat))) {
+    throw new AuthError("Token has been revoked");
+  }
+
   return { mode: "jwt", tenantId: sub, token };
 }

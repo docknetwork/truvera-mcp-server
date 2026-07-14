@@ -125,6 +125,8 @@ Use the shared MCP Inspector instructions in the repo root README:
 | `WALLET_DB_BASE_PATH` | No | `/data/wallets` | Base directory for per-tenant SQLite databases. Only used when `MCP_AUTH_MODE=jwt` — each tenant gets `<WALLET_DB_BASE_PATH>/<jwt-sub>`. |
 | `MCP_AUTH_MODE` | No | `none` | Auth mode: `jwt` (require signed tokens, multi-tenant) or `none` (no auth, single shared wallet — local dev or single-user deployments). |
 | `MCP_JWT_PUBLIC_KEY` | When `MCP_AUTH_MODE=jwt` | — | ES256 public key (PEM) for verifying tenant JWTs. |
+| `WALLET_REVOCATIONS_DB_PATH` | No | `/data/revocations.db` | SQLite file tracking per-tenant revocation cutoffs. Only used when `MCP_AUTH_MODE=jwt`. Separate from any tenant's own wallet database. |
+| `ADMIN_REVOKE_SECRET` | No (but required to revoke) | — | Shared secret for `POST /admin/revoke-tenant`. Only relevant when `MCP_AUTH_MODE=jwt` and `MCP_MODE=http`; without it the route is disabled and tenants can't be revoked before their JWT expires. |
 
 ---
 
@@ -180,6 +182,33 @@ npm run admin:mint-jwt -- alice --secret dev/wallet-server/jwt-private-key --pro
 ```
 
 The token is printed to stdout — send it to the tenant to use as their Bearer token.
+
+### Revoke a tenant
+
+JWTs are otherwise valid until they expire — there's no built-in per-token blacklist. Instead, revocation moves a per-tenant cutoff timestamp forward: any JWT whose `iat` predates the cutoff is rejected, even if unexpired. Tokens minted for that tenant *after* the revocation call remain valid.
+
+Requires `ADMIN_REVOKE_SECRET` to be set on the server (see [Environment variables](#environment-variables)).
+
+```bash
+node scripts/revoke-tenant.js <tenantId> --url <serverBaseUrl> [--secret <adminSecret>]
+```
+
+| Argument | Description |
+|----------|-------------|
+| `<tenantId>` | Tenant to revoke (the JWT `sub` claim, e.g. `alice`). |
+| `--url` | Base URL of the running wallet-server, e.g. `https://wallet-staging.truvera.io`. Defaults to `WALLET_SERVER_URL` env var. |
+| `--secret` | Admin secret for `POST /admin/revoke-tenant`. Defaults to `ADMIN_REVOKE_SECRET` env var. |
+
+**Example:**
+
+```bash
+node scripts/revoke-tenant.js alice --url https://wallet-staging.truvera.io --secret $ADMIN_REVOKE_SECRET
+
+# Using npm script shorthand
+npm run admin:revoke-tenant -- alice --url https://wallet-staging.truvera.io --secret $ADMIN_REVOKE_SECRET
+```
+
+Unlike minting, this calls the running server directly — the revocation cutoff lives in a SQLite file (`WALLET_REVOCATIONS_DB_PATH`) on the server's own persistent volume, not something a local script can write to out-of-band.
 
 ---
 

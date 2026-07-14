@@ -21,7 +21,8 @@ resource "aws_iam_role_policy_attachment" "mcp_execution_managed" {
 
 # The standard AmazonECSTaskExecutionRolePolicy does NOT include Secrets Manager
 # access. This inline policy grants read access to the wallet-server secret so
-# the ECS agent can inject MCP_JWT_PUBLIC_KEY and WALLET_MASTER_KEY at startup.
+# the ECS agent can inject MCP_JWT_PUBLIC_KEY, WALLET_MASTER_KEY, and
+# ADMIN_REVOKE_SECRET at startup.
 resource "aws_iam_role_policy" "mcp_execution_secrets" {
   name = "read-wallet-secret"
   role = aws_iam_role.mcp_execution.id

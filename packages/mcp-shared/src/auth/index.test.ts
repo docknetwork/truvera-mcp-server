@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { generateKeyPair, exportSPKI, exportPKCS8, SignJWT, type CryptoKey } from "jose";
 import type { IncomingMessage } from "node:http";
 import {
@@ -58,6 +58,20 @@ describe("verifyJWT", () => {
     const token = await signJWT(privateKey, "alice");
     const result = await verifyJWT(token, publicKeyPem);
     expect(result.sub).toBe("alice");
+  });
+
+  it("returns the exact iat claim the token was signed with", async () => {
+    const { publicKeyPem, privateKey } = await makeKeypair();
+    const fixedIat = 1_700_000_000; // arbitrary fixed unix timestamp, not "now"
+    const token = await new SignJWT({})
+      .setProtectedHeader({ alg: "ES256" })
+      .setSubject("alice")
+      .setIssuedAt(fixedIat)
+      .setExpirationTime("1h")
+      .sign(privateKey);
+
+    const result = await verifyJWT(token, publicKeyPem);
+    expect(result.iat).toBe(fixedIat);
   });
 
   it("rejects an expired JWT", async () => {
@@ -190,5 +204,74 @@ describe("resolveAuthContext", () => {
     const err = await resolveAuthContext(mockReq({}), { mode: "jwt", publicKeyPem }).catch((e) => e);
     expect(err).toBeInstanceOf(AuthError);
     expect(err.statusCode).toBe(401);
+  });
+
+  describe("revocation (isRevoked)", () => {
+    async function signJWTWithIat(privateKey: CryptoKey, sub: string, iat: number) {
+      return new SignJWT({})
+        .setProtectedHeader({ alg: "ES256" })
+        .setSubject(sub)
+        .setIssuedAt(iat)
+        .setExpirationTime(iat + 3600)
+        .sign(privateKey);
+    }
+
+    it("rejects a token issued before the tenant's revocation cutoff, but accepts one minted after it", async () => {
+      const { publicKeyPem, privateKey } = await makeKeypair();
+      const revokedSince = Math.floor(Date.now() / 1000) - 1000;
+
+      // Mirrors RevocationStore.isRevoked: iat before the cutoff is revoked.
+      const isRevoked = (tenantId: string, iat: number) => tenantId === "alice" && iat < revokedSince;
+
+      const oldToken = await signJWTWithIat(privateKey, "alice", revokedSince - 100);
+      const newToken = await signJWTWithIat(privateKey, "alice", revokedSince + 100);
+
+      await expect(
+        resolveAuthContext(mockReq({ authorization: `Bearer ${oldToken}` }), {
+          mode: "jwt",
+          publicKeyPem,
+          isRevoked,
+        })
+      ).rejects.toBeInstanceOf(AuthError);
+
+      await expect(
+        resolveAuthContext(mockReq({ authorization: `Bearer ${newToken}` }), {
+          mode: "jwt",
+          publicKeyPem,
+          isRevoked,
+        })
+      ).resolves.toEqual({ mode: "jwt", tenantId: "alice", token: newToken });
+    });
+
+    it("does not affect a different tenant's token issued before the same cutoff", async () => {
+      const { publicKeyPem, privateKey } = await makeKeypair();
+      const revokedSince = Math.floor(Date.now() / 1000) - 1000;
+      const isRevoked = (tenantId: string, iat: number) => tenantId === "alice" && iat < revokedSince;
+
+      const bobToken = await signJWTWithIat(privateKey, "bob", revokedSince - 100);
+
+      await expect(
+        resolveAuthContext(mockReq({ authorization: `Bearer ${bobToken}` }), {
+          mode: "jwt",
+          publicKeyPem,
+          isRevoked,
+        })
+      ).resolves.toEqual({ mode: "jwt", tenantId: "bob", token: bobToken });
+    });
+
+    it("does not call isRevoked when the token itself fails verification", async () => {
+      const { publicKeyPem } = await makeKeypair();
+      const isRevoked = vi.fn();
+
+      await expect(
+        resolveAuthContext(mockReq({ authorization: "Bearer not-a-valid-jwt" }), {
+          mode: "jwt",
+          publicKeyPem,
+          isRevoked,
+        })
+      ).rejects.toBeInstanceOf(AuthError);
+
+      expect(isRevoked).not.toHaveBeenCalled();
+    });
   });
 });

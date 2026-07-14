@@ -50,7 +50,7 @@ variable "wallet_server_hostname" {
 # WALLET_MASTER_KEY is the HMAC root key for all tenant wallet derivation.
 # Rotating it invalidates every existing wallet. Treat it like a master password.
 variable "wallet_secret_arn" {
-  description = "ARN of the Secrets Manager secret containing MCP_JWT_PUBLIC_KEY and WALLET_MASTER_KEY"
+  description = "ARN of the Secrets Manager secret containing MCP_JWT_PUBLIC_KEY, WALLET_MASTER_KEY, and ADMIN_REVOKE_SECRET"
 }
 
 # ----- application config ----------------------------------------------------

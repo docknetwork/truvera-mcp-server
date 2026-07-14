@@ -1,6 +1,7 @@
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import net from "node:net";
 import readline from "node:readline/promises";
+import { timingSafeEqual } from "node:crypto";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { randomUUID } from "node:crypto";
 
@@ -17,6 +18,29 @@ export interface HTTPTransportArgs {
   tools: ToolDef[];
   serviceName?: string;
   authConfig?: AuthConfig;
+  adminRevoke?: {
+    secret: string;
+    onRevoke: (tenantId: string) => void | Promise<void>;
+  };
+}
+
+async function readJsonBody(req: IncomingMessage): Promise<unknown> {
+  const data = await new Promise<string>((resolve, reject) => {
+    let chunks = "";
+    req.on("data", (chunk: Buffer) => {
+      chunks += chunk;
+    });
+    req.on("end", () => resolve(chunks));
+    req.on("error", reject);
+  });
+  return data ? JSON.parse(data) : undefined;
+}
+
+function secretsMatch(provided: string, expected: string): boolean {
+  const providedBuf = Buffer.from(provided);
+  const expectedBuf = Buffer.from(expected);
+  if (providedBuf.length !== expectedBuf.length) return false;
+  return timingSafeEqual(providedBuf, expectedBuf);
 }
 
 interface ResolvePortConflictOptions {
@@ -151,6 +175,7 @@ export async function startHTTPTransport({
   tools,
   serviceName = "MCP service",
   authConfig,
+  adminRevoke,
 }: HTTPTransportArgs) {
   const transports: { [key: string]: { transport: StreamableHTTPServerTransport; server: McpServer } } = {};
 
@@ -193,36 +218,60 @@ export async function startHTTPTransport({
       return;
     }
 
+    // Admin: revoke a tenant's outstanding JWTs (only wired up when adminRevoke is configured)
+    if (req.method === "POST" && req.url === "/admin/revoke-tenant") {
+      if (!adminRevoke) {
+        res.writeHead(404, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Not found" }));
+        return;
+      }
+
+      const providedSecret = req.headers["x-admin-secret"];
+      if (typeof providedSecret !== "string" || !secretsMatch(providedSecret, adminRevoke.secret)) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Unauthorized" }));
+        return;
+      }
+
+      let adminBody: unknown;
+      try {
+        adminBody = await readJsonBody(req);
+      } catch (err) {
+        console.error("Error parsing request body:", err);
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid JSON in request body" }));
+        return;
+      }
+
+      const tenantId =
+        adminBody && typeof adminBody === "object"
+          ? (adminBody as Record<string, unknown>).tenantId
+          : undefined;
+      if (typeof tenantId !== "string" || tenantId.length === 0) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Missing required field: tenantId" }));
+        return;
+      }
+
+      await adminRevoke.onRevoke(tenantId);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true, tenantId }));
+      return;
+    }
+
     // MCP streaming endpoint
     if ((req.method === "POST" || req.method === "GET") && req.url === "/mcp") {
       let body: unknown;
       if (req.method === "POST") {
-        body = await new Promise((resolve, reject) => {
-          let data = "";
-          req.on("data", (chunk: Buffer) => {
-            data += chunk;
-          });
-          req.on("end", () => {
-            try {
-              resolve(data ? JSON.parse(data) : undefined);
-            } catch (e) {
-              reject(e);
-            }
-          });
-          req.on("error", reject);
-        }).catch((err) => {
+        try {
+          body = await readJsonBody(req);
+        } catch (err) {
           console.error("Error parsing request body:", err);
           res.writeHead(400, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ error: "Invalid JSON in request body" }));
           return;
-        });
-        if (!(body instanceof Error)) {
-          console.error("[DEBUG] Parsed request body:", body);
         }
-      }
-      if (body instanceof Error) {
-        console.error("Aborting request due to body parsing error." + body.message);
-        return;
+        console.error("[DEBUG] Parsed request body:", body);
       }
 
       // Get session ID from header and normalize to string
@@ -344,4 +393,6 @@ export async function startHTTPTransport({
     console.error("Shutting down HTTP MCP server...");
     httpServer.close(() => process.exit(0));
   });
+
+  return httpServer;
 }
