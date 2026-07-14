@@ -60,7 +60,7 @@ if (awsProfile) smConfig.credentials = fromIni({ profile: awsProfile });
 const smClient = new SecretsManagerClient(smConfig);
 
 // --- fetch private key from Secrets Manager ---
-process.stderr.write(`Fetching private key from Secrets Manager: ${secretId}${awsProfile ? ` (profile: ${awsProfile})` : ""}\n`);
+process.stderr.write(`Fetching private key from Secrets Manager${awsProfile ? ` (profile: ${awsProfile})` : ""}\n`);
 
 let privatePem;
 try {
@@ -68,7 +68,7 @@ try {
   privatePem = response.SecretString;
   if (!privatePem) throw new Error("Secret has no string value (binary secrets are not supported)");
 } catch (err) {
-  console.error(`Error fetching secret "${secretId}": ${err.message}`);
+  console.error("Error fetching private key from Secrets Manager.");
   process.exit(1);
 }
 
