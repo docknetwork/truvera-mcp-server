@@ -81,6 +81,7 @@ export async function bootstrapMCPServer(
       tools,
       serviceName: name,
       authConfig: transportConfig.authConfig,
+      adminRevoke: transportConfig.adminRevoke,
     });
   } else {
     // stdio is always single-tenant; resolve with no-auth context

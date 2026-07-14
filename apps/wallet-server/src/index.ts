@@ -7,6 +7,7 @@ import type { AuthConfig, AuthContext } from "@truvera/mcp-shared/auth";
 import type { ToolHandler } from "@truvera/mcp-shared/tools";
 import { BUILD_INFO } from "./build-info.js";
 import { WalletClientPool } from "./wallet-client-pool.js";
+import { RevocationStore } from "./revocation-store.js";
 import { DIDClient, didToolDefs, getDIDHandlers } from "./features/dids/index.js";
 import { CredentialClient, credentialToolDefs, getCredentialHandlers } from "./features/credentials/index.js";
 import { MessageClient, messageToolDefs, getMessageHandlers } from "./features/messages/index.js";
@@ -60,6 +61,12 @@ const MCP_AUTH_MODE = process.env.MCP_AUTH_MODE || "none";
 const WALLET_DB_BASE_PATH = process.env.WALLET_DB_BASE_PATH || "/data/wallets";
 // Public key for verifying tenant JWTs (required when MCP_AUTH_MODE=jwt)
 const MCP_JWT_PUBLIC_KEY = process.env.MCP_JWT_PUBLIC_KEY;
+// SQLite file tracking per-tenant revocation cutoffs (JWT mode only). Kept
+// separate from any tenant's own wallet database — see revocation-store.ts.
+const WALLET_REVOCATIONS_DB_PATH = process.env.WALLET_REVOCATIONS_DB_PATH || "/data/revocations.db";
+// Shared secret for POST /admin/revoke-tenant. Required to expose that route;
+// if unset, JWT auth still works but tenants cannot be revoked before expiry.
+const ADMIN_REVOKE_SECRET = process.env.ADMIN_REVOKE_SECRET;
 
 if (MCP_AUTH_MODE === "jwt" && !MCP_JWT_PUBLIC_KEY) {
   console.error("Fatal: MCP_JWT_PUBLIC_KEY is required when MCP_AUTH_MODE=jwt");
@@ -70,9 +77,19 @@ if (!process.env.WALLET_MASTER_KEY) {
   console.error("Warning: WALLET_MASTER_KEY not set. Wallet operations may be limited.");
 }
 
+const revocationStore = MCP_AUTH_MODE === "jwt" ? new RevocationStore(WALLET_REVOCATIONS_DB_PATH) : undefined;
+
+if (MCP_AUTH_MODE === "jwt" && MCP_MODE === "http" && !ADMIN_REVOKE_SECRET) {
+  console.error("Warning: ADMIN_REVOKE_SECRET not set. Tenant JWTs cannot be revoked before they expire.");
+}
+
 // Resolve auth config for the transport layer
 const authConfig: AuthConfig = MCP_AUTH_MODE === "jwt"
-  ? { mode: "jwt", publicKeyPem: MCP_JWT_PUBLIC_KEY! }
+  ? {
+      mode: "jwt",
+      publicKeyPem: MCP_JWT_PUBLIC_KEY!,
+      isRevoked: (tenantId, issuedAt) => revocationStore!.isRevoked(tenantId, issuedAt),
+    }
   : { mode: "none" };
 
 // Single wallet pool shared across all sessions
@@ -145,6 +162,10 @@ async function main() {
       mode: MCP_MODE as "stdio" | "http",
       port: MCP_PORT,
       authConfig,
+      adminRevoke:
+        MCP_AUTH_MODE === "jwt" && ADMIN_REVOKE_SECRET
+          ? { secret: ADMIN_REVOKE_SECRET, onRevoke: (tenantId) => revocationStore!.revoke(tenantId) }
+          : undefined,
     }
   );
 }

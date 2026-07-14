@@ -36,4 +36,13 @@ export interface TransportConfig {
   port?: number;
   /** Auth configuration. Defaults to no-auth if omitted. */
   authConfig?: AuthConfig;
+  /**
+   * Enables POST /admin/revoke-tenant on the HTTP transport, gated by a
+   * shared secret sent as the X-Admin-Secret header. Only meaningful when
+   * mode is "http"; ignored in stdio mode.
+   */
+  adminRevoke?: {
+    secret: string;
+    onRevoke: (tenantId: string) => void | Promise<void>;
+  };
 }
