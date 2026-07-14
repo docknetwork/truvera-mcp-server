@@ -76,7 +76,7 @@ let privateKey;
 try {
   privateKey = await importPKCS8(privatePem.trim(), "ES256");
 } catch {
-  console.error(`Error: secret "${secretId}" is not a valid ES256 PKCS8 private key.`);
+  console.error("Error: configured secret is not a valid ES256 PKCS8 private key.");
   console.error("Generate a keypair with: node scripts/generate-keypair.js");
   process.exit(1);
 }
