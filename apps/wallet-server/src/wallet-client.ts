@@ -107,6 +107,34 @@ export class WalletClient {
   }
 
   /**
+   * Stop background timers and close the SQLite connection without deleting
+   * wallet contents. Use this for process shutdown (SIGTERM/SIGINT); reserve
+   * deleteWallet() for test cleanup, since it wipes tenant data.
+   */
+  async close(): Promise<void> {
+    if (!this.wallet) {
+      return;
+    }
+
+    const walletAny = this.wallet as any;
+    if (walletAny.networkCheckInterval) {
+      clearInterval(walletAny.networkCheckInterval);
+    }
+
+    try {
+      if (this.dataStore && typeof (this.dataStore as any).destroy === "function") {
+        await (this.dataStore as any).destroy();
+      }
+    } catch (err) {
+      console.debug("Error closing dataStore:", err);
+    }
+
+    this.wallet = null;
+    this.dataStore = null;
+    console.info(`[Wallet] Closed wallet: ${this.walletName}`);
+  }
+
+  /**
    * Delete the wallet and cleanup all resources
    * Follows the pattern from @docknetwork/wallet-sdk-core tests
    */

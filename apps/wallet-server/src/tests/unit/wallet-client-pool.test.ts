@@ -9,10 +9,10 @@ import { WalletClient } from "../../wallet-client.js";
 
 const MockWalletClient = WalletClient as unknown as ReturnType<typeof vi.fn>;
 
-function setupMock(overrides: { initialize?: () => Promise<void>; deleteWallet?: () => Promise<void> } = {}) {
+function setupMock(overrides: { initialize?: () => Promise<void>; close?: () => Promise<void> } = {}) {
   MockWalletClient.mockImplementation(function (this: Record<string, unknown>) {
     this.initialize = overrides.initialize ?? vi.fn().mockResolvedValue(undefined);
-    this.deleteWallet = overrides.deleteWallet ?? vi.fn().mockResolvedValue(undefined);
+    this.close = overrides.close ?? vi.fn().mockResolvedValue(undefined);
     this.getWallet = vi.fn().mockReturnValue({});
     this.isInitialized = vi.fn().mockReturnValue(true);
   });
@@ -59,7 +59,7 @@ describe("WalletClientPool", () => {
       let callCount = 0;
       MockWalletClient.mockImplementation(function (this: Record<string, unknown>) {
         callCount++;
-        this.deleteWallet = vi.fn().mockResolvedValue(undefined);
+        this.close = vi.fn().mockResolvedValue(undefined);
         this.getWallet = vi.fn().mockReturnValue({});
         this.isInitialized = vi.fn().mockReturnValue(true);
         // Fail the first time, succeed the second
@@ -78,15 +78,15 @@ describe("WalletClientPool", () => {
   });
 
   describe("shutdownAll()", () => {
-    it("calls deleteWallet() on every cached client", async () => {
+    it("calls close() on every cached client", async () => {
       const pool = new WalletClientPool();
       const alice = await pool.get("/data/wallets/alice", "testnet");
       const bob = await pool.get("/data/wallets/bob", "testnet");
 
       await pool.shutdownAll();
 
-      expect((alice as any).deleteWallet).toHaveBeenCalledOnce();
-      expect((bob as any).deleteWallet).toHaveBeenCalledOnce();
+      expect((alice as any).close).toHaveBeenCalledOnce();
+      expect((bob as any).close).toHaveBeenCalledOnce();
     });
 
     it("clears the pool so a subsequent get() reinitialises", async () => {
@@ -100,15 +100,15 @@ describe("WalletClientPool", () => {
       expect(MockWalletClient).toHaveBeenCalledTimes(1);
     });
 
-    it("continues shutting down remaining clients if one deleteWallet() throws", async () => {
+    it("continues shutting down remaining clients if one close() throws", async () => {
       let callCount = 0;
       MockWalletClient.mockImplementation(function (this: Record<string, unknown>) {
         callCount++;
         this.initialize = vi.fn().mockResolvedValue(undefined);
         this.getWallet = vi.fn().mockReturnValue({});
         this.isInitialized = vi.fn().mockReturnValue(true);
-        // First client (alice) fails to delete
-        this.deleteWallet = callCount === 1
+        // First client (alice) fails to close
+        this.close = callCount === 1
           ? vi.fn().mockRejectedValue(new Error("cleanup failed"))
           : vi.fn().mockResolvedValue(undefined);
       });
@@ -118,7 +118,7 @@ describe("WalletClientPool", () => {
       const bob = await pool.get("/data/wallets/bob", "testnet");
 
       await expect(pool.shutdownAll()).resolves.toBeUndefined();
-      expect((bob as any).deleteWallet).toHaveBeenCalledOnce();
+      expect((bob as any).close).toHaveBeenCalledOnce();
     });
   });
 });
