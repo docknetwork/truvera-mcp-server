@@ -7,8 +7,9 @@ import { WalletClient } from "./wallet-client.js";
  * SQLite database.
  *
  * Concurrency across processes: SQLite is single-writer. This pool assumes a
- * single running process per storage volume, which is enforced by using EBS
- * (single-attach) in ECS. Do not use EFS for wallet storage.
+ * single running process per storage volume — desired_count must stay at 1
+ * regardless of storage backend (EFS is fine under that constraint; see
+ * terraform/efs.tf).
  */
 export class WalletClientPool {
   private readonly pool = new Map<string, Promise<WalletClient>>();
@@ -37,7 +38,7 @@ export class WalletClientPool {
     for (const [dbPath, walletPromise] of this.pool.entries()) {
       try {
         const client = await walletPromise;
-        await client.deleteWallet();
+        await client.close();
       } catch (err) {
         console.error(`[WalletPool] Error shutting down wallet at ${dbPath}:`, err);
       }

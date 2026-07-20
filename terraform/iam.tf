@@ -29,11 +29,27 @@ resource "aws_iam_role_policy" "mcp_execution_secrets" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["secretsmanager:GetSecretValue", "kms:Decrypt"]
-      Resource = [var.wallet_secret_arn]
-    }]
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = [var.wallet_secret_arn]
+      },
+      # kms:Decrypt is a KMS action: its Resource must be a KMS key ARN, not a
+      # Secrets Manager secret ARN (the latter silently matches nothing). Secrets
+      # here are encrypted with the account's default aws/secretsmanager key, so
+      # scope this to any key reached only via the Secrets Manager service.
+      {
+        Effect   = "Allow"
+        Action   = "kms:Decrypt"
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "secretsmanager.${var.aws_region}.amazonaws.com"
+          }
+        }
+      }
+    ]
   })
 }
 
@@ -54,9 +70,11 @@ resource "aws_iam_role" "truvera_api_task" {
 }
 
 # Task role for the wallet-server service.
-# The running container needs Secrets Manager access so that the mint-jwt.js
-# admin script can be exec'd inside the task to mint tenant JWTs against the
-# private signing key stored in Secrets Manager.
+# The application itself makes no AWS API calls beyond what the execution role
+# already handles at startup. Admins mint tenant JWTs with scripts/mint-jwt.js
+# run from their own machine against their own AWS profile (see
+# apps/wallet-server/README.md) — the private signing key is never read by the
+# running task, so this role needs no Secrets Manager access.
 resource "aws_iam_role" "wallet_server_task" {
   name = "wallet-mcp-${var.environment}-task"
 
@@ -66,22 +84,6 @@ resource "aws_iam_role" "wallet_server_task" {
       Effect    = "Allow"
       Action    = "sts:AssumeRole"
       Principal = { Service = "ecs-tasks.amazonaws.com" }
-    }]
-  })
-}
-
-# Grants the wallet-server task the ability to read the JWT signing key from
-# Secrets Manager — used only when admins exec into the task to run mint-jwt.js.
-resource "aws_iam_role_policy" "wallet_server_task_secrets" {
-  name = "read-signing-key"
-  role = aws_iam_role.wallet_server_task.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["secretsmanager:GetSecretValue", "kms:Decrypt"]
-      Resource = [var.wallet_secret_arn]
     }]
   })
 }

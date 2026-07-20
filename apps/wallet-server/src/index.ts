@@ -15,11 +15,17 @@ import { AgentCardClient, agentCardToolDefs, getAgentCardHandlers } from "./feat
 import { DelegationClient, delegationToolDefs, getDelegationHandlers } from "./features/delegation/index.js";
 
 // wallet-sdk-wasm's storageService calls global.localStorage for DID resolution
-// caching during BBS+ proof generation. Node.js has no native localStorage, so
-// we use node-localstorage backed by the same /data volume as the wallet DB.
+// caching during BBS+ proof generation (see cached-did-resolver.js). Node.js has
+// no native localStorage, so we use node-localstorage. Cache entries are keyed
+// `did-cache:<did>` and hold the public, on-chain DID document for that DID — the
+// same value regardless of which tenant resolved it — so one shared cache across
+// all sessions is intentional, not a per-tenant isolation gap. It gets its own
+// path (independent of any tenant's wallet database) so it isn't tied to
+// WALLET_DB_PATH_RESOLVED, which is only meaningful in non-JWT mode.
+const DID_CACHE_PATH = process.env.DID_CACHE_PATH || "/data/did-cache";
+(globalThis as any).localStorage = new LocalStorage(DID_CACHE_PATH);
+
 const WALLET_DB_PATH_RESOLVED = process.env.WALLET_DB_PATH || "/data/wallet-db";
-const _lsPath = `${WALLET_DB_PATH_RESOLVED}-localstorage`;
-(globalThis as any).localStorage = new LocalStorage(_lsPath);
 
 // cheqd DID documents store BBS+ keys as JSON-stringified objects in
 // assertionMethod/authentication rather than as proper objects in
