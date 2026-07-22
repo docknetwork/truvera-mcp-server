@@ -1,62 +1,43 @@
 /**
- * AP2 MCP Tools
- * Tool definitions and handlers for AP2 mandate operations
+ * AP2 MCP Tools — Credential Provider role
+ * Tool definitions and handlers for verifying AP2 v0.2 mandates and issuing
+ * Payment Receipts.
  */
 
 import type { ToolDef, ToolHandler } from "@truvera/mcp-shared/tools";
 import type { AP2Client } from "./client.js";
-import type {
-  IssueCartMandateRequest,
-  IssueIntentMandateRequest,
-  IssuePaymentMandateRequest,
-} from "./client.js";
+import type { VerifyPaymentMandateRequest, IssuePaymentTokenRequest } from "./types.js";
 import { formatResult } from "../../tools/utils.js";
-import { components, getSchemaWithContext } from "./schemas.js";
+import { verifyPaymentMandateSchema, issuePaymentTokenSchema } from "./schemas.js";
 
-/**
- * Get tool definitions with schema URL context
- */
-export function getAP2ToolDefs(): ToolDef[] {
-  const { schemaUrls } = getSchemaWithContext("IssueCartMandateRequest");
-  
-  return [
-    {
-      name: "issue_cart_mandate",
-      description: `Issue a Cart Mandate for human-present payment authorization. Cart Mandates contain exact cart details that the user explicitly approves with cryptographic signature. Schema: ${schemaUrls.cart}. This mandate is signed by the merchant first, then by the user's device. Required for human-present transactions where the user sees and approves the final cart. DUAL FLOW: If 'subject_did' is provided, the credential is issued immediately. If 'subject_did' is omitted, a credential offer is created for QR code claiming.`,
-      inputSchema: components.schemas.IssueCartMandateRequest,
-    },
-    {
-      name: "issue_intent_mandate",
-      description: `Issue an Intent Mandate for human-not-present payment authorization. Intent Mandates contain shopping constraints (budget, products, merchant preferences) that authorize an agent to make purchases on the user's behalf within defined limits. Schema: ${schemaUrls.intent}. The user signs this mandate to pre-authorize purchases that may happen later when they're not present. Use for scenarios like "buy these shoes when the price drops below $100" or "buy concert tickets as soon as they go on sale". DUAL FLOW: If 'subject_did' is provided, the credential is issued immediately. If 'subject_did' is omitted, a credential offer is created for QR code claiming.`,
-      inputSchema: components.schemas.IssueIntentMandateRequest,
-    },
-    {
-      name: "issue_payment_mandate",
-      description: `Issue a Payment Mandate for payment network visibility into agent involvement. Payment Mandates are separate VDCs sent to payment networks and issuers (alongside cart/intent mandates) to signal AI agent participation and transaction modality. Schema: ${schemaUrls.payment}. This helps networks assess risk and ensure proper accountability for agentic transactions. DUAL FLOW: If 'subject_did' is provided, the credential is issued immediately. If 'subject_did' is omitted, a credential offer is created for QR code claiming.`,
-      inputSchema: components.schemas.IssuePaymentMandateRequest,
-    }
-  ];
-}
+export const ap2ToolDefs: ToolDef[] = [
+  {
+    name: "verify_payment_mandate",
+    description:
+      "Verify a Closed Payment Mandate (mandate.payment.1) as the AP2 Credential Provider: checks the Shopping Agent's signature, aud/expiry, transaction_id against a provided checkout_jwt, and sd_hash against the referenced Open Payment Mandate. Optionally also verifies the paired Closed Checkout Mandate. Does not verify the conditional_transaction_id/delegate-chain binding — see @docknetwork/ap2's verifyClosedPaymentMandate docs.",
+    inputSchema: verifyPaymentMandateSchema,
+  },
+  {
+    name: "issue_payment_token",
+    description:
+      "Verify a Closed Payment Mandate and, on success, return an AP2 Payment Receipt (status, iss, iat, reference, payment_id, psp/network confirmation ids). The receipt is not yet cryptographically signed — see the result's 'signed' field — pending a Truvera-managed processor signing key.",
+    inputSchema: issuePaymentTokenSchema,
+  },
+];
 
-/**
- * Get tool handlers for AP2 operations
- */
 export function getAP2Handlers(client: AP2Client): Map<string, ToolHandler> {
   const handlers = new Map<string, ToolHandler>();
 
-  handlers.set("issue_cart_mandate", async (args) => {
-    const request = args as IssueCartMandateRequest;
-    return formatResult(await client.issueCartMandate(request));
+  handlers.set("verify_payment_mandate", async (args) => {
+    const request = args as VerifyPaymentMandateRequest;
+    const result = await client.verifyPaymentMandate(request);
+    return formatResult({ success: true, data: result });
   });
 
-  handlers.set("issue_intent_mandate", async (args) => {
-    const request = args as IssueIntentMandateRequest;
-    return formatResult(await client.issueIntentMandate(request));
-  });
-
-  handlers.set("issue_payment_mandate", async (args) => {
-    const request = args as IssuePaymentMandateRequest;
-    return formatResult(await client.issuePaymentMandate(request));
+  handlers.set("issue_payment_token", async (args) => {
+    const request = args as IssuePaymentTokenRequest;
+    const result = await client.issuePaymentToken(request);
+    return formatResult({ success: true, data: result });
   });
 
   return handlers;

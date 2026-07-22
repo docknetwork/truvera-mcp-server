@@ -6,8 +6,7 @@ import type { ToolHandler } from "@truvera/mcp-shared/tools";
 import { TruveraClient } from "./clients/index.js";
 import { buildToolList, buildHandlerMapFromTruvera } from "./tools/composeTools.js";
 import { BUILD_INFO } from "./build-info.js";
-import { AP2Client, getAP2ToolDefs, getAP2Handlers, initializeAP2Schemas } from "./features/ap2/index.js";
-import { OpenIdClient } from "./features/openid/index.js";
+import { AP2Client, ap2ToolDefs, getAP2Handlers } from "./features/ap2/index.js";
 
 dotenv.config();
 
@@ -20,14 +19,10 @@ const AP2_ENABLED = process.env.AP2_ENABLED !== "false";
 // AgentCardClient holds a reference to this array so AP2 tools pushed below are visible to it.
 const tools = buildToolList();
 
-// Set to true once AP2 schemas are successfully initialised at startup.
-let ap2Initialized = false;
-
 function buildHandlers(truvera: TruveraClient): Map<string, ToolHandler> {
   const handlers = buildHandlerMapFromTruvera(truvera, tools);
-  if (ap2Initialized) {
-    const openIdClient = new OpenIdClient(truvera);
-    const ap2Client = new AP2Client(truvera, openIdClient);
+  if (AP2_ENABLED) {
+    const ap2Client = new AP2Client();
     for (const [name, handler] of getAP2Handlers(ap2Client)) {
       handlers.set(name, handler);
     }
@@ -37,26 +32,8 @@ function buildHandlers(truvera: TruveraClient): Map<string, ToolHandler> {
 
 async function main() {
   if (AP2_ENABLED) {
-    try {
-      console.error("[AP2] Initializing AP2 support...");
-      const schemas = await initializeAP2Schemas();
-
-      const availableSchemas = [schemas.cartMandateSchema, schemas.intentMandateSchema, schemas.paymentMandateSchema]
-        .filter((s) => s !== null).length;
-
-      if (availableSchemas === 0) {
-        console.error("[AP2] Note: No schemas could be fetched (this is expected - AP2 JSON-LD schemas not yet published)");
-        console.error("[AP2] AP2 tools will function using schema URLs as references for Truvera API");
-      }
-
-      const ap2Tools = getAP2ToolDefs();
-      tools.push(...ap2Tools);
-      ap2Initialized = true;
-      console.error(`[AP2] Successfully initialized ${ap2Tools.length} AP2 tools`);
-    } catch (error) {
-      console.error("[AP2] Failed to initialize AP2 support:", error);
-      console.error("[AP2] Continuing without AP2 support. Set AP2_ENABLED=false to disable this warning.");
-    }
+    tools.push(...ap2ToolDefs);
+    console.error(`[AP2] Registered ${ap2ToolDefs.length} AP2 tools (Credential Provider role)`);
   } else {
     console.error("[AP2] AP2 support is disabled (AP2_ENABLED=false)");
   }

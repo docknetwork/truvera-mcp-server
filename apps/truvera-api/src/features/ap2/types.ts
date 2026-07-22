@@ -1,200 +1,79 @@
 /**
- * AP2 (Agent Payments Protocol) Types
- * Based on https://ap2-protocol.org/specification/
+ * AP2 (Agent Payments Protocol) v0.2 types — Credential Provider role.
+ * Based on https://ap2-protocol.org/ap2/specification/
+ *
+ * Mandates (Open/Closed Checkout and Payment) are self-signed by the wallet
+ * (user_sk) and Shopping Agent (agent_sk) — see wallet-server's ap2 feature.
+ * truvera-api's role here is the spec's Credential Provider: verify a Closed
+ * Payment Mandate and return a Payment Receipt.
  */
 
-/**
- * Monetary amount with currency
- */
-export interface Amount {
-  currency: string;
-  value: number;
+export interface P256Jwk {
+  kty: string;
+  crv: string;
+  x: string;
+  y: string;
 }
 
-/**
- * Display item in a cart or payment request
- */
-export interface DisplayItem {
-  label: string;
-  amount: Amount;
+export interface VerifyPaymentMandateRequest {
+  /** Compact presentation returned by wallet-server's issue_closed_payment_mandate. */
+  closedPaymentMandatePresentation: string;
+  /** The Shopping Agent's public key (from the Open Payment Mandate's cnf.jwk). */
+  holderJwk: P256Jwk;
+  /** The merchant-signed Checkout JWT, to verify transaction_id against. */
+  checkoutJwt?: string;
+  /** Compact presentation returned by issue_open_payment_mandate, to verify sd_hash against. */
+  openPaymentMandatePresentation?: string;
+  /**
+   * Optional: also verify the paired Closed Checkout Mandate, since
+   * transaction_id binds to it. Compact presentation returned by
+   * issue_closed_checkout_mandate.
+   */
+  closedCheckoutMandatePresentation?: string;
+  /** Compact presentation returned by issue_open_checkout_mandate, if verifying the checkout mandate too. */
+  openCheckoutMandatePresentation?: string;
 }
 
-/**
- * Total amount for a transaction
- */
-export interface Total {
-  label: string;
-  amount: Amount;
+export interface VerifyPaymentMandateResult {
+  paymentMandateVerified: boolean;
+  paymentMandateError?: string;
+  transactionIdVerified?: boolean;
+  sdHashVerified?: boolean;
+  checkoutMandateVerified?: boolean;
+  checkoutMandateError?: string;
+  paymentMandateContent?: Record<string, unknown>;
+  checkoutMandateContent?: Record<string, unknown>;
 }
 
-/**
- * Payment method data structure
- */
-export interface MethodData {
-  supported_methods: string;
-  data?: {
-    payment_processor_url?: string;
-    [key: string]: unknown;
-  };
+export interface IssuePaymentTokenRequest extends VerifyPaymentMandateRequest {
+  /** iss claim for the resulting Payment Receipt (e.g. a Truvera-assigned processor id). */
+  issuer: string;
+  paymentId: string;
+  pspConfirmationId?: string;
+  networkConfirmationId?: string;
 }
 
-/**
- * Payment request details (for CartMandate)
- */
-export interface PaymentRequestDetails {
-  id: string;
-  displayItems: DisplayItem[];
-  shipping_options?: unknown;
-  modifiers?: unknown;
-  total: Total;
+export interface PaymentReceiptContent {
+  status: "Success" | "Error";
+  iss: string;
+  iat: number;
+  reference: string;
+  payment_id?: string;
+  psp_confirmation_id?: string;
+  network_confirmation_id?: string;
+  error?: string;
+  error_description?: string;
 }
 
-/**
- * Payment request options
- */
-export interface PaymentRequestOptions {
-  requestPayerName?: boolean;
-  requestPayerEmail?: boolean;
-  requestPayerPhone?: boolean;
-  requestShipping?: boolean;
-  shippingType?: string | null;
+export interface IssuePaymentTokenResult {
+  verification: VerifyPaymentMandateResult;
+  receipt?: PaymentReceiptContent;
+  /**
+   * Whether `receipt` is cryptographically signed. Signing requires a
+   * Truvera-managed processor key exposed as a raw-signing capability, which
+   * is not yet wired up here — see the ap2 feature README. The unsigned
+   * receipt content is still returned so callers have the correct shape to
+   * act on once real signing is available.
+   */
+  signed: boolean;
 }
-
-/**
- * Payment request structure (W3C Payment Request API based)
- */
-export interface PaymentRequest {
-  method_data: MethodData[];
-  details: PaymentRequestDetails;
-  options: PaymentRequestOptions;
-}
-
-/**
- * Cart Mandate Contents (Human-Present)
- * Cryptographically signed by merchant then user
- */
-export interface CartMandateContents {
-  id: string;
-  user_signature_required: boolean;
-  payment_request: PaymentRequest;
-}
-
-/**
- * Cart Mandate (Human-Present scenario)
- */
-export interface CartMandate {
-  contents: CartMandateContents;
-  merchant_signature: string;
-  timestamp: string;
-}
-
-/**
- * Shopping intent parameters for Intent Mandate
- */
-export interface ShoppingIntent {
-  prompt?: string; // Natural language prompt
-  product_categories?: string[];
-  specific_skus?: string[];
-  budget_max?: Amount;
-  merchant_preference?: string;
-  refundable?: boolean;
-  [key: string]: unknown; // Allow additional criteria
-}
-
-/**
- * Intent Mandate Contents (Human-Not-Present)
- * Pre-authorization for agent to act within constraints
- */
-export interface IntentMandateContents {
-  id: string;
-  payer_id?: string;
-  payee_id?: string;
-  shopping_intent: ShoppingIntent;
-  payment_methods?: string[]; // List or category of authorized payment methods
-  prompt_playback?: string; // Agent's understanding of user's prompt
-  ttl?: number; // Time-to-live in seconds
-  timestamp: string;
-}
-
-/**
- * Intent Mandate (Human-Not-Present scenario)
- */
-export interface IntentMandate {
-  contents: IntentMandateContents;
-  user_signature?: string;
-  timestamp: string;
-}
-
-/**
- * Payment Response structure
- */
-export interface PaymentResponse {
-  requestId: string;
-  methodName: string;
-  details: {
-    token?: string;
-    [key: string]: unknown;
-  };
-  shippingAddress?: unknown;
-  shippingOption?: unknown;
-  payerName?: string | null;
-  payerEmail?: string | null;
-  payerPhone?: string | null;
-}
-
-export interface PaymentMandateAmount {
-  currency: string;
-  value: string;
-}
-
-export interface PaymentMandateTotal {
-  label: string;
-  amount: PaymentMandateAmount;
-  refundPeriod?: number;
-}
-
-/**
- * Payment Mandate Contents
- * For visibility to payment networks about agent involvement
- */
-export interface PaymentMandateContents {
-  paymentMandateId: string;
-  paymentDetailsId: string;
-  paymentDetailsTotal: PaymentMandateTotal;
-  paymentResponse: PaymentResponse;
-  merchantAgent?: string;
-  shoppingAgent?: string;
-  humanPresent: boolean; // Human-Present vs Human-Not-Present signal
-  timestamp: string;
-}
-
-/**
- * Payment Mandate
- */
-export interface PaymentMandate {
-  paymentMandateContents: PaymentMandateContents;
-  userAuthorization: string; // JWT or similar cryptographic proof
-}
-
-/**
- * Schema cache entry
- */
-export interface SchemaCache {
-  schema: unknown;
-  fetchedAt: Date;
-  url: string;
-}
-
-/**
- * AP2 mandate types enum
- */
-export enum MandateType {
-  CART = "CartMandate",
-  INTENT = "IntentMandate",
-  PAYMENT = "PaymentMandate",
-}
-
-/**
- * Generic mandate for tools that work with any type
- */
-export type AnyMandate = CartMandate | IntentMandate | PaymentMandate;
