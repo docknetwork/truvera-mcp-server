@@ -1,82 +1,121 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, it, expect } from "vitest";
+import { Secp256r1Keypair } from "@docknetwork/crypto-utils/keypairs";
+import { secp256r1PublicKeyToJwk } from "@docknetwork/crypto-utils/vc";
+import {
+  buildOpenPaymentMandate,
+  signOpenPaymentMandate,
+  buildClosedPaymentMandate,
+  signClosedPaymentMandate,
+  computeCheckoutHash,
+} from "@docknetwork/ap2";
 import { AP2Client } from "../../client.js";
 
-describe("AP2Client Payment Mandate issuance", () => {
-  it("builds a schema-compatible direct issuance payload", async () => {
-    const requestSpy = vi.fn().mockResolvedValue({
-      success: true,
-      data: { id: "cred-123" },
-    });
-    const truveraClient = { request: requestSpy } as any;
-    const openIdClient = {
-      createIssuer: vi.fn(),
-      createCredentialOffer: vi.fn(),
-    } as any;
+const CHECKOUT_JWT = "eyJhbGciOiJFUzI1NiJ9.eyJvcmRlcl9pZCI6Im9yZGVyLTEifQ.sig";
+const MERCHANT = { id: "merchant_1", name: "Demo Merchant", website: "https://demo-merchant.example" };
 
-    const client = new AP2Client(truveraClient, openIdClient);
+async function buildClosedPaymentMandatePresentation(agentKeypair: any, userKeypair: any) {
+  const holderJwk = secp256r1PublicKeyToJwk(agentKeypair.publicKey());
+  const openContent = buildOpenPaymentMandate({
+    vct: "mandate.payment.open.1",
+    constraints: [{ type: "payment.allowed_payees", allowed: [MERCHANT] }],
+    cnf: { jwk: holderJwk },
+  });
+  const openPresentation = await signOpenPaymentMandate(openContent, { signer: userKeypair });
 
-    await client.issuePaymentMandate({
-      payment_mandate_id: "pm_123",
-      payment_details_id: "order_123",
-      total_currency: "USD",
-      total_value: 299.99,
-      payment_method: "CARD",
-      merchant_agent: "MerchantBot",
-      shopping_agent: "ShopperBot",
-      human_present: true,
-      refund_period_days: 30,
-      user_authorization: "jwt-token",
-      issuer_did: "did:cheqd:testnet:issuer",
-      subject_did: "did:key:z6Mkh123",
-    });
-
-    expect(requestSpy).toHaveBeenCalledTimes(1);
-    const call = requestSpy.mock.calls[0][0];
-    expect(call.endpoint).toBe("/credentials");
-    expect(call.body.distribute).toBe(true);
-    expect(call.body.credential.credentialSubject.id).toBe("did:key:z6Mkh123");
-    expect(call.body.credential.credentialSubject.paymentMandateContents.paymentMandateId).toBe("pm_123");
-    expect(call.body.credential.credentialSubject.paymentMandateContents.paymentDetailsId).toBe("order_123");
-    expect(call.body.credential.credentialSubject.paymentMandateContents.paymentDetailsTotal.amount.value).toBe("299.99");
-    expect(call.body.credential.credentialSubject.paymentMandateContents.paymentResponse.requestId).toBe("order_123");
-    expect(call.body.credential.credentialSubject.paymentMandateContents.paymentResponse.methodName).toBe("CARD");
-    expect(call.body.credential.credentialSubject.paymentMandateContents.humanPresent).toBe(true);
-    expect(call.body.credential.credentialSubject.userAuthorization).toBe("jwt-token");
+  const closedContent = buildClosedPaymentMandate({
+    vct: "mandate.payment.1",
+    transaction_id: computeCheckoutHash(CHECKOUT_JWT),
+    payee: MERCHANT,
+    payment_amount: { amount: 19900, currency: "USD" },
+    payment_instrument: { id: "stub", type: "card", description: "Card ****4242" },
+  });
+  const closedPresentation = await signClosedPaymentMandate(closedContent, {
+    signer: agentKeypair,
+    nonce: "nonce-1",
+    openMandatePresentation: openPresentation,
   });
 
-  it("builds a schema-compatible offer subject with fallback userAuthorization", async () => {
-    const truveraClient = { request: vi.fn() } as any;
-    const createIssuer = vi.fn().mockResolvedValue({
-      success: true,
-      data: { id: "issuer-123" },
-    });
-    const createCredentialOffer = vi.fn().mockResolvedValue({
-      success: true,
-      data: { url: "openid-credential-offer://test" },
-    });
-    const openIdClient = {
-      createIssuer,
-      createCredentialOffer,
-    } as any;
+  return { openPresentation, closedPresentation, holderJwk };
+}
 
-    const client = new AP2Client(truveraClient, openIdClient);
+describe("unit: AP2Client (truvera-api Credential Provider role)", () => {
+  const client = new AP2Client();
 
-    await client.issuePaymentMandate({
-      payment_mandate_id: "pm_offer_123",
-      payment_details_id: "order_offer_123",
-      total_currency: "USD",
-      total_value: 49.99,
-      payment_method: "CARD",
-      human_present: false,
-      issuer_did: "did:cheqd:testnet:issuer",
+  it("verifies a valid Closed Payment Mandate", async () => {
+    const agentKeypair = Secp256r1Keypair.random();
+    const userKeypair = Secp256r1Keypair.random();
+    const { openPresentation, closedPresentation, holderJwk } = await buildClosedPaymentMandatePresentation(
+      agentKeypair,
+      userKeypair
+    );
+
+    const result = await client.verifyPaymentMandate({
+      closedPaymentMandatePresentation: closedPresentation,
+      holderJwk,
+      checkoutJwt: CHECKOUT_JWT,
+      openPaymentMandatePresentation: openPresentation,
     });
 
-    expect(createIssuer).toHaveBeenCalledTimes(1);
-    const issuerPayload = createIssuer.mock.calls[0][0];
-    expect(issuerPayload.credentialOptions.credential.subject.id).toBe("{{holder_did}}");
-    expect(issuerPayload.credentialOptions.credential.subject.paymentMandateContents.paymentMandateId).toBe("pm_offer_123");
-    expect(issuerPayload.credentialOptions.credential.subject.paymentMandateContents.paymentResponse.requestId).toBe("order_offer_123");
-    expect(issuerPayload.credentialOptions.credential.subject.paymentMandateContents.humanPresent).toBe(false);
-    expect(issuerPayload.credentialOptions.credential.subject.userAuthorization).toBe("pending-user-authorization");
+    expect(result.paymentMandateVerified).toBe(true);
+    expect(result.transactionIdVerified).toBe(true);
+    expect(result.sdHashVerified).toBe(true);
+  });
+
+  it("fails verification for a mandate signed by the wrong key", async () => {
+    const agentKeypair = Secp256r1Keypair.random();
+    const userKeypair = Secp256r1Keypair.random();
+    const otherKeypair = Secp256r1Keypair.random();
+    const { closedPresentation } = await buildClosedPaymentMandatePresentation(agentKeypair, userKeypair);
+
+    const result = await client.verifyPaymentMandate({
+      closedPaymentMandatePresentation: closedPresentation,
+      holderJwk: secp256r1PublicKeyToJwk(otherKeypair.publicKey()),
+    });
+
+    expect(result.paymentMandateVerified).toBe(false);
+    expect(result.paymentMandateError).toBeDefined();
+  });
+
+  it("issues an unsigned Payment Receipt on successful verification", async () => {
+    const agentKeypair = Secp256r1Keypair.random();
+    const userKeypair = Secp256r1Keypair.random();
+    const { openPresentation, closedPresentation, holderJwk } = await buildClosedPaymentMandatePresentation(
+      agentKeypair,
+      userKeypair
+    );
+
+    const result = await client.issuePaymentToken({
+      closedPaymentMandatePresentation: closedPresentation,
+      holderJwk,
+      checkoutJwt: CHECKOUT_JWT,
+      openPaymentMandatePresentation: openPresentation,
+      issuer: "mpp.acme",
+      paymentId: "PAY-001",
+    });
+
+    expect(result.verification.paymentMandateVerified).toBe(true);
+    expect(result.signed).toBe(false);
+    expect(result.receipt).toMatchObject({
+      status: "Success",
+      iss: "mpp.acme",
+      payment_id: "PAY-001",
+    });
+  });
+
+  it("does not issue a receipt when verification fails", async () => {
+    const agentKeypair = Secp256r1Keypair.random();
+    const userKeypair = Secp256r1Keypair.random();
+    const otherKeypair = Secp256r1Keypair.random();
+    const { closedPresentation } = await buildClosedPaymentMandatePresentation(agentKeypair, userKeypair);
+
+    const result = await client.issuePaymentToken({
+      closedPaymentMandatePresentation: closedPresentation,
+      holderJwk: secp256r1PublicKeyToJwk(otherKeypair.publicKey()),
+      issuer: "mpp.acme",
+      paymentId: "PAY-001",
+    });
+
+    expect(result.verification.paymentMandateVerified).toBe(false);
+    expect(result.receipt).toBeUndefined();
   });
 });
