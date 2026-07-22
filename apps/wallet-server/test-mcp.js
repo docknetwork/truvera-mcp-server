@@ -2,11 +2,11 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 
 async function run() {
-  const transport = new SSEClientTransport(new URL("http://localhost:3001/sse"));
+  const transport = new SSEClientTransport(new URL("http://localhost:3001/mcp"));
   const client = new Client({ name: "test-client", version: "1.0.0" }, { capabilities: {} });
   
   try {
-    console.log("Connecting to MCP server at http://localhost:3001/sse...");
+    console.log("Connecting to MCP server at http://localhost:3001/mcp...");
     await client.connect(transport);
     console.log("Connected to MCP server");
 

@@ -253,7 +253,14 @@ export async function startHTTPTransport({
         return;
       }
 
-      await adminRevoke.onRevoke(tenantId);
+      try {
+        await adminRevoke.onRevoke(tenantId);
+      } catch (err) {
+        console.error("Error revoking tenant:", err);
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Internal server error" }));
+        return;
+      }
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ ok: true, tenantId }));
       return;
@@ -271,7 +278,7 @@ export async function startHTTPTransport({
           res.end(JSON.stringify({ error: "Invalid JSON in request body" }));
           return;
         }
-        console.error("[DEBUG] Parsed request body:", body);
+        // console.error("[DEBUG] Parsed request body:", body);
       }
 
       // Get session ID from header and normalize to string
