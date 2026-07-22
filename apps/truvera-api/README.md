@@ -55,7 +55,7 @@ docker-compose up -d
 
 ```bash
 curl http://localhost:3000/health
-# Expected: {"status":"ok","service":"truvera-mcp-service","toolCount":34,...} (31 core tools + 3 AP2 tools, enabled by default)
+# Expected: {"status":"ok","service":"truvera-mcp-service","toolCount":33,...} (31 core tools + 2 AP2 tools, enabled by default)
 ```
 
 The server is ready. Jump to [Connecting to AI Assistants](#connecting-to-ai-assistants) to wire it up.
@@ -108,19 +108,18 @@ The server must be running in HTTP mode on port 3000 before connecting. Full con
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `AP2_ENABLED` | No | `true` | Set to `false` to disable all AP2 tools |
-| `AP2_DEFAULT_TTL_SECONDS` | No | `3600` | Default time-to-live for Intent Mandates |
-| `AP2_CART_MANDATE_SCHEMA_URL` | No | *(see .env.example)* | JSON-LD schema URL for Cart Mandates |
-| `AP2_INTENT_MANDATE_SCHEMA_URL` | No | *(see .env.example)* | JSON-LD schema URL for Intent Mandates |
-| `AP2_PAYMENT_MANDATE_SCHEMA_URL` | No | *(see .env.example)* | JSON-LD schema URL for Payment Mandates |
+| `AP2_ENABLED` | No | `true` | Set to `false` to disable AP2 tools |
 
-> **Note:** The default schema URLs point to Truvera-hosted AP2-compatible schemas at `schema.truvera.io`. The AP2 community has not yet published canonical schemas at `ap2-protocol.org`; when they do, update these variables to match. Schema URLs are passed to the Truvera API during credential issuance.
+Mandate issuance (Open/Closed Checkout and Payment Mandates) lives in
+`wallet-server`, not here — see its README. `truvera-api` plays the AP2
+spec's Credential Provider role: verifying Closed Payment Mandates and
+issuing Payment Receipts.
 
 ---
 
 ## Supported tools
 
-The server exposes 34 tools by default: 31 core tools plus 3 AP2 tools (AP2 is enabled by default; set `AP2_ENABLED=false` to drop to 31).
+The server exposes 33 tools by default: 31 core tools plus 2 AP2 tools (AP2 is enabled by default; set `AP2_ENABLED=false` to drop to 31).
 
 ### Truvera API tools
 - **Credentials** — `issue_credential`, `list_credentials`, `get_credential`, `delete_credential`
@@ -133,10 +132,15 @@ The server exposes 34 tools by default: 31 core tools plus 3 AP2 tools (AP2 is e
 - **Delegation** — `list_delegation_rules`, `get_delegation_rule`, `revoke_delegatable_credential`
 - **Agent Card** — `get_agent_card_details` (returns this server's A2A identity contribution)
 
-### AP2 (Agent Payments Protocol) tools
-- `issue_cart_mandate` — issue a Cart Mandate for human-present transactions
-- `issue_intent_mandate` — issue an Intent Mandate for human-not-present transactions
-- `issue_payment_mandate` — issue a Payment Mandate for payment network visibility
+### AP2 (Agent Payments Protocol) tools — Credential Provider role
+- `verify_payment_mandate` — verify a Closed Payment Mandate (and optionally its paired Closed Checkout Mandate)
+- `issue_payment_token` — verify a Closed Payment Mandate and return an AP2 Payment Receipt
+
+Mandate issuance tools (`create_ap2_signing_key`, `issue_open_checkout_mandate`,
+`issue_closed_checkout_mandate`, `issue_open_payment_mandate`,
+`issue_closed_payment_mandate`) live in `wallet-server`, which holds the
+signing keys — mandates are self-signed by the user/Shopping Agent, not
+issued by Truvera.
 
 See [src/features/ap2/README.md](src/features/ap2/README.md) for full AP2 documentation.
 

@@ -303,12 +303,9 @@ TRUVERA_API_ENDPOINT=https://api-testnet.truvera.io  # or production
 ### Feature-Specific Variables
 
 ```bash
-# AP2 Configuration
+# AP2 Configuration — Credential Provider role only (verify_payment_mandate,
+# issue_payment_token). Mandate issuance lives in wallet-server.
 AP2_ENABLED=true
-AP2_DEFAULT_TTL_SECONDS=3600
-AP2_CART_MANDATE_SCHEMA_URL=https://schema.yourorg.com/cart-v1.json
-AP2_INTENT_MANDATE_SCHEMA_URL=https://schema.yourorg.com/intent-v1.json
-AP2_PAYMENT_MANDATE_SCHEMA_URL=https://schema.yourorg.com/payment-v1.json
 ```
 
 ### Test Variables

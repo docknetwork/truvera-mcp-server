@@ -1,235 +1,80 @@
-# AP2 (Agent Payments Protocol) Integration
+# AP2 (Agent Payments Protocol) Integration — Credential Provider role
 
-This directory contains AP2 mandate support for the Truvera MCP server. AP2 is an open protocol for secure agent-to-agent payment authorization using Verifiable Digital Credentials.
+This directory contains AP2 v0.2 support for the Truvera MCP server. AP2 is
+an open protocol for secure agent-to-agent payment authorization using
+SD-JWT mandates.
 
-## Overview
-
-AP2 enables AI agents to make purchases on behalf of users through cryptographically signed mandates that prove authorization, authenticity, and accountability. The protocol addresses the fundamental trust problem in agent commerce where current payment systems assume direct human interaction.
-
-- **Specification**: https://ap2-protocol.org/specification/
+- **Specification**: https://ap2-protocol.org/ap2/specification/
 - **Repository**: https://github.com/google-agentic-commerce/AP2
 
-## Three Mandate Types
+## Role
 
-### 1. Cart Mandate (Human-Present)
-Used when the user is present to approve a specific cart with exact items and prices.
+Per the spec, mandates (Open/Closed Checkout and Payment) are **self-signed**
+by the user and Shopping Agent — not issued by a third party. Issuance lives
+in `wallet-server`'s own `ap2` feature (`create_ap2_signing_key`,
+`issue_open_checkout_mandate`, `issue_closed_checkout_mandate`,
+`issue_open_payment_mandate`, `issue_closed_payment_mandate`), since it holds
+the signing keys.
 
-```typescript
-// Example: Issue a cart mandate
-{
-  "mandate_id": "cart_12345",
-  "cart_items": [
-    { "label": "Nike Shoes", "currency": "USD", "value": 120 }
-  ],
-  "total_amount": { "currency": "USD", "value": 120 },
-  "payment_method": "CARD",
-  "merchant_id": "did:example:merchant",
-  "payer_id": "did:example:payer",
-  "issuer_did": "did:cheqd:testnet:issuer-id",
-  "subject_did": "did:cheqd:testnet:subject-id"
-}
-```
-
-### 2. Intent Mandate (Human-Not-Present)
-Pre-authorization for an agent to act within constraints when the user is not present.
-
-```typescript
-// Example: Issue an intent mandate
-{
-  "mandate_id": "intent_12345",
-  "shopping_prompt": "Buy concert tickets when they go on sale, close to main stage, budget $1000",
-  "budget_max_currency": "USD",
-  "budget_max_value": 1000,
-  "ttl_seconds": 86400,
-  "product_categories": ["event-tickets"],
-  "payer_id": "did:example:payer",
-  "issuer_did": "did:cheqd:testnet:issuer-id",
-  "subject_did": "did:cheqd:testnet:subject-id"
-}
-```
-
-### 3. Payment Mandate (Network Visibility)
-Separate VDC for payment networks showing agent involvement and transaction modality.
-
-```typescript
-// Example: Issue a payment mandate
-{
-  "payment_mandate_id": "pm_12345",
-  "payment_details_id": "cart_12345",
-  "total_currency": "USD",
-  "total_value": 120,
-  "payment_method": "CARD",
-  "merchant_agent": "MerchantAgent",
-  "shopping_agent": "ShoppingAgent",
-  "human_present": true,
-  "issuer_did": "did:cheqd:testnet:issuer-id",
-  "subject_did": "did:cheqd:testnet:subject-id"
-}
-```
-
-## Configuration
-
-Set these environment variables in your `.env` file:
-
-```bash
-# Required
-TRUVERA_API_KEY=your_api_key_here
-
-# Optional - AP2 Configuration
-AP2_ENABLED=true  # Set to false to disable AP2 support
-AP2_DEFAULT_TTL_SECONDS=3600  # Default time-to-live for intent mandates
-
-# Schema URLs — defaults point to Truvera-hosted AP2-compatible schemas.
-# These are passed to the Truvera API during credential issuance.
-# Override if you publish your own schemas.
-AP2_CART_MANDATE_SCHEMA_URL=https://schema.truvera.io/CartMandateHumanPresent-V1-1772663227477.json
-AP2_INTENT_MANDATE_SCHEMA_URL=https://schema.truvera.io/IntentMandateHumanNotPresent-V1-1772663293733.json
-AP2_PAYMENT_MANDATE_SCHEMA_URL=https://schema.truvera.io/PaymentMandate-V1-1772663322422.json
-```
-
-**Note on schema status**: The defaults above are Truvera-hosted profiles derived from the AP2 documentation. The AP2 community has not yet published a canonical JSON-LD schema set at `ap2-protocol.org`. When they do, update these URLs to match. The local Payment Mandate schema currently uses camelCase field names (`paymentMandateContents`, `userAuthorization`) which may differ from future upstream AP2 definitions that use snake_case.
+`truvera-api` plays the spec's **Credential Provider** role: verify a Closed
+Payment Mandate and return a Payment Receipt.
 
 ## Available MCP Tools
 
-> **`subject_did` is optional on all three tools below**, though the examples show it set. Pass it to issue the credential directly to a known holder DID. Omit it and the tool instead creates a **credential offer** (via `create_credential_offer`) that a holder can claim later — e.g. by scanning a QR code — with `subject_did` filled in at claim time. This dual-flow behavior isn't a separate tool; it's controlled entirely by whether you supply `subject_did`.
+### `verify_payment_mandate`
 
-### `issue_cart_mandate`
-Issue a Cart Mandate for human-present transactions.
+Verifies a Closed Payment Mandate: the Shopping Agent's signature, `aud`/
+expiry, `transaction_id` against a provided `checkoutJwt`, and `sd_hash`
+against the referenced Open Payment Mandate presentation. Optionally also
+verifies the paired Closed Checkout Mandate.
 
-**Required Parameters:**
-- `mandate_id`: Unique identifier
-- `cart_items`: Array of items with label, currency, value
-- `total_amount`: Total with currency and value
-- `payment_method`: Payment method identifier
-- `merchant_id`: Merchant DID or identifier
-- `payer_id`: Payer DID or identifier
-- `issuer_did`: Credential issuer DID (must exist in Truvera)
+**Required:** `closedPaymentMandatePresentation`, `holderJwk` (the Shopping
+Agent's public key, from the Open Payment Mandate's `cnf.jwk`)
 
-**Optional Parameters:**
-- `subject_did`: Credential subject DID — see the note above on the direct-issuance vs. offer/QR flow
+**Optional:** `checkoutJwt`, `openPaymentMandatePresentation`,
+`closedCheckoutMandatePresentation`, `openCheckoutMandatePresentation`
 
-### `issue_intent_mandate`
-Issue an Intent Mandate for human-not-present transactions.
+Note: this does **not** verify the `conditional_transaction_id`/delegate-chain
+binding (the Open Payment Mandate's `payment.reference` constraint against
+the Checkout's delegate chain) — see `@docknetwork/ap2`'s
+`verifyClosedPaymentMandate` docs for what is and isn't covered.
 
-**Required Parameters:**
-- `mandate_id`: Unique identifier
-- `shopping_prompt`: Natural language description
-- `budget_max_currency`: Maximum budget currency
-- `budget_max_value`: Maximum budget amount
-- `payer_id`: Payer DID or identifier
-- `issuer_did`: Credential issuer DID
+### `issue_payment_token`
 
-**Optional Parameters:**
-- `subject_did`: Credential subject DID — see the note above on the direct-issuance vs. offer/QR flow
-- `ttl_seconds`: Time-to-live (default: 3600)
-- `product_categories`: Allowed product categories
-- `specific_skus`: Specific SKUs allowed
-- `merchant_preference`: Preferred merchant
-- `payment_methods`: Authorized payment methods
-- `refundable`: Whether purchases must be refundable
-- `payee_id`: Optional payee identifier
+Runs `verify_payment_mandate` and, on success, returns an AP2 Payment
+Receipt (`status`, `iss`, `iat`, `reference`, `payment_id`,
+`psp_confirmation_id`, `network_confirmation_id`).
 
-### `issue_payment_mandate`
-Issue a Payment Mandate for network visibility.
+**Additional required:** `issuer`, `paymentId`
 
-Note: This tool currently emits the repository's bundled Payment Mandate profile, which matches the local JSON-LD context and validation schema. That profile may differ in field naming from examples in the current AP2 public spec.
+**Known limitation:** the returned receipt is **not yet cryptographically
+signed** — see the result's `signed: false` field. Real signing needs a
+Truvera-managed processor key exposed as a raw-signing capability, which
+isn't wired up yet. The unsigned receipt content is still returned so
+callers have the correct shape to act on once that's available.
 
-**Required Parameters:**
-- `payment_mandate_id`: Unique identifier
-- `payment_details_id`: Reference to cart/intent mandate
-- `total_currency`: Transaction currency
-- `total_value`: Transaction amount
-- `payment_method`: Payment method being used
-- `human_present`: Boolean indicating modality
-- `issuer_did`: Credential issuer DID
+## Configuration
 
-**Optional Parameters:**
-- `subject_did`: Credential subject DID — see the note above on the direct-issuance vs. offer/QR flow
-- `merchant_agent`: Merchant agent identifier
-- `shopping_agent`: Shopping agent identifier
-- `refund_period_days`: Refund eligibility period
-- `user_authorization`: Optional user authorization signature/token. If omitted, the server currently inserts a placeholder string so the credential matches the published Payment Mandate schema.
+```bash
+# Set to false to disable AP2 support (both tools above)
+AP2_ENABLED=true
+```
 
 ## Architecture
 
-### Features
-- **Schema Fetching**: JSON-LD schemas are fetched and cached at server startup
-- **Dynamic Tool Definitions**: Tool descriptions include schema URLs for LLM context
-- **Truvera Integration**: Mandates are issued as Verifiable Credentials via Truvera API
-- **Wallet Compatible**: Issued mandates can be stored/presented by wallet-server
-
-### File Structure
 ```
 ap2/
-├── types.ts           # TypeScript interfaces for mandates
-├── schemas.ts         # JSON schemas for tool definitions
-├── schema-fetcher.ts  # Schema fetching and caching logic
-├── client.ts          # AP2Client for mandate operations
-├── tools.ts           # MCP tool definitions and handlers
-├── index.ts           # Module exports
+├── types.ts   # Request/result types for both tools
+├── schemas.ts # JSON schemas for tool inputs
+├── client.ts  # Wraps @docknetwork/ap2's verify functions + Payment Receipt building
+├── tools.ts   # MCP tool definitions and handlers
+├── index.ts   # Module exports
 └── tests/
-    ├── unit/
-    │   ├── ap2-client.test.ts
-    │   ├── ap2-schemas.test.ts
-    │   └── ap2-types.test.ts
-    └── integration/
-        └── ap2-live.integration.test.ts
 ```
-
-### Flow
-
-1. **Startup**: Server fetches and caches JSON-LD schemas from configured URLs
-2. **Tool Registration**: AP2 tools are registered with dynamic descriptions including schema URLs
-3. **Issuance**: When a tool is called, AP2Client constructs the mandate structure and issues it as a VC via Truvera API
-4. **Storage**: The issued VC (mandate) can be stored in wallet-server like any other credential
-
-## Testing
-
-Run tests for AP2 functionality:
-
-```bash
-# From truvera-api directory
-npm run test
-
-# Run only AP2 tests
-npm run test -- ap2
-```
-
-## Usage Example
-
-```typescript
-// Issue a cart mandate for a human-present purchase
-const result = await mcpClient.callTool("issue_cart_mandate", {
-  mandate_id: "cart_" + Date.now(),
-  cart_items: [
-    { label: "Product A", currency: "USD", value: 50 },
-    { label: "Product B", currency: "USD", value: 30 }
-  ],
-  total_amount: { currency: "USD", value: 80 },
-  payment_method: "CARD",
-  merchant_id: "did:example:merchant123",
-  payer_id: "did:example:payer456",
-  issuer_did: "did:cheqd:testnet:your-issuer-did",
-  subject_did: "did:cheqd:testnet:your-subject-did"
-});
-
-// The result contains the issued VC which can now be:
-// - Stored in wallet-server
-// - Presented to merchants
-// - Verified by payment networks
-```
-
-## Security Considerations
-
-1. **Cryptographic Signing**: Mandates are signed by Truvera's key management system
-2. **Schema Validation**: Schemas are fetched once at startup and cached
-3. **Expiration**: Intent mandates support TTL for time-bounded authorization
-4. **Non-Repudiation**: All mandates are cryptographically verifiable
-5. **Privacy**: Sensitive data can be selectively disclosed through VC presentations
 
 ## Resources
 
-- [AP2 Protocol Specification](https://ap2-protocol.org/specification/)
-- [AP2 Core Concepts](https://ap2-protocol.org/topics/core-concepts/)
-- [Truvera API Documentation](https://swagger-api.truvera.io/)
-- [W3C Verifiable Credentials](https://www.w3.org/TR/vc-data-model/)
+- [AP2 Protocol Specification](https://ap2-protocol.org/ap2/specification/)
+- [AP2 Checkout Mandate](https://ap2-protocol.org/ap2/checkout_mandate/)
+- [AP2 Payment Mandate](https://ap2-protocol.org/ap2/payment_mandate/)
+- [@docknetwork/ap2](https://github.com/docknetwork/sdk/tree/main/packages/ap2) — mandate/receipt build, sign, and verify functions used here
