@@ -13,6 +13,7 @@ import { CredentialClient, credentialToolDefs, getCredentialHandlers } from "./f
 import { MessageClient, messageToolDefs, getMessageHandlers } from "./features/messages/index.js";
 import { AgentCardClient, agentCardToolDefs, getAgentCardHandlers } from "./features/agent-card/index.js";
 import { DelegationClient, delegationToolDefs, getDelegationHandlers } from "./features/delegation/index.js";
+import { AP2Client, ap2ToolDefs, getAP2Handlers } from "./features/ap2/index.js";
 
 // wallet-sdk-wasm's storageService calls global.localStorage for DID resolution
 // caching during BBS+ proof generation (see cached-did-resolver.js). Node.js has
@@ -135,6 +136,7 @@ async function toolHandlerFactory(context: AuthContext): Promise<ToolHandlerFact
   const messageClient = new MessageClient(wallet, didProvider);
   const agentCardClient = new AgentCardClient(didClient);
   const delegationClient = new DelegationClient(wallet);
+  const ap2Client = new AP2Client(didProvider);
 
   activeMessageClients.add(messageClient);
 
@@ -145,6 +147,7 @@ async function toolHandlerFactory(context: AuthContext): Promise<ToolHandlerFact
       ...getMessageHandlers(messageClient),
       ...getDelegationHandlers(delegationClient),
       ...getAgentCardHandlers(agentCardClient),
+      ...getAP2Handlers(ap2Client),
     ]),
     dispose: async () => {
       activeMessageClients.delete(messageClient);
@@ -164,6 +167,7 @@ async function main() {
     ...messageToolDefs,
     ...delegationToolDefs,
     ...agentCardToolDefs,
+    ...ap2ToolDefs,
   ];
 
   console.error(`  - Tools available: ${tools.length}`);
