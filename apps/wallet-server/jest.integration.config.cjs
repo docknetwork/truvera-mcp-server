@@ -1,3 +1,16 @@
+const path = require("path");
+
+// Resolved dynamically (rather than a hardcoded relative path) because
+// @docknetwork/wallet-sdk-wasm resolves its own dependencies — including
+// this one — from wherever it itself is installed, whether that's a normal
+// hoisted npm package or a `file:` link to a local checkout. A hardcoded
+// "<rootDir>/../../node_modules/..." path breaks the moment wallet-sdk-wasm
+// stops being hoisted into this repo's own node_modules.
+const wasmPackageDir = path.dirname(require.resolve("@docknetwork/wallet-sdk-wasm/package.json"));
+const digitalbazaarHttpClientPath = require.resolve("@digitalbazaar/http-client", { paths: [wasmPackageDir] });
+const base58UniversalPath = require.resolve("base58-universal", { paths: [wasmPackageDir] });
+const base64urlUniversalPath = require.resolve("base64url-universal", { paths: [wasmPackageDir] });
+
 module.exports = {
   preset: "ts-jest",
   testEnvironment: "node",
@@ -31,9 +44,9 @@ module.exports = {
     // Resolve TypeScript ESM-style .js extension imports to their source .ts files
     "^(\\.{1,2}/.*)\\.js$": "$1",
     "^ky-universal$": "ky",
-    "^base58-universal$": "<rootDir>/../../node_modules/base58-universal/main.js",
-    "^base64url-universal$": "<rootDir>/../../node_modules/base64url-universal/lib/index.js",
-    "^@digitalbazaar/http-client$": "<rootDir>/../../node_modules/jsonld/node_modules/@digitalbazaar/http-client/dist/cjs/index.cjs",
+    "^base58-universal$": base58UniversalPath,
+    "^base64url-universal$": base64urlUniversalPath,
+    "^@digitalbazaar/http-client$": digitalbazaarHttpClientPath,
     "^@digitalbazaar/x25519-key-agreement-key-2020$": "@digitalbazaar/x25519-key-agreement-key-2020/lib/X25519KeyAgreementKey2020",
     "^@digitalbazaar/x25519-key-agreement-key-2019$": "@digitalbazaar/x25519-key-agreement-key-2019/lib/main",
     "^@digitalbazaar/ed25519-verification-key-2020$": "@digitalbazaar/ed25519-verification-key-2020/lib/Ed25519VerificationKey2020",
