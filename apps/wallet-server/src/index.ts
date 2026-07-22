@@ -107,9 +107,18 @@ const activeMessageClients = new Set<MessageClient>();
 // Per-session handler factory. Receives the resolved AuthContext and returns
 // a handler map wired to the correct tenant wallet.
 async function toolHandlerFactory(context: AuthContext): Promise<Map<string, ToolHandler>> {
-  const dbPath = context.mode === "jwt"
-    ? path.join(WALLET_DB_BASE_PATH, context.tenantId)
-    : WALLET_DB_PATH_RESOLVED;
+  let dbPath = WALLET_DB_PATH_RESOLVED;
+  if (context.mode === "jwt") {
+    if (!/^[a-zA-Z0-9._-]+$/.test(context.tenantId)) {
+      throw new Error("Invalid tenantId in JWT sub claim");
+    }
+    const resolved = path.resolve(WALLET_DB_BASE_PATH, context.tenantId);
+    const base = path.resolve(WALLET_DB_BASE_PATH);
+    if (!resolved.startsWith(base + path.sep)) {
+      throw new Error("Invalid tenantId path traversal");
+    }
+    dbPath = resolved;
+  }
 
   const walletClient = await walletPool.get(dbPath, CHEQD_NETWORK);
   const wallet = walletClient.getWallet();
@@ -151,6 +160,7 @@ async function main() {
   const shutdown = async () => {
     await Promise.all([...activeMessageClients].map((c) => c.stop()));
     await walletPool.shutdownAll();
+    await revocationStore?.close();
     process.exit(0);
   };
   process.on("SIGTERM", shutdown);

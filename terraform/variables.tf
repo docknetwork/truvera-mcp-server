@@ -44,7 +44,8 @@ variable "wallet_server_hostname" {
 #     --name "${environment}/mcp/wallet-server" \
 #     --secret-string '{
 #       "MCP_JWT_PUBLIC_KEY": "<PEM from scripts/generate-keypair.js>",
-#       "WALLET_MASTER_KEY":  "<32+ byte random hex>"
+#       "WALLET_MASTER_KEY":  "<32+ byte random hex>",
+#       "ADMIN_REVOKE_SECRET": "<random secret for POST /admin/revoke-tenant>"
 #     }'
 #
 # WALLET_MASTER_KEY is the HMAC root key for all tenant wallet derivation.
