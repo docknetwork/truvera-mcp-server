@@ -64,7 +64,7 @@ if (!isValid) {
 | **Validates** | ❌ No | ✅ Yes |
 | **Provides Semantics** | ✅ Yes | ❌ No |
 | **File Extension** | `.json` | `-schema.json` |
-| **Specification** | [JSON-LD 1.1](https://www.w3.org/TR/json-ld11/) | [JSON Schema 2020-12](https://json-schema.org/draft/2020-12/schema) |
+| **Specification** | [JSON-LD 1.1](https://www.w3.org/TR/json-ld11/) | [JSON Schema draft-07](http://json-schema.org/draft-07/schema) |
 
 ## Cart Mandate
 
@@ -84,7 +84,8 @@ if (!isValid) {
 **Human-not-present authorization** where agent acts within constraints.
 
 **Validation Schema**: `intent-mandate-schema.json`
-- Required: `contents`, `userSignature`, `timestamp`, `ttl`
+- Required (top-level): `contents`, `userSignature`, `timestamp`
+- Required (within `contents`): `id`, `payerId`, `shoppingIntent`, `paymentMethods`, `ttl`, `timestamp`
 - Contains: `IntentMandateContents`, `ShoppingIntent`
 - Features: Natural language prompt, budget constraints, product categories, TTL
 
@@ -166,6 +167,6 @@ See `README.md` for complete usage examples of both types in the AP2 workflow.
 ## References
 
 - **JSON-LD 1.1**: https://www.w3.org/TR/json-ld11/
-- **JSON Schema 2020-12**: https://json-schema.org/draft/2020-12/schema
+- **JSON Schema draft-07**: http://json-schema.org/draft-07/schema
 - **W3C Verifiable Credentials**: https://www.w3.org/TR/vc-data-model/
 - **AP2 Protocol**: https://ap2-protocol.org/specification/

@@ -15,6 +15,11 @@ on:
       should_push:
         required: true
         type: boolean
+      tag:
+        description: Explicit image tag; leave blank to use branch name (workflow_dispatch) or build number (push/release)
+        required: false
+        type: string
+        default: ''
 
 jobs:
   publish:
@@ -29,18 +34,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Read build number
+      - name: Determine image tag
         id: build_number
         run: |
-          if [ -f "${BUILD_NUMBER_FILE}" ]; then
+          if [ -n "${{ inputs.tag }}" ]; then
+            BUILD_NUM="${{ inputs.tag }}"
+            echo "Using explicit tag: $BUILD_NUM"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BUILD_NUM=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9._-]/-/g')
+            echo "Using sanitized branch name: $BUILD_NUM"
+          elif [ -f "${BUILD_NUMBER_FILE}" ]; then
             BUILD_NUM=$(cat "${BUILD_NUMBER_FILE}")
-            echo "Using ${BUILD_NUMBER_FILE}"
+            echo "Using ${BUILD_NUMBER_FILE}: $BUILD_NUM"
           else
             BUILD_NUM="${{ github.run_number }}"
-            echo "${BUILD_NUMBER_FILE} not found; using GitHub run number"
+            echo "Using GitHub run number: $BUILD_NUM"
           fi
           echo "build_number=$BUILD_NUM" >> "$GITHUB_OUTPUT"
-          echo "Build number: $BUILD_NUM"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

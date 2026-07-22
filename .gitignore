@@ -10,3 +10,9 @@ truvera/
 src/build-info.ts
 .claude/settings.local.json
 data/
+
+# Terraform — state and local overrides are gitignored; environments/ is committed
+terraform/.terraform/
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/terraform.tfvars

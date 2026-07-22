@@ -2,39 +2,34 @@ name: API CI
 
 on:
   pull_request:
+    paths:
+      - 'apps/truvera-api/**'
+      - 'packages/mcp-shared/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/**'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/ci-server-reusable.yml'
   push:
     branches:
       - master
+    paths:
+      - 'apps/truvera-api/**'
+      - 'packages/mcp-shared/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/**'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/ci-server-reusable.yml'
 
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      run: ${{ steps.filter.outputs.run }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            run:
-              - 'apps/truvera-api/**'
-              - 'packages/mcp-shared/**'
-              - 'package.json'
-              - 'package-lock.json'
-              - 'scripts/**'
-              - '.github/workflows/ci.yml'
-              - '.github/workflows/ci-server-reusable.yml'
-
   api:
-    needs: changes
     uses: ./.github/workflows/ci-server-reusable.yml
     permissions:
       actions: read
       contents: read
       security-events: write
     with:
-      should_run: ${{ needs.changes.outputs.run == 'true' }}
       job_name: Build and Test API Server
       build_script: npm run build:api
       test_script: npm run test -- --run
@@ -48,3 +43,4 @@ jobs:
       trivy_sarif_file: trivy-results.sarif
       trivy_scan_label: API Trivy Image Scan
       sarif_category: trivy-container-scan-api
+

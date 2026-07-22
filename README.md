@@ -11,9 +11,22 @@ A monorepo containing Model Context Protocol (MCP) servers for Truvera API integ
 | Server | Status | Description |
 |--------|--------|-------------|
 | [`apps/truvera-api`](apps/truvera-api/README.md) | ✅ Production-ready | Verifiable credentials, DIDs, proof requests, schemas, profiles, AP2 mandates |
-| [`apps/wallet-server`](apps/wallet-server/README.md) | 🚧 Work in progress | Truvera Wallet SDK — hold credentials, DIDComm messaging, proof responses |
+| [`apps/wallet-server`](apps/wallet-server/README.md) | ✅ Production-ready | Truvera Wallet SDK — hold credentials, DIDComm messaging, proof responses |
 
-## Quickstart (5 minutes)
+## Two ways to run these servers
+
+There are two independent deployment models — pick whichever fits:
+
+| | **Self-hosted** | **Hosted (Truvera-run)** |
+|---|---|---|
+| Who runs the container | You, locally or on your own infra | Truvera's infra team (deployed via `terraform/` to ECS) |
+| Where it lives | `http://localhost:3000` (or wherever you deploy it) | `https://mcp-api.truvera.io` / `https://mcp-api-staging.truvera.io` (and the `mcp-wallet*` equivalents for the wallet server) |
+| Setup required | Clone this repo, `npm install`, run via Docker or Node | None — just point your AI assistant at the URL |
+| Best for | Local development, custom deployments, air-gapped environments, or a shared team key (see below) | Everyone else — no local server to run or keep up to date |
+
+Both models expose the same HTTP API and the same authentication model — see [Connecting to AI Assistants](#connecting-to-ai-assistants). The rest of this Quickstart covers **self-hosting**. If you just want to connect to the Truvera-hosted servers, skip straight to [docs/claude-desktop-setup.md](docs/claude-desktop-setup.md).
+
+## Quickstart (5 minutes) — self-hosting
 
 ### Prerequisites
 
@@ -35,6 +48,8 @@ npm install
 cp apps/truvera-api/.env.example apps/truvera-api/.env
 # Edit apps/truvera-api/.env and set your TRUVERA_API_KEY
 ```
+
+> **Is this step required?** Only if you want a shared key: setting `TRUVERA_API_KEY` here lets every client skip sending its own Authorization header (handy for a single-user or shared-team deployment). If you'd rather each person/client use their own key, you can leave this blank — see [Connecting to AI Assistants](#connecting-to-ai-assistants) for how per-client keys work.
 
 ### 3. Build and run with Docker (recommended)
 
@@ -63,18 +78,29 @@ MCP_MODE=http npm start    # HTTP transport (recommended)
 
 ## Connecting to AI Assistants
 
-Once the server is running in HTTP mode on port 3000:
+Once the server is running in HTTP mode on port 3000, connect your AI assistant to `http://localhost:3000/mcp` (self-hosted) or the Truvera-hosted URL (see [Two ways to run these servers](#two-ways-to-run-these-servers)).
+
+### Authentication: two options
+
+Every request to `/mcp` needs a Truvera API key, resolved one of two ways:
+
+1. **Shared server key (self-hosted only).** If you set `TRUVERA_API_KEY` in `apps/truvera-api/.env` (Quickstart step 2), the server uses it automatically for any request that doesn't supply its own key. This is the simplest option for a single user or a small team sharing one account — no header needed, so the plain "just paste a URL" client config (Option A below) works.
+2. **Per-client Authorization header.** Send `Authorization: Bearer <your-api-key>` with each connection. This always overrides the shared key when both are present, and it's the **only** option against the Truvera-hosted servers (`mcp-api.truvera.io` etc.), since those are multi-tenant and don't have a single shared key — each person authenticates with their own.
+
+If neither is present, the server rejects the request with a 401.
 
 ### Claude Desktop
 
-**Option A — Settings UI (recommended, no config file editing)**
+**Option A — Settings UI, no header (self-hosted with a shared key only)**
 
 1. Open Claude Desktop and go to **Settings → Integrations**
 2. Click **+ Add Integration**
 3. Enter a name (`Truvera`) and the URL: `http://localhost:3000/mcp`
 4. Click **Add**, then restart Claude Desktop
 
-**Option B — Manual config file** (if the Integrations UI is unavailable)
+This only works if the server has `TRUVERA_API_KEY` set (option 1 above) — the Integrations UI has no field for a custom header, so it can't carry a per-client key. If you need a per-client key (including for the Truvera-hosted servers), use Option B.
+
+**Option B — Manual config file, with a per-client key**
 
 Edit the config file for your OS:
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
@@ -86,32 +112,40 @@ Edit the config file for your OS:
   "mcpServers": {
     "truvera": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "http://localhost:3000/mcp", "--insecure"]
+      "args": [
+        "-y", "mcp-remote",
+        "http://localhost:3000/mcp",
+        "--insecure",
+        "--header", "Authorization: Bearer YOUR_API_KEY_HERE"
+      ]
     }
   }
 }
 ```
 
-Restart Claude Desktop after saving.
+Drop `--insecure` (it's only needed for a plain `http://` URL) and swap in the hosted URL if you're connecting to a Truvera-hosted server instead of self-hosting. Restart Claude Desktop after saving.
 
 ### VS Code (GitHub Copilot)
 
-> **Requires VS Code 1.99 or later** (released March 2025). The workspace config uses the native `type: "http"` MCP format which is not supported in older versions — tools will silently not appear. If you're on an older version, use the [Claude Desktop manual config](#option-b-manual-config) instead.
+> **Requires VS Code 1.99 or later** (released March 2025). The workspace config uses the native `type: "http"` MCP format which is not supported in older versions — tools will silently not appear. If you're on an older version, use the [Claude Desktop manual config](#option-b-manual-config-with-a-per-client-key) instead.
 
-The workspace `.vscode/mcp.json` is already configured. Start the server, then:
+The workspace `.vscode/mcp.json` is already configured with no header — this relies on the shared-key fallback, so it only works if you've set `TRUVERA_API_KEY` in `apps/truvera-api/.env`. Start the server, then:
 
 1. Open Copilot Chat (`Ctrl+Shift+I` / `Cmd+Shift+I`)
 2. Switch to **Agent** mode using the dropdown at the top of the chat pane (MCP tools are only available in Agent mode)
 3. The Truvera tools will be listed in the tools panel
 
-To add the server to your personal VS Code (all projects), open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and run **MCP: Open User Configuration**, then add:
+To use a per-client key instead (required for the Truvera-hosted servers), open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`), run **MCP: Open User Configuration**, and add:
 
 ```json
 {
   "servers": {
     "truvera": {
       "type": "http",
-      "url": "http://localhost:3000/mcp"
+      "url": "http://localhost:3000/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY_HERE"
+      }
     }
   }
 }
@@ -122,7 +156,7 @@ To add the server to your personal VS Code (all projects), open the Command Pale
 1. Open **Cursor Settings** (`Ctrl+,` / `Cmd+,`)
 2. Go to **Features → MCP**
 3. Click **+ Add new MCP server**
-4. Set type to **HTTP** and enter URL: `http://localhost:3000/mcp`
+4. Set type to **HTTP**, enter URL: `http://localhost:3000/mcp`, and (unless you're relying on the shared-key fallback) add a custom header `Authorization: Bearer YOUR_API_KEY_HERE`
 5. Save and restart Cursor
 
 ### What to try once connected
@@ -141,8 +175,8 @@ The AI will call the appropriate Truvera API tools and return real results. No c
 ## Troubleshooting
 
 **Server won't start**
-- Make sure `TRUVERA_API_KEY` is set in `apps/truvera-api/.env` (not blank, not the placeholder `your-api-key-here`).
 - Run `curl http://localhost:3000/health` — if that returns an error, check the Docker container logs: `docker logs truvera-mcp-service`.
+- Note that `TRUVERA_API_KEY` being unset is *not* a startup error in HTTP mode — it just means every client must send its own Authorization header (see [Authentication: two options](#authentication-two-options)). It's only required at startup in STDIO mode.
 
 **Claude doesn't show Truvera tools**
 - Restart Claude Desktop after adding the integration or editing the config file.
@@ -150,14 +184,15 @@ The AI will call the appropriate Truvera API tools and return real results. No c
 - In VS Code, make sure you're in **Agent** mode — MCP tools are invisible in Ask or Edit mode.
 
 **`--insecure` flag in the manual Claude Desktop config**
-- Only needed when using the `mcp-remote` fallback config (Option B). It allows `mcp-remote` to connect to a plain `http://` URL. It does **not** affect your Truvera API key security. The Settings UI method (Option A) does not require this flag.
+- Only needed when using the `mcp-remote` fallback config (Option B) against a plain `http://` URL (e.g. self-hosted on localhost). It allows `mcp-remote` to connect without TLS. Drop it for the Truvera-hosted `https://` URLs. It does **not** affect your Truvera API key security. The Settings UI method (Option A) doesn't use `mcp-remote` at all, so this flag never applies there.
 
 **Tools appear but calls fail with auth errors**
-- The API key in your `.env` may be for the wrong environment. Testnet keys only work with `https://api-testnet.truvera.io`; production keys with `https://api.truvera.com`. Check `TRUVERA_API_ENDPOINT` in your `.env`.
+- Your API key may be for the wrong environment. Testnet keys only work with `https://api-testnet.truvera.io`; production keys with `https://api.truvera.com`. Check `TRUVERA_API_ENDPOINT` in `apps/truvera-api/.env` (self-hosted) or confirm which environment your key was issued for (hosted).
+- Double check whether you're relying on the shared-key fallback or a per-client header — a stale/wrong key in either place produces the same error.
 
 ## MCP Inspector (Shared for All Servers)
 
-Use MCP Inspector to debug or manually exercise tools from any MCP server in this repo (for example, `apps/truvera-api` now, and `apps/wallet-server` as it matures).
+Use MCP Inspector to debug or manually exercise tools from any MCP server in this repo.
 
 ### 1. Start the Inspector UI
 
@@ -174,7 +209,7 @@ npm run docker:run:api
 # or: cd apps/truvera-api && MCP_MODE=http npm run dev
 ```
 
-Wallet server (HTTP mode, work in progress):
+Wallet server (HTTP mode):
 
 ```bash
 cd apps/wallet-server
@@ -187,7 +222,8 @@ MCP_MODE=http npm run dev
 2. Choose Streamable HTTP transport
 3. Connect to the target server endpoint:
     - Truvera API: `http://localhost:3000/mcp`
-    - Wallet server: `http://localhost:3010/mcp` (if `MCP_PORT=3010`)
+    - Wallet server: `http://localhost:3001/mcp` by default (the *host* port shifts if you run it via `docker:run:wallet` and 3001 is busy — the container's internal `MCP_PORT` stays 3001 unless you override it)
+4. If the server requires auth (a per-client header or, for the wallet server, a JWT), add it as a custom header in Inspector's connection settings.
 
 If connection fails, check the target server health endpoint first (`/health`) and confirm ports/env values.
 
@@ -197,9 +233,10 @@ If connection fails, check the target server health endpoint first (`/health`) a
 truvera-mcp-server/
 ├── apps/
 │   ├── truvera-api/       # ✅ Truvera REST API MCP server (production-ready)
-│   └── wallet-server/     # 🚧 Wallet SDK MCP server (work in progress)
+│   └── wallet-server/     # ✅ Wallet SDK MCP server (production-ready)
 ├── packages/
-│   └── mcp-shared/        # Shared MCP server bootstrap utilities
+│   └── mcp-shared/        # Shared MCP server bootstrap, transport, and auth utilities
+├── terraform/             # Hosted (Truvera-run) ECS deployment for both servers
 ├── .vscode/               # VS Code tasks, launch configs, MCP server config
 ├── docker-compose.yml     # Compose file for running the truvera-api service
 └── README.md              # This file
@@ -228,7 +265,7 @@ See [apps/truvera-api/README.md](apps/truvera-api/README.md) for full documentat
 
 ## CI/CD
 
-GitHub Actions builds all apps, runs unit and integration tests, and performs a smoke test on every push. See [.github/workflows/ci.yml](.github/workflows/ci.yml) for details.
+Each server has its own GitHub Actions workflow, triggered only by changes to that server (or shared code): [.github/workflows/ci.yml](.github/workflows/ci.yml) for `truvera-api` (unit tests only) and [.github/workflows/ci-wallet.yml](.github/workflows/ci-wallet.yml) for `wallet-server` (unit + integration tests). Both build the Docker image and run a Trivy image scan.
 
 Docker image publishing uses two tag policies:
 - `latest` is pushed only when a GitHub Release is published from the `master` branch (stable release image).

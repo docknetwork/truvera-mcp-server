@@ -6,7 +6,7 @@ import {
 import { startHTTPTransport } from "../transport/http/index.js";
 import { startStdioTransport } from "../transport/stdio/index.js";
 import { createListToolsHandler, createCallToolHandler } from "./handlers.js";
-import type { ServerConfig, TransportConfig } from "./types.js";
+import type { ServerConfig, TransportConfig, AuthContext } from "./types.js";
 
 /**
  * Bootstrap an MCP server with the given configuration
@@ -24,21 +24,26 @@ export async function bootstrapMCPServer(
   serverConfig: ServerConfig,
   transportConfig: TransportConfig
 ): Promise<void> {
-  const { name, version, buildInfo, tools, toolHandlers } = serverConfig;
+  const { name, version, buildInfo, tools, toolHandlers, toolHandlerFactory } = serverConfig;
 
-  // Factory function to create a configured MCP server
-  const createServer = () => {
-    const server = new McpServer({
-      name,
-      version,
-    });
+  if (!toolHandlers && !toolHandlerFactory) {
+    throw new Error("ServerConfig requires either toolHandlers or toolHandlerFactory");
+  }
+
+  // Factory function to create a configured MCP server for a given auth context.
+  // In HTTP mode this is called once per session; in stdio mode it is called once at startup.
+  const createServer = async (context: AuthContext) => {
+    const handlers = toolHandlerFactory
+      ? await toolHandlerFactory(context)
+      : toolHandlers!;
+
+    const server = new McpServer({ name, version });
 
     // Validate that every declared tool has a handler.
     // Tool discovery/execution is handled by our explicit request handlers below,
     // which allows feature modules to continue supplying JSON Schema inputSchema.
     for (const tool of tools) {
-      const handler = toolHandlers.get(tool.name);
-      if (!handler) {
+      if (!handlers.get(tool.name)) {
         console.error(`No handler found for tool: ${tool.name}`);
       }
     }
@@ -60,7 +65,7 @@ export async function bootstrapMCPServer(
     server.server.setRequestHandler(
       CallToolRequestSchema,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      createCallToolHandler(toolHandlers) as any
+      createCallToolHandler(handlers) as any
     );
 
     return server;
@@ -75,9 +80,12 @@ export async function bootstrapMCPServer(
       BUILD_INFO: buildInfo,
       tools,
       serviceName: name,
+      authConfig: transportConfig.authConfig,
+      adminRevoke: transportConfig.adminRevoke,
     });
   } else {
-    const server = createServer();
+    // stdio is always single-tenant; resolve with no-auth context
+    const server = await createServer({ mode: "none" });
     await startStdioTransport({
       server,
       BUILD_INFO: buildInfo,

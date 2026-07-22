@@ -1,13 +1,29 @@
 import "dotenv/config";
+import path from "node:path";
+import { LocalStorage } from "node-localstorage";
 import { blockchainService } from "@docknetwork/wallet-sdk-wasm/lib/services/blockchain/service.js";
 import { bootstrapMCPServer } from "@truvera/mcp-shared/server";
+import type { AuthConfig, AuthContext } from "@truvera/mcp-shared/auth";
+import type { ToolHandler } from "@truvera/mcp-shared/tools";
 import { BUILD_INFO } from "./build-info.js";
-import { WalletClient } from "./wallet-client.js";
+import { WalletClientPool } from "./wallet-client-pool.js";
+import { RevocationStore } from "./revocation-store.js";
 import { DIDClient, didToolDefs, getDIDHandlers } from "./features/dids/index.js";
 import { CredentialClient, credentialToolDefs, getCredentialHandlers } from "./features/credentials/index.js";
 import { MessageClient, messageToolDefs, getMessageHandlers } from "./features/messages/index.js";
 import { AgentCardClient, agentCardToolDefs, getAgentCardHandlers } from "./features/agent-card/index.js";
 import { DelegationClient, delegationToolDefs, getDelegationHandlers } from "./features/delegation/index.js";
+
+// wallet-sdk-wasm's storageService calls global.localStorage for DID resolution
+// caching during BBS+ proof generation (see cached-did-resolver.js). Node.js has
+// no native localStorage, so we use node-localstorage. Cache entries are keyed
+// `did-cache:<did>` and hold the public, on-chain DID document for that DID — the
+// same value regardless of which tenant resolved it — so one shared cache across
+// all sessions is intentional, not a per-tenant isolation gap. It gets its own
+// path (independent of any tenant's wallet database) so it isn't tied to
+// WALLET_DB_PATH_RESOLVED, which is only meaningful in non-JWT mode.
+const DID_CACHE_PATH = process.env.DID_CACHE_PATH || "/data/did-cache";
+(globalThis as any).localStorage = new LocalStorage(DID_CACHE_PATH);
 
 const WALLET_DB_PATH_RESOLVED = process.env.WALLET_DB_PATH || "/data/wallet-db";
 
@@ -17,15 +33,10 @@ const WALLET_DB_PATH_RESOLVED = process.env.WALLET_DB_PATH || "/data/wallet-db";
 // processes them, so publicKeyBase58 is always reachable.
 function normalizeDIDDocument(doc: any): any {
   if (!doc || typeof doc !== "object") return doc;
-  // Clone before mutating — the resolver caches documents in node-localstorage and
-  // deserialises them on each cache hit, so mutating in place would cause a fresh
-  // copy to be processed again on the next resolution of the same DID, accumulating
-  // duplicate entries in verificationMethod.
-  const result = structuredClone(doc);
   const extra: any[] = [];
   for (const prop of ["assertionMethod", "authentication", "capabilityInvocation", "capabilityDelegation"]) {
-    if (!Array.isArray(result[prop])) continue;
-    result[prop] = result[prop].map((entry: any) => {
+    if (!Array.isArray(doc[prop])) continue;
+    doc[prop] = doc[prop].map((entry: any) => {
       if (typeof entry !== "string") return entry;
       try {
         // cheqd DID documents can be double-JSON-encoded (string → string → object)
@@ -41,31 +52,77 @@ function normalizeDIDDocument(doc: any): any {
       return entry;
     });
   }
-  if (extra.length) result.verificationMethod = [...(result.verificationMethod ?? []), ...extra];
-  return result;
+  if (extra.length) doc.verificationMethod = [...(doc.verificationMethod ?? []), ...extra];
+  return doc;
 }
 const _origResolve = blockchainService.resolver.resolve.bind(blockchainService.resolver);
 (blockchainService.resolver as any).resolve = async (did: string) => normalizeDIDDocument(await _origResolve(did));
 
 // Configuration from environment variables
 const MCP_PORT = parseInt(process.env.MCP_PORT || "3001", 10);
-const MCP_MODE = process.env.MCP_MODE || "stdio"; // "stdio" or "http"
-const WALLET_NAME = process.env.WALLET_NAME || "mcp-wallet";
-const CHEQD_NETWORK = process.env.CHEQD_NETWORK || "testnet"; // "testnet" or "mainnet"
+const MCP_MODE = process.env.MCP_MODE || "stdio";
+const CHEQD_NETWORK = process.env.CHEQD_NETWORK || "testnet";
+const MCP_AUTH_MODE = process.env.MCP_AUTH_MODE || "none";
+// Base directory for per-tenant wallet databases (JWT mode only)
+const WALLET_DB_BASE_PATH = process.env.WALLET_DB_BASE_PATH || "/data/wallets";
+// Public key for verifying tenant JWTs (required when MCP_AUTH_MODE=jwt)
+const MCP_JWT_PUBLIC_KEY = process.env.MCP_JWT_PUBLIC_KEY;
+// SQLite file tracking per-tenant revocation cutoffs (JWT mode only). Kept
+// separate from any tenant's own wallet database — see revocation-store.ts.
+const WALLET_REVOCATIONS_DB_PATH = process.env.WALLET_REVOCATIONS_DB_PATH || "/data/revocations.db";
+// Shared secret for POST /admin/revoke-tenant. Required to expose that route;
+// if unset, JWT auth still works but tenants cannot be revoked before expiry.
+const ADMIN_REVOKE_SECRET = process.env.ADMIN_REVOKE_SECRET;
 
-// Validate required environment variables
-const WALLET_MASTER_KEY = process.env.WALLET_MASTER_KEY;
-if (!WALLET_MASTER_KEY) {
-  console.error("Warning: WALLET_MASTER_KEY not set. Wallet operations may be limited.");
-  console.error("Set WALLET_MASTER_KEY environment variable for full functionality.");
+if (MCP_AUTH_MODE === "jwt" && !MCP_JWT_PUBLIC_KEY) {
+  console.error("Fatal: MCP_JWT_PUBLIC_KEY is required when MCP_AUTH_MODE=jwt");
+  process.exit(1);
 }
 
-// Initialize wallet and clients
-async function initializeClients() {
-  const walletClient = new WalletClient(WALLET_NAME, CHEQD_NETWORK, WALLET_DB_PATH_RESOLVED);
-  await walletClient.initialize();
+if (!process.env.WALLET_MASTER_KEY) {
+  console.error("Warning: WALLET_MASTER_KEY not set. Wallet operations may be limited.");
+}
 
+const revocationStore = MCP_AUTH_MODE === "jwt" ? new RevocationStore(WALLET_REVOCATIONS_DB_PATH) : undefined;
+
+if (MCP_AUTH_MODE === "jwt" && MCP_MODE === "http" && !ADMIN_REVOKE_SECRET) {
+  console.error("Warning: ADMIN_REVOKE_SECRET not set. Tenant JWTs cannot be revoked before they expire.");
+}
+
+// Resolve auth config for the transport layer
+const authConfig: AuthConfig = MCP_AUTH_MODE === "jwt"
+  ? {
+      mode: "jwt",
+      publicKeyPem: MCP_JWT_PUBLIC_KEY!,
+      isRevoked: (tenantId, issuedAt) => revocationStore!.isRevoked(tenantId, issuedAt),
+    }
+  : { mode: "none" };
+
+// Single wallet pool shared across all sessions
+const walletPool = new WalletClientPool();
+
+// Track active MessageClients so we can stop background timers on shutdown
+const activeMessageClients = new Set<MessageClient>();
+
+// Per-session handler factory. Receives the resolved AuthContext and returns
+// a handler map wired to the correct tenant wallet.
+async function toolHandlerFactory(context: AuthContext): Promise<Map<string, ToolHandler>> {
+  let dbPath = WALLET_DB_PATH_RESOLVED;
+  if (context.mode === "jwt") {
+    if (!/^[a-zA-Z0-9._-]+$/.test(context.tenantId)) {
+      throw new Error("Invalid tenantId in JWT sub claim");
+    }
+    const resolved = path.resolve(WALLET_DB_BASE_PATH, context.tenantId);
+    const base = path.resolve(WALLET_DB_BASE_PATH);
+    if (!resolved.startsWith(base + path.sep)) {
+      throw new Error("Invalid tenantId path traversal");
+    }
+    dbPath = resolved;
+  }
+
+  const walletClient = await walletPool.get(dbPath, CHEQD_NETWORK);
   const wallet = walletClient.getWallet();
+
   const didClient = new DIDClient(wallet);
   // Share the DID provider across clients to avoid redundant provider instances
   const didProvider = await didClient.getProvider();
@@ -74,30 +131,36 @@ async function initializeClients() {
   const agentCardClient = new AgentCardClient(didClient);
   const delegationClient = new DelegationClient(wallet);
 
-  return { walletClient, didClient, credentialClient, messageClient, agentCardClient, delegationClient };
-}
+  activeMessageClients.add(messageClient);
 
-// Start server using bootstrap
-async function main() {
-  console.error("Starting Wallet MCP Server...");
-  console.error(`  - Mode: ${MCP_MODE}`);
-  
-  const { didClient, credentialClient, messageClient, agentCardClient, delegationClient } = await initializeClients();
-
-  // Build tools and handlers
-  const tools = [...didToolDefs, ...credentialToolDefs, ...messageToolDefs, ...delegationToolDefs, ...agentCardToolDefs];
-  const toolHandlers = new Map([
+  return new Map([
     ...getDIDHandlers(didClient),
     ...getCredentialHandlers(credentialClient),
     ...getMessageHandlers(messageClient),
     ...getDelegationHandlers(delegationClient),
     ...getAgentCardHandlers(agentCardClient),
   ]);
+}
+
+async function main() {
+  console.error("Starting Wallet MCP Server...");
+  console.error(`  - Mode: ${MCP_MODE}`);
+  console.error(`  - Auth: ${MCP_AUTH_MODE}`);
+
+  const tools = [
+    ...didToolDefs,
+    ...credentialToolDefs,
+    ...messageToolDefs,
+    ...delegationToolDefs,
+    ...agentCardToolDefs,
+  ];
 
   console.error(`  - Tools available: ${tools.length}`);
 
   const shutdown = async () => {
-    await messageClient.stop();
+    await Promise.all([...activeMessageClients].map((c) => c.stop()));
+    await walletPool.shutdownAll();
+    await revocationStore?.close();
     process.exit(0);
   };
   process.on("SIGTERM", shutdown);
@@ -109,11 +172,16 @@ async function main() {
       version: BUILD_INFO.version,
       buildInfo: BUILD_INFO,
       tools,
-      toolHandlers,
+      toolHandlerFactory,
     },
     {
       mode: MCP_MODE as "stdio" | "http",
       port: MCP_PORT,
+      authConfig,
+      adminRevoke:
+        MCP_AUTH_MODE === "jwt" && ADMIN_REVOKE_SECRET
+          ? { secret: ADMIN_REVOKE_SECRET, onRevoke: (tenantId) => revocationStore!.revoke(tenantId) }
+          : undefined,
     }
   );
 }
