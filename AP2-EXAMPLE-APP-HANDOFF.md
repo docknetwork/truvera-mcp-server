@@ -1,8 +1,22 @@
 # AP2 example app — handoff
 
 Written to pick this work back up in a fresh session. Two parts: (1) what's
-already done and its current state across repos, (2) a proposed plan for the
-actual Next.js example app, which hasn't been started yet.
+already done and its current state across repos, (2) the plan for the
+Next.js example app.
+
+**Status as of 2026-07-23: built and validated end-to-end.** The app lives
+at `/home/mparkhill/dock/ap2-example-app` (new standalone repo, 12 commits).
+All 9 phases in Part 2 below are done, including Phase 8 (the real
+end-to-end run against the live Anthropic API + live MCP servers) — see
+that app's own README and commit history for detail. One real bug was
+found and fixed only by actually running the agent: `wallet-server` and
+`truvera-api` both expose a `create_did` tool (wallet-side vs.
+Truvera-account-side), and combining their full tool lists into one
+Anthropic request 400s ("Tool names must be unique") — fixed by scoping
+each MCP server to an explicit allowlist of the tools this agent's flow
+actually calls. After that fix, a live run completed the full mandate
+lifecycle with all four Credential Provider verification checks true and
+a verified signed Payment Receipt.
 
 ## Part 1: What's done — AP2 v0.1 → v0.2 migration + schema dedup
 
