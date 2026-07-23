@@ -107,4 +107,15 @@ declare module "@docknetwork/ap2" {
 
   export function computeCheckoutHash(checkoutJwt: string, sdAlg?: string): string;
   export function computeDisclosureDigest(encodedDisclosure: string, sdAlg?: string): string;
+
+  export function resolveOpenPaymentMandateContent(
+    presentation: string,
+    options?: { currentDate?: Date; clockTolerance?: number }
+  ): {
+    content: Record<string, unknown> & {
+      constraints: Array<{ type: string; [key: string]: unknown }>;
+      cnf: { jwk: Record<string, unknown> };
+    };
+    protectedHeader: Record<string, unknown>;
+  };
 }

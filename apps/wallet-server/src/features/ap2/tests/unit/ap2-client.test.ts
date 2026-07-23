@@ -104,3 +104,184 @@ describe("unit: AP2Client (real crypto, fake wallet provider)", () => {
     expect(paymentVerification.transactionIdVerified).toBe(true);
   });
 });
+
+describe("unit: AP2Client.issueClosedPaymentMandate (Open Payment Mandate constraint enforcement)", () => {
+  const merchant = { id: "merchant_1", name: "Demo Merchant", website: "https://demo-merchant.example" };
+  const otherMerchant = { id: "merchant_2", name: "Other Merchant" };
+  const instrument = { id: "card_1", type: "card", description: "Card ****4242" };
+  const otherInstrument = { id: "card_2", type: "card" };
+  const checkoutJwt = "eyJhbGciOiJFUzI1NiJ9.eyJvcmRlcl9pZCI6Im9yZGVyLTEifQ.sig";
+
+  async function setup(constraints: Array<{ type: string; [key: string]: unknown }>) {
+    const { provider, keyIdToKeypair } = createFakeProvider();
+    const client = new AP2Client(provider);
+    const user = await client.createSigningKey({ controller: "did:key:zUser" });
+    const agent = await client.createSigningKey({ controller: "did:key:zAgent" });
+
+    const openPayment = await client.issueOpenPaymentMandate({
+      keyId: user.keyId,
+      publicJwk: agent.publicJwk,
+      constraints: [...constraints, { type: "payment.reference", conditional_transaction_id: "digest-1" }],
+    });
+
+    return { client, user, agent, keyIdToKeypair, openMandatePresentation: openPayment.presentation };
+  }
+
+  it("rejects a paymentAmount over the payment.budget max", async () => {
+    const { client, agent, openMandatePresentation } = await setup([
+      { type: "payment.budget", max: 100, currency: "USD" },
+    ]);
+
+    await expect(
+      client.issueClosedPaymentMandate({
+        keyId: agent.keyId,
+        checkoutJwt,
+        payee: merchant,
+        paymentAmount: { amount: 101, currency: "USD" },
+        paymentInstrument: instrument,
+        nonce: "nonce-1",
+        openMandatePresentation,
+      })
+    ).rejects.toThrow(/payment\.budget/);
+  });
+
+  it("rejects a paymentAmount currency mismatching the payment.budget constraint", async () => {
+    const { client, agent, openMandatePresentation } = await setup([
+      { type: "payment.budget", max: 100, currency: "USD" },
+    ]);
+
+    await expect(
+      client.issueClosedPaymentMandate({
+        keyId: agent.keyId,
+        checkoutJwt,
+        payee: merchant,
+        paymentAmount: { amount: 50, currency: "EUR" },
+        paymentInstrument: instrument,
+        nonce: "nonce-1",
+        openMandatePresentation,
+      })
+    ).rejects.toThrow(/payment\.budget/);
+  });
+
+  it("rejects a paymentAmount outside a payment.amount_range constraint", async () => {
+    const { client, agent, openMandatePresentation } = await setup([
+      { type: "payment.amount_range", currency: "USD", min: 10, max: 100 },
+    ]);
+
+    await expect(
+      client.issueClosedPaymentMandate({
+        keyId: agent.keyId,
+        checkoutJwt,
+        payee: merchant,
+        paymentAmount: { amount: 5, currency: "USD" },
+        paymentInstrument: instrument,
+        nonce: "nonce-1",
+        openMandatePresentation,
+      })
+    ).rejects.toThrow(/payment\.amount_range/);
+  });
+
+  it("rejects a payee not in payment.allowed_payees", async () => {
+    const { client, agent, openMandatePresentation } = await setup([
+      { type: "payment.allowed_payees", allowed: [merchant] },
+    ]);
+
+    await expect(
+      client.issueClosedPaymentMandate({
+        keyId: agent.keyId,
+        checkoutJwt,
+        payee: otherMerchant,
+        paymentAmount: { amount: 50, currency: "USD" },
+        paymentInstrument: instrument,
+        nonce: "nonce-1",
+        openMandatePresentation,
+      })
+    ).rejects.toThrow(/payment\.allowed_payees/);
+  });
+
+  it("rejects a paymentInstrument not in payment.allowed_payment_instruments", async () => {
+    const { client, agent, openMandatePresentation } = await setup([
+      { type: "payment.allowed_payment_instruments", allowed: [instrument] },
+    ]);
+
+    await expect(
+      client.issueClosedPaymentMandate({
+        keyId: agent.keyId,
+        checkoutJwt,
+        payee: merchant,
+        paymentAmount: { amount: 50, currency: "USD" },
+        paymentInstrument: otherInstrument,
+        nonce: "nonce-1",
+        openMandatePresentation,
+      })
+    ).rejects.toThrow(/payment\.allowed_payment_instruments/);
+  });
+
+  it("accepts any payee/instrument/amount when no matching constraint is declared (no regression)", async () => {
+    const { client, agent, openMandatePresentation } = await setup([]);
+
+    const result = await client.issueClosedPaymentMandate({
+      keyId: agent.keyId,
+      checkoutJwt,
+      payee: otherMerchant,
+      paymentAmount: { amount: 999999, currency: "JPY" },
+      paymentInstrument: otherInstrument,
+      nonce: "nonce-1",
+      openMandatePresentation,
+    });
+
+    expect(result.presentation).toContain("~");
+  });
+
+  it("issues a verifiable Closed Payment Mandate when within budget and allow-lists", async () => {
+    const { client, agent, keyIdToKeypair, openMandatePresentation } = await setup([
+      { type: "payment.budget", max: 100, currency: "USD" },
+      { type: "payment.allowed_payees", allowed: [merchant] },
+      { type: "payment.allowed_payment_instruments", allowed: [instrument] },
+    ]);
+
+    const result = await client.issueClosedPaymentMandate({
+      keyId: agent.keyId,
+      checkoutJwt,
+      payee: merchant,
+      paymentAmount: { amount: 100, currency: "USD" },
+      paymentInstrument: instrument,
+      nonce: "nonce-1",
+      openMandatePresentation,
+    });
+
+    const agentPublicKeyBytes = keyIdToKeypair.get(agent.keyId).publicKey().value.bytes;
+    const verification = verifyClosedPaymentMandate(result.presentation, {
+      holderJwk: secp256r1PublicKeyToJwk(agentPublicKeyBytes),
+      checkoutJwt,
+      openMandatePresentation,
+    });
+    expect(verification.verified).toBe(true);
+  });
+
+  it("rejects closing with a key that doesn't match the Open Payment Mandate's cnf.jwk", async () => {
+    const { provider } = createFakeProvider();
+    const client = new AP2Client(provider);
+    const user = await client.createSigningKey({ controller: "did:key:zUser" });
+    const agent = await client.createSigningKey({ controller: "did:key:zAgent" });
+    const impostor = await client.createSigningKey({ controller: "did:key:zImpostor" });
+
+    const openPayment = await client.issueOpenPaymentMandate({
+      keyId: user.keyId,
+      publicJwk: agent.publicJwk,
+      constraints: [{ type: "payment.reference", conditional_transaction_id: "digest-1" }],
+    });
+
+    await expect(
+      client.issueClosedPaymentMandate({
+        keyId: impostor.keyId,
+        checkoutJwt,
+        payee: merchant,
+        paymentAmount: { amount: 50, currency: "USD" },
+        paymentInstrument: instrument,
+        nonce: "nonce-1",
+        openMandatePresentation: openPayment.presentation,
+      })
+    ).rejects.toThrow(/cnf\.jwk/);
+  });
+});
