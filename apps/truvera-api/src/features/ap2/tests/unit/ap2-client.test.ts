@@ -17,7 +17,10 @@ async function buildClosedPaymentMandatePresentation(agentKeypair: any, userKeyp
   const holderJwk = secp256r1PublicKeyToJwk(agentKeypair.publicKey());
   const openContent = buildOpenPaymentMandate({
     vct: "mandate.payment.open.1",
-    constraints: [{ type: "payment.allowed_payees", allowed: [MERCHANT] }],
+    constraints: [
+      { type: "payment.allowed_payees", allowed: [MERCHANT] },
+      { type: "payment.reference", conditional_transaction_id: "digest-1" },
+    ],
     cnf: { jwk: holderJwk },
   });
   const openPresentation = await signOpenPaymentMandate(openContent, { signer: userKeypair });

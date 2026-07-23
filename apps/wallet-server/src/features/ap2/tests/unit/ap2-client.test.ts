@@ -50,6 +50,10 @@ describe("unit: AP2Client (real crypto, fake wallet provider)", () => {
       keyId: user.keyId,
       publicJwk: agent.publicJwk,
       constraints: [
+        {
+          type: "checkout.line_items",
+          items: [{ id: "line_1", quantity: 1, acceptable_items: [{ id: "SKU-1", title: "Widget" }] }],
+        },
         { type: "checkout.allowed_merchants", allowed: [merchant] },
       ],
     });
@@ -74,7 +78,10 @@ describe("unit: AP2Client (real crypto, fake wallet provider)", () => {
     const openPayment = await client.issueOpenPaymentMandate({
       keyId: user.keyId,
       publicJwk: agent.publicJwk,
-      constraints: [{ type: "payment.allowed_payees", allowed: [merchant] }],
+      constraints: [
+        { type: "payment.allowed_payees", allowed: [merchant] },
+        { type: "payment.reference", conditional_transaction_id: "digest-1" },
+      ],
     });
 
     const closedPayment = await client.issueClosedPaymentMandate({
