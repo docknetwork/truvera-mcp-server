@@ -1,5 +1,18 @@
 # Simplifying the Open Mandate `constraints` schema — plan
 
+> **Status: implemented (both Option A and Option B).** One correction found
+> during implementation: `inputSchema` is not actually enforced at runtime
+> anywhere in this codebase (confirmed by reading `packages/mcp-shared`'s
+> request-handling code — `createCallToolHandler` invokes the handler with
+> raw, unvalidated `args`; only `@docknetwork/ap2`'s `buildOpen*Mandate`
+> validates, downstream, against the *protocol* schema, not this tool's
+> `inputSchema`). So Option A's tightened schema is exactly as valuable as
+> this plan says for guiding a tool-calling model, but it does not itself add
+> a new rejection path — nothing changes with respect to actual enforcement,
+> which still happens only inside `@docknetwork/ap2`. Kept as-written below
+> for the historical record; implementation details below the original
+> content.
+
 ## Motivation
 
 While building `ap2-example-app`'s Shopping Agent against several small
@@ -202,3 +215,35 @@ payee/instrument enforcement) — both land in the same
 `issue_open_checkout_mandate`/`issue_open_payment_mandate` request shapes, so
 worth sequencing together rather than as two independent PRs landing out of
 order.
+
+## Implementation notes
+
+Both options landed together in `apps/wallet-server/src/features/ap2/`:
+
+- **Option A**: `schemas.ts` replaced the generic `constraintsSchema` with
+  per-type discriminated-union schemas (`checkoutConstraintsSchema`,
+  `paymentConstraintsSchema`, `oneOf`-keyed on `type`), covering all 2
+  checkout and 8 payment constraint types (including `payment.allowed_pisps`,
+  not explicitly named in the "Option B" section above but included here for
+  completeness via the raw-constraints escape hatch). These are exported and
+  covered by direct `ajv`-based tests
+  (`tests/unit/ap2-constraints.test.ts`) confirming they accept well-formed
+  constraints and reject malformed ones — `ajv` was added as a wallet-server
+  devDependency for this (already a transitive dependency via
+  `@docknetwork/ap2`, now explicit).
+- **Option B**: `types.ts` added named fields (`lineItems`/`allowedMerchants`
+  for checkout; `reference`/`budget`/`allowedPayees`/
+  `allowedPaymentInstruments`/`amountRange`/`agentRecurrence`/`executionDate`
+  for payment), all optional, alongside the now-optional legacy `constraints`
+  array and a new `additionalConstraints` escape hatch. `client.ts` gained
+  `assembleCheckoutConstraints`/`assemblePaymentConstraints` (exported for
+  testability) that merge `constraints` + named fields + `additionalConstraints`,
+  in that order, into the same internal array `buildOpen*Mandate` has always
+  accepted — verified byte-for-byte equivalent to the hand-built array via
+  both direct unit tests and an end-to-end signed-content comparison
+  (`resolveOpenPaymentMandateContent` on both paths) in
+  `tests/unit/ap2-client.test.ts`.
+
+Backward compatible as designed: `constraints` remains accepted and is
+merged rather than replaced, so existing callers passing a raw array see no
+behavior change.
