@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { serializeSchema, createListToolsHandler, createCallToolHandler } from "../handlers.js";
-import type { ToolDef } from "../../tools/types.js";
+import type { ToolDef, ToolResult } from "../../tools/types.js";
 
 describe("serializeSchema", () => {
   it("should return empty object for null", () => {
@@ -233,5 +233,109 @@ describe("createCallToolHandler", () => {
     });
 
     expect(mockHandler).toHaveBeenCalledWith(complexArgs);
+  });
+});
+
+describe("createCallToolHandler with inputSchema validation", () => {
+  const tools: ToolDef[] = [
+    {
+      name: "schema_tool",
+      description: "A tool with an inputSchema",
+      inputSchema: {
+        type: "object",
+        properties: { name: { type: "string" }, count: { type: "integer" } },
+        required: ["name"],
+      },
+    },
+  ];
+
+  it("calls the handler when arguments satisfy the inputSchema", async () => {
+    const mockHandler = vi.fn().mockResolvedValue({ content: [{ type: "text", text: "ok" }] });
+    const toolHandlers = new Map([["schema_tool", mockHandler]]);
+
+    const handler = createCallToolHandler(toolHandlers, tools);
+    const result = await handler({
+      params: { name: "schema_tool", arguments: { name: "widget", count: 3 } },
+    });
+
+    expect(mockHandler).toHaveBeenCalledWith({ name: "widget", count: 3 });
+    expect(result).toEqual({ content: [{ type: "text", text: "ok" }] });
+  });
+
+  it("rejects arguments missing a required property without calling the handler", async () => {
+    const mockHandler = vi.fn().mockResolvedValue({ content: [{ type: "text", text: "ok" }] });
+    const toolHandlers = new Map([["schema_tool", mockHandler]]);
+
+    const handler = createCallToolHandler(toolHandlers, tools);
+    const result = (await handler({
+      params: { name: "schema_tool", arguments: { count: 3 } },
+    })) as ToolResult;
+
+    expect(mockHandler).not.toHaveBeenCalled();
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("schema_tool");
+    expect(result.content[0].text).toMatch(/name/);
+  });
+
+  it("rejects arguments with the wrong type without calling the handler", async () => {
+    const mockHandler = vi.fn().mockResolvedValue({ content: [{ type: "text", text: "ok" }] });
+    const toolHandlers = new Map([["schema_tool", mockHandler]]);
+
+    const handler = createCallToolHandler(toolHandlers, tools);
+    const result = (await handler({
+      params: { name: "schema_tool", arguments: { name: "widget", count: "not-a-number" } },
+    })) as ToolResult;
+
+    expect(mockHandler).not.toHaveBeenCalled();
+    expect(result.isError).toBe(true);
+  });
+
+  it("skips validation for a tool with no inputSchema (backward compatible)", async () => {
+    const mockHandler = vi.fn().mockResolvedValue({ content: [{ type: "text", text: "ok" }] });
+    const toolHandlers = new Map([["no_schema_tool", mockHandler]]);
+    const toolsWithoutSchema: ToolDef[] = [{ name: "no_schema_tool", description: "No schema" }];
+
+    const handler = createCallToolHandler(toolHandlers, toolsWithoutSchema);
+    await handler({ params: { name: "no_schema_tool", arguments: { anything: "goes" } } });
+
+    expect(mockHandler).toHaveBeenCalledWith({ anything: "goes" });
+  });
+
+  it("skips validation entirely when tools is omitted (backward compatible)", async () => {
+    const mockHandler = vi.fn().mockResolvedValue({ content: [{ type: "text", text: "ok" }] });
+    const toolHandlers = new Map([["schema_tool", mockHandler]]);
+
+    const handler = createCallToolHandler(toolHandlers);
+    await handler({ params: { name: "schema_tool", arguments: { anything: "goes" } } });
+
+    expect(mockHandler).toHaveBeenCalledWith({ anything: "goes" });
+  });
+
+  it("validates a call with no arguments against a schema with no required properties", async () => {
+    const mockHandler = vi.fn().mockResolvedValue({ content: [{ type: "text", text: "ok" }] });
+    const toolHandlers = new Map([["optional_tool", mockHandler]]);
+    const optionalTools: ToolDef[] = [
+      {
+        name: "optional_tool",
+        description: "All properties optional",
+        inputSchema: { type: "object", properties: { name: { type: "string" } } },
+      },
+    ];
+
+    const handler = createCallToolHandler(toolHandlers, optionalTools);
+    await handler({ params: { name: "optional_tool" } });
+
+    expect(mockHandler).toHaveBeenCalledWith(undefined);
+  });
+
+  it("rejects a call with no arguments against a schema with required properties", async () => {
+    const mockHandler = vi.fn().mockResolvedValue({ content: [{ type: "text", text: "ok" }] });
+    const toolHandlers = new Map([["schema_tool", mockHandler]]);
+
+    const handler = createCallToolHandler(toolHandlers, tools);
+    const result = (await handler({ params: { name: "schema_tool" } })) as ToolResult;
+
+    expect(mockHandler).not.toHaveBeenCalled();
+    expect(result.isError).toBe(true);
   });
 });
