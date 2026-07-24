@@ -2,7 +2,11 @@ import { describe, it, expect } from "vitest";
 import * as bs58 from "base58-universal";
 import { Secp256r1Keypair } from "@docknetwork/crypto-utils/keypairs";
 import { secp256r1PublicKeyToJwk } from "@docknetwork/crypto-utils/vc";
-import { verifyClosedCheckoutMandate, verifyClosedPaymentMandate } from "@docknetwork/ap2";
+import {
+  verifyClosedCheckoutMandate,
+  verifyClosedPaymentMandate,
+  resolveOpenPaymentMandateContent,
+} from "@docknetwork/ap2";
 import { AP2Client } from "../../client.js";
 import type { IDIDProvider } from "@docknetwork/wallet-sdk-core/lib/types.js";
 
@@ -283,5 +287,47 @@ describe("unit: AP2Client.issueClosedPaymentMandate (Open Payment Mandate constr
         openMandatePresentation: openPayment.presentation,
       })
     ).rejects.toThrow(/cnf\.jwk/);
+  });
+});
+
+describe("unit: AP2Client.issueOpenPaymentMandate (named-parameter constraint assembly)", () => {
+  const merchant = { id: "merchant_1", name: "Demo Merchant", website: "https://demo-merchant.example" };
+  const instrument = { id: "card_1", type: "card", description: "Card ****4242" };
+
+  it("produces identical signed mandate content via named fields as via the equivalent raw constraints array", async () => {
+    const { provider: providerA } = createFakeProvider();
+    const { provider: providerB } = createFakeProvider();
+    const clientA = new AP2Client(providerA);
+    const clientB = new AP2Client(providerB);
+
+    const userA = await clientA.createSigningKey({ controller: "did:key:zUserA" });
+    const agentA = await clientA.createSigningKey({ controller: "did:key:zAgentA" });
+    const userB = await clientB.createSigningKey({ controller: "did:key:zUserB" });
+    const agentB = await clientB.createSigningKey({ controller: "did:key:zAgentB" });
+
+    const viaNamedFields = await clientA.issueOpenPaymentMandate({
+      keyId: userA.keyId,
+      publicJwk: agentA.publicJwk,
+      reference: { conditionalTransactionId: "digest-1" },
+      budget: { max: 100, currency: "USD" },
+      allowedPayees: [merchant],
+      allowedPaymentInstruments: [instrument],
+    });
+
+    const viaRawConstraints = await clientB.issueOpenPaymentMandate({
+      keyId: userB.keyId,
+      publicJwk: agentB.publicJwk,
+      constraints: [
+        { type: "payment.budget", max: 100, currency: "USD" },
+        { type: "payment.allowed_payees", allowed: [merchant] },
+        { type: "payment.allowed_payment_instruments", allowed: [instrument] },
+        { type: "payment.reference", conditional_transaction_id: "digest-1" },
+      ],
+    });
+
+    const { content: contentA } = resolveOpenPaymentMandateContent(viaNamedFields.presentation);
+    const { content: contentB } = resolveOpenPaymentMandateContent(viaRawConstraints.presentation);
+
+    expect(contentA.constraints).toEqual(contentB.constraints);
   });
 });

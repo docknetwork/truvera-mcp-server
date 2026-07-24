@@ -54,7 +54,7 @@ export const ap2ToolDefs: ToolDef[] = [
     name: "issue_open_checkout_mandate",
     title: "Issue Open Checkout Mandate",
     description:
-      "Sign an AP2 Open Checkout Mandate (mandate.checkout.open.1) with a wallet-held key. Captures the user's constraints (allowed merchants, line items) before a specific cart is finalized, and endorses the key (cnf) that will later be used to close it — typically the Shopping Agent's key for human-not-present flows.",
+      "Sign an AP2 Open Checkout Mandate (mandate.checkout.open.1) with a wallet-held key. Captures the user's constraints before a specific cart is finalized, and endorses the key (cnf) that will later be used to close it — typically the Shopping Agent's key for human-not-present flows. Use lineItems and allowedMerchants for the common case; a line_items constraint is required by the mandate schema. Use constraints/additionalConstraints only for constraint types not covered by those two fields.",
     inputSchema: issueOpenCheckoutMandateSchema,
   },
   {
@@ -68,7 +68,7 @@ export const ap2ToolDefs: ToolDef[] = [
     name: "issue_open_payment_mandate",
     title: "Issue Open Payment Mandate",
     description:
-      "Sign an AP2 Open Payment Mandate (mandate.payment.open.1) with a wallet-held key. Captures the user's payment constraints (budget, allowed payees) and endorses the key that will later close it.",
+      "Sign an AP2 Open Payment Mandate (mandate.payment.open.1) with a wallet-held key. Captures the user's payment constraints and endorses the key that will later close it. Use reference, budget, allowedPayees, allowedPaymentInstruments, amountRange, agentRecurrence, and executionDate for the common cases; a payment.reference constraint (the reference field) is required by the mandate schema. Use constraints/additionalConstraints only for constraint types not covered by those named fields.",
     inputSchema: issueOpenPaymentMandateSchema,
   },
   {

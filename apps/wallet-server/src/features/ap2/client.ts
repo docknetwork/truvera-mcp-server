@@ -33,12 +33,85 @@ import type {
   IssueOpenPaymentMandateResult,
   IssueClosedPaymentMandateRequest,
   IssueClosedPaymentMandateResult,
+  MandateConstraint,
 } from "./types.js";
 
 const VCT_CHECKOUT_OPEN = "mandate.checkout.open.1";
 const VCT_CHECKOUT_CLOSED = "mandate.checkout.1";
 const VCT_PAYMENT_OPEN = "mandate.payment.open.1";
 const VCT_PAYMENT_CLOSED = "mandate.payment.1";
+
+// Assembles an Open Checkout Mandate's constraints array from the named
+// lineItems/allowedMerchants fields, merged with any raw constraints/
+// additionalConstraints supplied directly. Named fields are purely
+// ergonomic sugar over the same constraints array buildOpenCheckoutMandate
+// has always accepted -- the resulting shape is identical either way.
+export function assembleCheckoutConstraints(params: IssueOpenCheckoutMandateRequest): MandateConstraint[] {
+  const constraints: MandateConstraint[] = [...(params.constraints ?? [])];
+  if (params.lineItems) {
+    constraints.push({
+      type: "checkout.line_items",
+      items: params.lineItems.map((item) => ({
+        id: item.id,
+        quantity: item.quantity,
+        acceptable_items: item.acceptableItems,
+      })),
+    });
+  }
+  if (params.allowedMerchants) {
+    constraints.push({ type: "checkout.allowed_merchants", allowed: params.allowedMerchants });
+  }
+  constraints.push(...(params.additionalConstraints ?? []));
+  return constraints;
+}
+
+// Same idea as assembleCheckoutConstraints, for an Open Payment Mandate's
+// budget/allowedPayees/allowedPaymentInstruments/reference/amountRange/
+// agentRecurrence/executionDate fields.
+export function assemblePaymentConstraints(params: IssueOpenPaymentMandateRequest): MandateConstraint[] {
+  const constraints: MandateConstraint[] = [...(params.constraints ?? [])];
+  if (params.budget) {
+    constraints.push({ type: "payment.budget", max: params.budget.max, currency: params.budget.currency });
+  }
+  if (params.allowedPayees) {
+    constraints.push({ type: "payment.allowed_payees", allowed: params.allowedPayees });
+  }
+  if (params.allowedPaymentInstruments) {
+    constraints.push({ type: "payment.allowed_payment_instruments", allowed: params.allowedPaymentInstruments });
+  }
+  if (params.reference) {
+    constraints.push({
+      type: "payment.reference",
+      conditional_transaction_id: params.reference.conditionalTransactionId,
+    });
+  }
+  if (params.amountRange) {
+    constraints.push({
+      type: "payment.amount_range",
+      currency: params.amountRange.currency,
+      max: params.amountRange.max,
+      ...(params.amountRange.min !== undefined ? { min: params.amountRange.min } : {}),
+    });
+  }
+  if (params.agentRecurrence) {
+    constraints.push({
+      type: "payment.agent_recurrence",
+      frequency: params.agentRecurrence.frequency,
+      ...(params.agentRecurrence.maxOccurrences !== undefined
+        ? { max_occurrences: params.agentRecurrence.maxOccurrences }
+        : {}),
+    });
+  }
+  if (params.executionDate) {
+    constraints.push({
+      type: "payment.execution_date",
+      ...(params.executionDate.notBefore !== undefined ? { not_before: params.executionDate.notBefore } : {}),
+      ...(params.executionDate.notAfter !== undefined ? { not_after: params.executionDate.notAfter } : {}),
+    });
+  }
+  constraints.push(...(params.additionalConstraints ?? []));
+  return constraints;
+}
 
 type OpenPaymentMandateConstraint = { type: string; [key: string]: unknown };
 
@@ -121,7 +194,7 @@ export class AP2Client {
   async issueOpenCheckoutMandate(params: IssueOpenCheckoutMandateRequest): Promise<IssueOpenCheckoutMandateResult> {
     const content = buildOpenCheckoutMandate({
       vct: VCT_CHECKOUT_OPEN,
-      constraints: params.constraints,
+      constraints: assembleCheckoutConstraints(params),
       cnf: { jwk: params.publicJwk },
       ...(params.exp !== undefined ? { iat: Math.floor(Date.now() / 1000), exp: params.exp } : {}),
     });
@@ -149,7 +222,7 @@ export class AP2Client {
   async issueOpenPaymentMandate(params: IssueOpenPaymentMandateRequest): Promise<IssueOpenPaymentMandateResult> {
     const content = buildOpenPaymentMandate({
       vct: VCT_PAYMENT_OPEN,
-      constraints: params.constraints,
+      constraints: assemblePaymentConstraints(params),
       cnf: { jwk: params.publicJwk },
       ...(params.exp !== undefined ? { iat: Math.floor(Date.now() / 1000), exp: params.exp } : {}),
     });
