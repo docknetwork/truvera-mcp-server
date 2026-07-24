@@ -1,15 +1,19 @@
 import { describe, it, expect } from "vitest";
 import Ajv from "ajv";
-import { checkoutConstraintsSchema, paymentConstraintsSchema } from "../../schemas.js";
+import {
+  checkoutConstraintsSchema,
+  paymentConstraintsSchema,
+  issueOpenCheckoutMandateSchema,
+  issueOpenPaymentMandateSchema,
+} from "../../schemas.js";
 import { assembleCheckoutConstraints, assemblePaymentConstraints } from "../../client.js";
 
 // checkoutConstraintsSchema/paymentConstraintsSchema are the raw-constraints
-// escape hatch (Option A's discriminated union). Note: unlike
-// @docknetwork/ap2's own protocol schemas, this tool inputSchema is not
-// currently enforced at runtime by the MCP request-handling pipeline -- these
-// tests validate the schema's own correctness as a standalone JSON Schema
-// (does it accept well-formed constraints and reject malformed ones), not an
-// end-to-end tool-call rejection.
+// escape hatch (Option A's discriminated union). These, and the full
+// issueOpen*MandateSchema objects below, are now actually enforced at tool-call
+// time (via packages/mcp-shared's ajv-backed createCallToolHandler) -- these
+// tests validate the schemas' own correctness directly against ajv, the same
+// engine and config (`new Ajv({ allErrors: true, strict: false })`) used there.
 const ajv = new Ajv({ allErrors: true, strict: false });
 
 describe("unit: AP2 constraint schemas (Option A discriminated union)", () => {
@@ -20,10 +24,20 @@ describe("unit: AP2 constraint schemas (Option A discriminated union)", () => {
     const valid = validateCheckoutConstraints([
       {
         type: "checkout.line_items",
-        items: [{ id: "line_1", quantity: 1, acceptableItems: [{ id: "SKU-1", title: "Widget" }] }],
+        items: [{ id: "line_1", quantity: 1, acceptable_items: [{ id: "SKU-1", title: "Widget" }] }],
       },
     ]);
     expect(valid).toBe(true);
+  });
+
+  it("rejects a checkout.line_items constraint using the named-param camelCase acceptableItems instead of the protocol's acceptable_items", () => {
+    const valid = validateCheckoutConstraints([
+      {
+        type: "checkout.line_items",
+        items: [{ id: "line_1", quantity: 1, acceptableItems: [{ id: "SKU-1", title: "Widget" }] }],
+      },
+    ]);
+    expect(valid).toBe(false);
   });
 
   it("accepts a well-formed checkout.allowed_merchants constraint", () => {
@@ -162,5 +176,49 @@ describe("unit: AP2 constraint assembly (Option B named parameters)", () => {
     });
 
     expect(assembled).toEqual(rawConstraints);
+  });
+});
+
+describe("unit: AP2 mandate schemas' anyOf 'at least one' requirement", () => {
+  const validateOpenCheckout = ajv.compile(issueOpenCheckoutMandateSchema);
+  const validateOpenPayment = ajv.compile(issueOpenPaymentMandateSchema);
+  const publicJwk = { kty: "EC", crv: "P-256", x: "x", y: "y" };
+
+  it("rejects issue_open_checkout_mandate args with keyId/publicJwk but no lineItems/constraints/additionalConstraints", () => {
+    expect(validateOpenCheckout({ keyId: "key-1", publicJwk })).toBe(false);
+  });
+
+  const rawLineItemsConstraint = {
+    type: "checkout.line_items",
+    items: [{ id: "line_1", quantity: 1, acceptable_items: [{ id: "SKU-1", title: "Widget" }] }],
+  };
+
+  it.each([
+    { lineItems: [{ id: "line_1", quantity: 1, acceptableItems: [{ id: "SKU-1", title: "Widget" }] }] },
+    { constraints: [rawLineItemsConstraint] },
+    { additionalConstraints: [rawLineItemsConstraint] },
+  ])("accepts issue_open_checkout_mandate args satisfying anyOf via %j", (extra) => {
+    expect(validateOpenCheckout({ keyId: "key-1", publicJwk, ...extra })).toBe(true);
+  });
+
+  it("rejects issue_open_payment_mandate args with keyId/publicJwk but no reference/constraints/additionalConstraints", () => {
+    expect(validateOpenPayment({ keyId: "key-1", publicJwk })).toBe(false);
+  });
+
+  it.each([
+    { reference: { conditionalTransactionId: "digest-1" } },
+    { constraints: [{ type: "payment.reference", conditional_transaction_id: "digest-1" }] },
+    { additionalConstraints: [{ type: "payment.reference", conditional_transaction_id: "digest-1" }] },
+  ])("accepts issue_open_payment_mandate args satisfying anyOf via %j", (extra) => {
+    expect(validateOpenPayment({ keyId: "key-1", publicJwk, ...extra })).toBe(true);
+  });
+
+  it("validates the schemas' own worked examples", () => {
+    for (const example of (issueOpenCheckoutMandateSchema as { examples: unknown[] }).examples) {
+      expect(validateOpenCheckout(example)).toBe(true);
+    }
+    for (const example of (issueOpenPaymentMandateSchema as { examples: unknown[] }).examples) {
+      expect(validateOpenPayment(example)).toBe(true);
+    }
   });
 });

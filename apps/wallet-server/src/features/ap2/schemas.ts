@@ -4,7 +4,8 @@
 
 const p256JwkSchema = {
   type: "object" as const,
-  description: "The P-256 public JWK returned by create_ap2_signing_key, used as the mandate's cnf holder key.",
+  description:
+    "The P-256 public JWK returned by create_ap2_signing_key, used as the mandate's cnf holder key -- this is the key that will later CLOSE this mandate (typically the Shopping Agent's key, for human-not-present flows). This is deliberately a DIFFERENT identity from keyId, which signs/authorizes the mandate (typically the User).",
   properties: {
     kty: { type: "string", const: "EC" },
     crv: { type: "string", const: "P-256" },
@@ -28,7 +29,7 @@ const lineItemSchema = {
   type: "object" as const,
   properties: {
     id: { type: "string", description: "Unique identifier for this line item." },
-    quantity: { type: "integer", exclusiveMinimum: 0 },
+    quantity: { type: "integer", minimum: 1 },
     acceptableItems: {
       type: "array" as const,
       description: "Products that would satisfy this line item.",
@@ -45,6 +46,33 @@ const lineItemSchema = {
   required: ["id", "quantity", "acceptableItems"],
 };
 
+// Raw constraint objects (constraints/additionalConstraints) are passed
+// straight through to buildOpenCheckoutMandate unchanged -- no camelCase to
+// snake_case remapping happens for them the way it does for lineItems/
+// allowedMerchants below -- so this must mirror the AP2 protocol's own
+// field names (acceptable_items) exactly, not lineItemSchema's camelCase
+// (acceptableItems), which is only correct for the named lineItems param.
+const rawLineItemSchema = {
+  type: "object" as const,
+  properties: {
+    id: { type: "string", description: "Unique identifier for this line item." },
+    quantity: { type: "integer", minimum: 1 },
+    acceptable_items: {
+      type: "array" as const,
+      description: "Products that would satisfy this line item.",
+      items: {
+        type: "object" as const,
+        properties: {
+          id: { type: "string", description: "SKU or other unique product identifier." },
+          title: { type: "string" },
+        },
+        required: ["id", "title"],
+      },
+    },
+  },
+  required: ["id", "quantity", "acceptable_items"],
+};
+
 // Option A: a discriminated union (oneOf keyed on "type") replacing the
 // previous free-form `{type: string, ...}` passthrough, so a tool-calling
 // model gets the actual field names/shapes per constraint type instead of
@@ -56,7 +84,7 @@ const checkoutLineItemsConstraintSchema = {
   type: "object" as const,
   properties: {
     type: { const: "checkout.line_items" },
-    items: { type: "array" as const, minItems: 1, items: lineItemSchema },
+    items: { type: "array" as const, minItems: 1, items: rawLineItemSchema },
   },
   required: ["type", "items"],
 };
@@ -299,6 +327,25 @@ export const issueOpenCheckoutMandateSchema = {
     },
   },
   required: ["keyId", "publicJwk"],
+  // The mandate schema requires at least one checkout.line_items constraint --
+  // satisfiable via lineItems, or via a checkout.line_items entry inside
+  // constraints/additionalConstraints (not itself checked here; that's left
+  // to buildOpenCheckoutMandate's own validation, same as always).
+  anyOf: [{ required: ["lineItems"] }, { required: ["constraints"] }, { required: ["additionalConstraints"] }],
+  examples: [
+    {
+      keyId: "did:key:zUser#ap2-key-1",
+      publicJwk: { kty: "EC", crv: "P-256", x: "...", y: "..." },
+      lineItems: [
+        {
+          id: "line_1",
+          quantity: 1,
+          acceptableItems: [{ id: "SKU-1", title: "Wireless Mouse" }],
+        },
+      ],
+      allowedMerchants: [{ id: "merchant_1", name: "Acme Electronics", website: "https://acme.example" }],
+    },
+  ],
 };
 
 export const issueClosedCheckoutMandateSchema = {
@@ -347,6 +394,20 @@ export const issueOpenPaymentMandateSchema = {
     },
   },
   required: ["keyId", "publicJwk"],
+  // The mandate schema requires a payment.reference constraint -- satisfiable
+  // via reference, or via a payment.reference entry inside
+  // constraints/additionalConstraints (not itself checked here; that's left
+  // to buildOpenPaymentMandate's own validation, same as always).
+  anyOf: [{ required: ["reference"] }, { required: ["constraints"] }, { required: ["additionalConstraints"] }],
+  examples: [
+    {
+      keyId: "did:key:zUser#ap2-key-2",
+      publicJwk: { kty: "EC", crv: "P-256", x: "...", y: "..." },
+      reference: { conditionalTransactionId: "digest-1" },
+      budget: { max: 5000, currency: "USD" },
+      allowedPayees: [{ id: "merchant_1", name: "Acme Electronics", website: "https://acme.example" }],
+    },
+  ],
 };
 
 export const issueClosedPaymentMandateSchema = {
