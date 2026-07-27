@@ -12,7 +12,7 @@ describe("TruveraClient — per-session API key (passthrough auth)", () => {
     const mockFetch = vi.fn().mockResolvedValue(OK_RESPONSE);
     vi.stubGlobal("fetch", mockFetch);
 
-    const client = new TruveraClient("alice-api-key", "https://api.truvera.com");
+    const client = new TruveraClient("alice-api-key", "https://api.truvera.io");
     await client.request({ method: "GET", endpoint: "/dids" });
 
     const [, opts] = mockFetch.mock.calls[0];
@@ -25,8 +25,8 @@ describe("TruveraClient — per-session API key (passthrough auth)", () => {
     const mockFetch = vi.fn().mockResolvedValue(OK_RESPONSE);
     vi.stubGlobal("fetch", mockFetch);
 
-    await new TruveraClient("alice-key", "https://api.truvera.com").request({ method: "GET", endpoint: "/x" });
-    await new TruveraClient("bob-key", "https://api.truvera.com").request({ method: "GET", endpoint: "/x" });
+    await new TruveraClient("alice-key", "https://api.truvera.io").request({ method: "GET", endpoint: "/x" });
+    await new TruveraClient("bob-key", "https://api.truvera.io").request({ method: "GET", endpoint: "/x" });
 
     const aliceHeader = ((mockFetch.mock.calls[0][1] as RequestInit).headers as Record<string, string>).Authorization;
     const bobHeader = ((mockFetch.mock.calls[1][1] as RequestInit).headers as Record<string, string>).Authorization;
@@ -36,7 +36,7 @@ describe("TruveraClient — per-session API key (passthrough auth)", () => {
   });
 
   it("throws at construction time when the API key is empty", () => {
-    expect(() => new TruveraClient("", "https://api.truvera.com")).toThrow();
+    expect(() => new TruveraClient("", "https://api.truvera.io")).toThrow();
   });
 
   it("prefixes the endpoint with the configured base URL", async () => {

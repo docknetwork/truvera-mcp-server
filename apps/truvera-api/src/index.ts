@@ -10,7 +10,7 @@ import { AP2Client, ap2ToolDefs, getAP2Handlers } from "./features/ap2/index.js"
 
 dotenv.config();
 
-const API_ENDPOINT = process.env.TRUVERA_API_ENDPOINT || "https://api.truvera.com";
+const API_ENDPOINT = process.env.TRUVERA_API_ENDPOINT || "https://api.truvera.io";
 const MCP_PORT = parseInt(process.env.MCP_PORT || "3000", 10);
 const MCP_MODE = process.env.MCP_MODE || "stdio";
 const AP2_ENABLED = process.env.AP2_ENABLED !== "false";

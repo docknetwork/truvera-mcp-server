@@ -13,7 +13,7 @@ dotenv.config({ path: '.env.test', override: true });
 dotenv.config({ path: '.env.tests', override: true });
 
 const API_KEY = process.env.TRUVERA_API_KEY;
-const API_ENDPOINT = process.env.TRUVERA_API_ENDPOINT || 'https://api.truvera.com';
+const API_ENDPOINT = process.env.TRUVERA_API_ENDPOINT || 'https://api.truvera.io';
 const shouldRunE2E = !!API_KEY;
 
 const __filename = fileURLToPath(import.meta.url);

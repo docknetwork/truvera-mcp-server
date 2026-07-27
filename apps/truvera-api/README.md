@@ -21,7 +21,7 @@ cp .env.example .env
 # Open .env and set TRUVERA_API_KEY=<your key>
 ```
 
-The `.env.example` defaults to the testnet endpoint (`https://api-testnet.truvera.io`). Change `TRUVERA_API_ENDPOINT` to `https://api.truvera.com` for production.
+The `.env.example` defaults to the testnet endpoint (`https://api-testnet.truvera.io`). Change `TRUVERA_API_ENDPOINT` to `https://api.truvera.io` for production.
 
 > **Note:** in HTTP mode (the recommended mode), `TRUVERA_API_KEY` is optional — it's only used as a fallback for clients that don't send their own `Authorization: Bearer <key>` header. Set it if you want a single shared key for every client; leave it blank if each client should authenticate with its own key. See [Connecting to AI Assistants](../../README.md#connecting-to-ai-assistants) for both options. It's mandatory only in STDIO mode.
 
@@ -100,7 +100,7 @@ The server must be running in HTTP mode on port 3000 before connecting. Full con
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `TRUVERA_API_KEY` | In STDIO mode | — | Truvera API authentication key. In HTTP mode this is optional and only used as a fallback for clients that don't send their own `Authorization: Bearer <key>` header. |
-| `TRUVERA_API_ENDPOINT` | No | `https://api.truvera.com` | API base URL. Use `https://api-testnet.truvera.io` for testnet |
+| `TRUVERA_API_ENDPOINT` | No | `https://api.truvera.io` | API base URL. Use `https://api-testnet.truvera.io` for testnet |
 | `MCP_MODE` | No | `stdio` | Transport mode: `http` (recommended) or `stdio` (experimental) |
 | `MCP_PORT` | No | `3000` | HTTP server port (only used when `MCP_MODE=http`) |
 
