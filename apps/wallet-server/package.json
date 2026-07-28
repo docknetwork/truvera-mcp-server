@@ -22,8 +22,8 @@
     "admin:revoke-tenant": "node scripts/revoke-tenant.js"
   },
   "dependencies": {
-    "@docknetwork/ap2": "file:../../../sdk/packages/ap2",
-    "@docknetwork/crypto-utils": "file:../../../sdk/packages/crypto-utils",
+    "@docknetwork/ap2": "^0.4.2",
+    "@docknetwork/crypto-utils": "^0.2.3",
     "@docknetwork/wallet-sdk-core": "file:../../../wallet-sdk/packages/core",
     "@docknetwork/wallet-sdk-data-store": "file:../../../wallet-sdk/packages/data-store",
     "@docknetwork/wallet-sdk-data-store-typeorm": "file:../../../wallet-sdk/packages/data-store-typeorm",

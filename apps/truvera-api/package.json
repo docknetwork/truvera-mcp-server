@@ -19,15 +19,15 @@
     "docker:run": "docker rm -f truvera-api-mcp || true && docker run -d --name truvera-api-mcp --env-file ./.env -e MCP_MODE=http -e MCP_PORT=3000 -p 3000:3000 truvera-api-mcp:latest"
   },
   "dependencies": {
-    "@docknetwork/ap2": "file:../../../sdk/packages/ap2",
-    "@truvera/mcp-shared": "file:../../packages/mcp-shared",
+    "@docknetwork/ap2": "^0.4.2",
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "@truvera/mcp-shared": "file:../../packages/mcp-shared",
     "dotenv": "^16.6.1",
     "qrcode": "^1.5.4",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
-    "@docknetwork/crypto-utils": "file:../../../sdk/packages/crypto-utils",
+    "@docknetwork/crypto-utils": "^0.2.3",
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^8.56.1",
     "@typescript-eslint/parser": "^8.56.1",

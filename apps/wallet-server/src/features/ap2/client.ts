@@ -115,6 +115,13 @@ export function assemblePaymentConstraints(params: IssueOpenPaymentMandateReques
 
 type OpenPaymentMandateConstraint = { type: string; [key: string]: unknown };
 
+// resolveOpenPaymentMandateContent's real return type is untyped (`object`) since
+// @docknetwork/ap2 is JSDoc-typed; this narrows to the shape this client relies on.
+type OpenPaymentMandateContent = {
+  constraints: OpenPaymentMandateConstraint[];
+  cnf: { jwk: Record<string, unknown> };
+};
+
 function findConstraint(constraints: OpenPaymentMandateConstraint[], type: string) {
   return constraints.find((c) => c.type === type);
 }
@@ -233,7 +240,9 @@ export class AP2Client {
   }
 
   async issueClosedPaymentMandate(params: IssueClosedPaymentMandateRequest): Promise<IssueClosedPaymentMandateResult> {
-    const { content: openContent } = resolveOpenPaymentMandateContent(params.openMandatePresentation);
+    const { content: openContent } = resolveOpenPaymentMandateContent(params.openMandatePresentation) as {
+      content: OpenPaymentMandateContent;
+    };
     enforceOpenPaymentMandateConstraints(openContent.constraints, params);
 
     const transactionId = computeCheckoutHash(params.checkoutJwt);

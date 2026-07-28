@@ -328,6 +328,6 @@ describe("unit: AP2Client.issueOpenPaymentMandate (named-parameter constraint as
     const { content: contentA } = resolveOpenPaymentMandateContent(viaNamedFields.presentation);
     const { content: contentB } = resolveOpenPaymentMandateContent(viaRawConstraints.presentation);
 
-    expect(contentA.constraints).toEqual(contentB.constraints);
+    expect((contentA as { constraints: unknown }).constraints).toEqual((contentB as { constraints: unknown }).constraints);
   });
 });

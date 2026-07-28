@@ -35,7 +35,7 @@ export class AP2Client {
         ? {
             transactionIdVerified: paymentResult.transactionIdVerified,
             sdHashVerified: paymentResult.sdHashVerified,
-            paymentMandateContent: paymentResult.content,
+            paymentMandateContent: paymentResult.content as Record<string, unknown> | undefined,
           }
         : { paymentMandateError: paymentResult.error?.message }),
     };
@@ -47,7 +47,7 @@ export class AP2Client {
       });
       result.checkoutMandateVerified = checkoutResult.verified;
       if (checkoutResult.verified) {
-        result.checkoutMandateContent = checkoutResult.content;
+        result.checkoutMandateContent = checkoutResult.content as Record<string, unknown> | undefined;
       } else {
         result.checkoutMandateError = checkoutResult.error?.message;
       }
