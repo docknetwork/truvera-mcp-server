@@ -107,8 +107,10 @@ export function createCallToolHandler(
         };
       }
 
+      const normalizedArgs = args ?? {};
+
       const validate = validators.get(name);
-      if (validate && !validate(args ?? {})) {
+      if (validate && !validate(normalizedArgs)) {
         const message = `Invalid arguments for tool "${name}": ${formatValidationErrors(validate.errors)}`;
         console.error(message);
         return {
@@ -122,7 +124,7 @@ export function createCallToolHandler(
         };
       }
 
-      return await handler(args);
+      return await handler(normalizedArgs);
     } catch (err) {
       console.error('Error handling CallToolRequest:', err);
       return {

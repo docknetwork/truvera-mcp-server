@@ -59,7 +59,7 @@ log("0d. create_ap2_signing_key (Agent)", agentKey);
 // --- Step 1: Open Checkout Mandate (User) ---
 const openCheckout = await callTool(wallet, "issue_open_checkout_mandate", {
   keyId: userKey.keyId,
-  publicJwk: userKey.publicJwk,
+  publicJwk: agentKey.publicJwk,
   constraints: [
     {
       type: "checkout.line_items",
@@ -102,7 +102,7 @@ const conditionalTransactionId = computeSdHash(parseSdJwtPresentation(openChecko
 const BUDGET_MINOR_UNITS = 10000; // $100.00, ISO-4217 minor units per schema
 const openPayment = await callTool(wallet, "issue_open_payment_mandate", {
   keyId: userKey.keyId,
-  publicJwk: userKey.publicJwk,
+  publicJwk: agentKey.publicJwk,
   constraints: [
     { type: "payment.budget", max: BUDGET_MINOR_UNITS, currency: "USD" },
     { type: "payment.reference", conditional_transaction_id: conditionalTransactionId },
@@ -131,8 +131,8 @@ log("5. issue_closed_payment_mandate", closedPayment);
 
 // --- Step 6: Credential Provider verifies + issues payment token ---
 // holderJwk verifies the presentation's outer JWS signature, which is made
-// by the Shopping Agent's key (Closed mandates are agent-signed), not the
-// User's -- the User's key only appears inside the Open mandate's `cnf`.
+// by the Shopping Agent's key (Closed mandates are agent-signed) -- the same
+// key that was set as the Open mandate's `cnf` so the Agent could close it.
 const paymentToken = await callTool(credProvider, "issue_payment_token", {
   closedPaymentMandatePresentation: closedPayment.presentation,
   holderJwk: agentKey.publicJwk,

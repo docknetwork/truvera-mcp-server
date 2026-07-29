@@ -205,7 +205,7 @@ describe("createCallToolHandler", () => {
       },
     });
 
-    expect(mockHandler).toHaveBeenCalledWith(undefined);
+    expect(mockHandler).toHaveBeenCalledWith({});
   });
 
   it("should handle complex argument structures", async () => {
@@ -325,7 +325,7 @@ describe("createCallToolHandler with inputSchema validation", () => {
     const handler = createCallToolHandler(toolHandlers, optionalTools);
     await handler({ params: { name: "optional_tool" } });
 
-    expect(mockHandler).toHaveBeenCalledWith(undefined);
+    expect(mockHandler).toHaveBeenCalledWith({});
   });
 
   it("rejects a call with no arguments against a schema with required properties", async () => {
