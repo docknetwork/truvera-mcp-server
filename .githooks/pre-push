@@ -1,12 +1,18 @@
 #!/bin/sh
 set -e
 
-# npm audit hits the registry over the network, so it belongs here (once per
-# push) rather than in pre-commit (every commit). Only runs when this push
-# actually changes package-lock.json.
+# Runs once per push rather than per commit: the checks below (lint/typecheck/
+# test/test:integration, npm audit) are a meaningful chunk of time — running
+# them on every local commit (including WIP/fixup commits before a rebase) is
+# a lot of friction for a check whose job is "don't let broken code leave the
+# machine," not "every commit must be green." CI re-validates everything again
+# on push regardless.
 
 z40=0000000000000000000000000000000000000000
 LOCKFILE_CHANGED=0
+WALLET_CHANGED=0
+API_CHANGED=0
+SHARED_CHANGED=0
 
 while read -r local_ref local_sha remote_ref remote_sha; do
   # Deleting a ref — nothing to check
@@ -15,21 +21,73 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   fi
 
   if [ "$remote_sha" = "$z40" ]; then
-    # New branch/tag on the remote — no prior state to diff against, so just
-    # check whether package-lock.json exists at the tip being pushed.
-    if git ls-tree -r --name-only "$local_sha" | grep -qx "package-lock.json"; then
-      LOCKFILE_CHANGED=1
-    fi
+    # New branch/tag on the remote — no prior state to diff against, so check
+    # everything present at the tip being pushed.
+    CHANGED_FILES=$(git ls-tree -r --name-only "$local_sha")
   else
-    if ! git diff --quiet "$remote_sha" "$local_sha" -- package-lock.json; then
-      LOCKFILE_CHANGED=1
-    fi
+    CHANGED_FILES=$(git diff --name-only "$remote_sha" "$local_sha")
+  fi
+
+  if echo "$CHANGED_FILES" | grep -qx "package-lock.json"; then
+    LOCKFILE_CHANGED=1
+  fi
+  if echo "$CHANGED_FILES" | grep -q '^apps/wallet-server/'; then
+    WALLET_CHANGED=1
+  fi
+  if echo "$CHANGED_FILES" | grep -q '^apps/truvera-api/'; then
+    API_CHANGED=1
+  fi
+  if echo "$CHANGED_FILES" | grep -q '^packages/mcp-shared/'; then
+    SHARED_CHANGED=1
   fi
 done
 
-if [ "$LOCKFILE_CHANGED" -eq 0 ]; then
-  exit 0
+# Shared changes affect all consumers
+if [ "$SHARED_CHANGED" -eq 1 ]; then
+  WALLET_CHANGED=1
+  API_CHANGED=1
 fi
 
-echo "package-lock.json changed in this push — running npm audit..."
-node scripts/check-audit.js
+if [ "$WALLET_CHANGED" -eq 1 ] || [ "$API_CHANGED" -eq 1 ]; then
+  if [ "$SHARED_CHANGED" -eq 1 ]; then
+    echo "packages/mcp-shared files changed — running checks for all packages..."
+  else
+    echo "changed files detected — running checks..."
+  fi
+
+  if [ "$WALLET_CHANGED" -eq 1 ]; then
+    echo "  [wallet-server] lint..."
+    npm run lint --workspace=apps/wallet-server
+    echo "  [wallet-server] typecheck..."
+    npm run typecheck --workspace=apps/wallet-server
+    echo "  [wallet-server] test..."
+    npm run test --workspace=apps/wallet-server
+    echo "  [wallet-server] test:integration..."
+    npm run test:integration --workspace=apps/wallet-server
+  fi
+
+  if [ "$API_CHANGED" -eq 1 ]; then
+    echo "  [truvera-api] lint..."
+    npm run lint --workspace=apps/truvera-api
+    echo "  [truvera-api] typecheck..."
+    npm run typecheck --workspace=apps/truvera-api
+    echo "  [truvera-api] test..."
+    npm run test --workspace=apps/truvera-api
+  fi
+
+  if [ "$SHARED_CHANGED" -eq 1 ]; then
+    echo "  [mcp-shared] typecheck..."
+    npm run typecheck --workspace=packages/mcp-shared
+    echo "  [mcp-shared] test..."
+    npm run test --workspace=packages/mcp-shared
+  fi
+
+  echo "  checks passed."
+fi
+
+if [ "$LOCKFILE_CHANGED" -eq 1 ]; then
+  echo "package-lock.json changed in this push — running npm audit..."
+  node scripts/check-audit.js
+fi
+
+exit 0
