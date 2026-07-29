@@ -42,9 +42,6 @@ Each feature (`dids`, `credentials`, `messages`, `delegation`, `agent-card`) con
 ## Environment Variables
 
 ```bash
-# Required for full functionality
-WALLET_MASTER_KEY=your-master-key-here   # Reserved for a future wallet encryption key (not yet wired in — see apps/wallet-server/README.md)
-
 # Optional
 WALLET_NAME=mcp-wallet                   # Wallet identifier (MCP_AUTH_MODE=none only)
 WALLET_DB_PATH=/data/wallet-db           # SQLite database path in MCP_AUTH_MODE=none (default: /data/wallet-db)
@@ -227,7 +224,7 @@ Adds `MCP_AUTH_MODE=jwt`, backed by `@truvera/mcp-shared/auth`: each tenant auth
 2. **Plugin architecture** — each feature is self-contained and independently exportable
 3. **Type safety** — TypeScript throughout; JSON Schema for tool input validation
 4. **Stateful** — wallet persists across tool calls; SQLite on mounted volume for restarts
-5. **Security** — `WALLET_MASTER_KEY` never logged; mnemonics treated as secrets
+5. **Security** — mnemonics treated as secrets, never logged
 
 ---
 
@@ -299,6 +296,6 @@ packages/mcp-shared/src/
 ├── index.ts
 ├── server/                         # bootstrapMCPServer
 ├── transport/                      # stdio + http transports
-├── auth/                           # JWT/passthrough auth resolution, deriveWalletKey
+├── auth/                           # JWT/passthrough auth resolution
 └── tools/                          # ToolDef, ToolHandler types
 ```

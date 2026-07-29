@@ -3,8 +3,8 @@ import path from "node:path";
 import { LocalStorage } from "node-localstorage";
 import { blockchainService } from "@docknetwork/wallet-sdk-wasm/lib/services/blockchain/service.js";
 import { bootstrapMCPServer } from "@truvera/mcp-shared/server";
+import type { ToolHandlerFactoryResult } from "@truvera/mcp-shared/server";
 import type { AuthConfig, AuthContext } from "@truvera/mcp-shared/auth";
-import type { ToolHandler } from "@truvera/mcp-shared/tools";
 import { BUILD_INFO } from "./build-info.js";
 import { WalletClientPool } from "./wallet-client-pool.js";
 import { RevocationStore } from "./revocation-store.js";
@@ -31,8 +31,9 @@ const WALLET_DB_PATH_RESOLVED = process.env.WALLET_DB_PATH || "/data/wallet-db";
 // assertionMethod/authentication rather than as proper objects in
 // verificationMethod. Wrap the resolver to normalise these before jsonld.frame
 // processes them, so publicKeyBase58 is always reachable.
-function normalizeDIDDocument(doc: any): any {
-  if (!doc || typeof doc !== "object") return doc;
+function normalizeDIDDocument(input: any): any {
+  if (!input || typeof input !== "object") return input;
+  const doc = { ...input };
   const extra: any[] = [];
   for (const prop of ["assertionMethod", "authentication", "capabilityInvocation", "capabilityDelegation"]) {
     if (!Array.isArray(doc[prop])) continue;
@@ -79,10 +80,6 @@ if (MCP_AUTH_MODE === "jwt" && !MCP_JWT_PUBLIC_KEY) {
   process.exit(1);
 }
 
-if (!process.env.WALLET_MASTER_KEY) {
-  console.error("Warning: WALLET_MASTER_KEY not set. Wallet operations may be limited.");
-}
-
 const revocationStore = MCP_AUTH_MODE === "jwt" ? new RevocationStore(WALLET_REVOCATIONS_DB_PATH) : undefined;
 
 if (MCP_AUTH_MODE === "jwt" && MCP_MODE === "http" && !ADMIN_REVOKE_SECRET) {
@@ -101,12 +98,18 @@ const authConfig: AuthConfig = MCP_AUTH_MODE === "jwt"
 // Single wallet pool shared across all sessions
 const walletPool = new WalletClientPool();
 
-// Track active MessageClients so we can stop background timers on shutdown
+// Fallback registry for process-shutdown cleanup (e.g. stdio's single session,
+// or any HTTP session still open at shutdown). Per-HTTP-session cleanup happens
+// via the dispose callback returned from toolHandlerFactory below.
 const activeMessageClients = new Set<MessageClient>();
 
 // Per-session handler factory. Receives the resolved AuthContext and returns
-// a handler map wired to the correct tenant wallet.
-async function toolHandlerFactory(context: AuthContext): Promise<Map<string, ToolHandler>> {
+// a handler map wired to the correct tenant wallet, plus a dispose callback
+// that stops that session's MessageClient as soon as the session ends —
+// otherwise activeMessageClients (and their background timers) would only
+// ever be cleaned up at process shutdown, growing without bound as HTTP
+// sessions come and go.
+async function toolHandlerFactory(context: AuthContext): Promise<ToolHandlerFactoryResult> {
   let dbPath = WALLET_DB_PATH_RESOLVED;
   if (context.mode === "jwt") {
     if (!/^[a-zA-Z0-9._-]+$/.test(context.tenantId)) {
@@ -135,13 +138,19 @@ async function toolHandlerFactory(context: AuthContext): Promise<Map<string, Too
 
   activeMessageClients.add(messageClient);
 
-  return new Map([
-    ...getDIDHandlers(didClient),
-    ...getCredentialHandlers(credentialClient),
-    ...getMessageHandlers(messageClient),
-    ...getDelegationHandlers(delegationClient),
-    ...getAgentCardHandlers(agentCardClient),
-  ]);
+  return {
+    handlers: new Map([
+      ...getDIDHandlers(didClient),
+      ...getCredentialHandlers(credentialClient),
+      ...getMessageHandlers(messageClient),
+      ...getDelegationHandlers(delegationClient),
+      ...getAgentCardHandlers(agentCardClient),
+    ]),
+    dispose: async () => {
+      activeMessageClients.delete(messageClient);
+      await messageClient.stop();
+    },
+  };
 }
 
 async function main() {

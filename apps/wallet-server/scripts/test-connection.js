@@ -17,10 +17,7 @@ console.log('Starting wallet server and requesting tools list...\n');
 
 const server = spawn('node', [serverPath], {
   stdio: ['pipe', 'pipe', 'inherit'],
-  env: {
-    ...process.env,
-    WALLET_MASTER_KEY: 'test-key',
-  },
+  env: process.env,
 });
 
 // Send initialize request

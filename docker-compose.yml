@@ -24,7 +24,6 @@ services:
       dockerfile: apps/wallet-server/Dockerfile
     container_name: wallet-mcp-service
     environment:
-      - WALLET_MASTER_KEY=${WALLET_MASTER_KEY}
       - MCP_MODE=${MCP_MODE:-http}
       - MCP_PORT=3001
       - CHEQD_NETWORK=${CHEQD_NETWORK:-testnet}

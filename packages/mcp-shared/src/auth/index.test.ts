@@ -4,7 +4,6 @@ import type { IncomingMessage } from "node:http";
 import {
   extractBearerToken,
   verifyJWT,
-  deriveWalletKey,
   resolveAuthContext,
   AuthError,
 } from "./index.js";
@@ -113,25 +112,6 @@ describe("verifyJWT", () => {
   it("rejects a plainly invalid (non-JWT) token string", async () => {
     const { publicKeyPem } = await makeKeypair();
     await expect(verifyJWT("not.a.jwt", publicKeyPem)).rejects.toBeInstanceOf(AuthError);
-  });
-});
-
-// ---------------------------------------------------------------------------
-describe("deriveWalletKey", () => {
-  it("is deterministic — same inputs always produce the same key", () => {
-    expect(deriveWalletKey("secret", "alice")).toBe(deriveWalletKey("secret", "alice"));
-  });
-
-  it("produces different keys for different tenant IDs", () => {
-    expect(deriveWalletKey("secret", "alice")).not.toBe(deriveWalletKey("secret", "bob"));
-  });
-
-  it("produces different keys for different master secrets", () => {
-    expect(deriveWalletKey("secret-a", "alice")).not.toBe(deriveWalletKey("secret-b", "alice"));
-  });
-
-  it("returns a 64-character lowercase hex string (SHA-256 output)", () => {
-    expect(deriveWalletKey("secret", "alice")).toMatch(/^[0-9a-f]{64}$/);
   });
 });
 

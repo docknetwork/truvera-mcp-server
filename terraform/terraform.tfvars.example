@@ -26,11 +26,9 @@ wallet_server_hostname = "mcp-wallet.truvera.io"
 #     --name "prod/mcp/wallet-server" \
 #     --secret-string '{
 #       "MCP_JWT_PUBLIC_KEY": "<output of scripts/generate-keypair.js>",
-#       "WALLET_MASTER_KEY":  "<32+ bytes of random hex>"
+#       "ADMIN_REVOKE_SECRET": "<random secret for POST /admin/revoke-tenant>"
 #     }'
 #
-# WALLET_MASTER_KEY is the HMAC root for all tenant wallet derivation.
-# Treat it as a master password — rotation destroys all existing wallets.
 wallet_secret_arn = "arn:aws:secretsmanager:us-west-1:ACCOUNT_ID:secret:prod/mcp/wallet-server-xxxxxx"
 
 # Optional overrides

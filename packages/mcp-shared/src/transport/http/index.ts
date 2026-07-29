@@ -12,7 +12,11 @@ import { resolveAuthContext, AuthError } from "../../auth/index.js";
 import type { AuthConfig, AuthContext } from "../../auth/index.js";
 
 export interface HTTPTransportArgs {
-  serverFactory: (context: AuthContext) => McpServer | Promise<McpServer>;
+  serverFactory: (
+    context: AuthContext
+  ) =>
+    | { server: McpServer; dispose?: () => void | Promise<void> }
+    | Promise<{ server: McpServer; dispose?: () => void | Promise<void> }>;
   MCP_PORT: number;
   BUILD_INFO: BuildInfo;
   tools: ToolDef[];
@@ -185,7 +189,14 @@ export async function startHTTPTransport({
   authConfig,
   adminRevoke,
 }: HTTPTransportArgs) {
-  const transports: { [key: string]: { transport: StreamableHTTPServerTransport; server: McpServer } } = {};
+  const transports: {
+    [key: string]: {
+      transport: StreamableHTTPServerTransport;
+      server: McpServer;
+      dispose?: () => void | Promise<void>;
+      authContext: AuthContext;
+    };
+  } = {};
 
   function isInitializeRequest(body: unknown): boolean {
     return !!body && typeof body === "object" && "method" in body && (body as Record<string, unknown>).method === "initialize";
@@ -306,9 +317,35 @@ export async function startHTTPTransport({
       let server: McpServer | undefined;
       let initializedSessionId: string | undefined;
       if (sessionId && typeof sessionId === "string" && transports[sessionId]) {
-        // Existing session: reuse transport and server
-        console.error(`[DEBUG] Reusing existing MCP session: ${sessionId}`);
+        // Existing session: reuse transport and server. In JWT mode, re-check
+        // auth on every request rather than only at session creation — otherwise
+        // a session outlives its token's revocation (POST /admin/revoke-tenant
+        // would have no effect until the client reconnects) and a leaked/guessed
+        // Mcp-Session-Id would grant access with no Authorization header at all.
         const session = transports[sessionId];
+        if (authConfig?.mode === "jwt") {
+          let requestAuthContext;
+          try {
+            requestAuthContext = await resolveAuthContext(req, authConfig);
+          } catch (err) {
+            if (err instanceof AuthError) {
+              res.writeHead(err.statusCode, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: err.message }));
+              return;
+            }
+            throw err;
+          }
+          if (
+            requestAuthContext.mode !== "jwt" ||
+            session.authContext.mode !== "jwt" ||
+            requestAuthContext.tenantId !== session.authContext.tenantId
+          ) {
+            res.writeHead(403, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Token does not match this session's tenant" }));
+            return;
+          }
+        }
+        console.error(`[DEBUG] Reusing existing MCP session: ${sessionId}`);
         transport = session.transport;
         server = session.server;
       } else if (!sessionId && initializeRequest) {
@@ -325,12 +362,24 @@ export async function startHTTPTransport({
           throw err;
         }
         console.error("[DEBUG] Creating new MCP session for initialize request");
-        server = await serverFactory(authContext);
+        const created = await serverFactory(authContext);
+        server = created.server;
+        const dispose = created.dispose;
+        let disposed = false;
+        const disposeOnce = async () => {
+          if (disposed) return;
+          disposed = true;
+          try {
+            await dispose?.();
+          } catch (err) {
+            console.error("Error disposing session resources:", err);
+          }
+        };
         transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: randomUUID,
           onsessioninitialized: (newSessionId: string) => {
             console.error(`[DEBUG] Session initialized with ID: ${newSessionId}`);
-            transports[newSessionId] = { transport: transport!, server: server! };
+            transports[newSessionId] = { transport: transport!, server: server!, dispose: disposeOnce, authContext };
             initializedSessionId = newSessionId;
           }
         });
@@ -341,6 +390,7 @@ export async function startHTTPTransport({
             console.error(`[DEBUG] Transport closed for session ${sid}, removing from map`);
             delete transports[sid];
           }
+          void disposeOnce();
         };
         await server.connect(transport);
       } else {

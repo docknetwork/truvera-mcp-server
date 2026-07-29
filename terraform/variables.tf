@@ -44,14 +44,11 @@ variable "wallet_server_hostname" {
 #     --name "${environment}/mcp/wallet-server" \
 #     --secret-string '{
 #       "MCP_JWT_PUBLIC_KEY": "<PEM from scripts/generate-keypair.js>",
-#       "WALLET_MASTER_KEY":  "<32+ byte random hex>",
 #       "ADMIN_REVOKE_SECRET": "<random secret for POST /admin/revoke-tenant>"
 #     }'
 #
-# WALLET_MASTER_KEY is the HMAC root key for all tenant wallet derivation.
-# Rotating it invalidates every existing wallet. Treat it like a master password.
 variable "wallet_secret_arn" {
-  description = "ARN of the Secrets Manager secret containing MCP_JWT_PUBLIC_KEY, WALLET_MASTER_KEY, and ADMIN_REVOKE_SECRET"
+  description = "ARN of the Secrets Manager secret containing MCP_JWT_PUBLIC_KEY and ADMIN_REVOKE_SECRET"
 }
 
 # ----- application config ----------------------------------------------------
