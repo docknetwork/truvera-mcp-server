@@ -25,10 +25,18 @@ export interface HTTPTransportArgs {
 }
 
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
+  const MAX_BYTES = 1_000_000; // 1MB safety limit to avoid memory exhaustion
   const data = await new Promise<string>((resolve, reject) => {
     let chunks = "";
+    let bytes = 0;
     req.on("data", (chunk: Buffer) => {
-      chunks += chunk;
+      bytes += chunk.length;
+      if (bytes > MAX_BYTES) {
+        reject(new Error("Request body too large"));
+        req.destroy();
+        return;
+      }
+      chunks += chunk.toString("utf8");
     });
     req.on("end", () => resolve(chunks));
     req.on("error", reject);
