@@ -38,7 +38,7 @@ describe("integration: node-localstorage shim → wallet-sdk-wasm storageService
   });
 
   it("storageService.getItem returns null for a missing key without throwing", async () => {
-    const { storageService } = await import("@docknetwork/wallet-sdk-wasm/src/services/storage/service");
+    const { storageService } = await import("@docknetwork/wallet-sdk-wasm/lib/services/storage/service.js");
     const result = storageService.getItem("missing-key");
     expect(result).toBeNull();
   });

@@ -1,5 +1,5 @@
 variable "aws_region" {
-  description = "AWS region to deploy into"
+  description = "AWS region to deploy into (must match the S3 backend region in terraform/backend.tf)"
   default     = "us-west-1"
 }
 

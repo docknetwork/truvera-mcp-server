@@ -119,6 +119,8 @@ async function toolHandlerFactory(context: AuthContext): Promise<Map<string, Too
     }
     dbPath = resolved;
   }
+  const { mkdir } = await import("node:fs/promises");
+  await mkdir(path.dirname(dbPath), { recursive: true });
 
   const walletClient = await walletPool.get(dbPath, CHEQD_NETWORK);
   const wallet = walletClient.getWallet();
