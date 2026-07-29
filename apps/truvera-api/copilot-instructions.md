@@ -18,15 +18,12 @@ Each feature lives in `src/features/<feature>/` with:
 Example:
 ```
 src/features/ap2/
-├── client.ts          # AP2Client with mandate methods
+├── client.ts          # AP2Client: verify_payment_mandate + issue_payment_token
 ├── tools.ts           # MCP tools for AP2
 ├── schemas.ts         # Input schemas for tools
 ├── types.ts           # TypeScript types
-├── schemas/           # JSON-LD contexts & JSON Schemas
 └── tests/
-    ├── unit/
-    ├── integration/
-    └── e2e/
+    └── unit/
 ```
 
 ### Shared Code
@@ -405,10 +402,9 @@ console.log(`TruveraClient response -> status=${status} body=${body}`);
 
 ```typescript
 // types.ts
-export interface CreateMandateRequest {
-  mandate_id: string;
-  issuer_did: string;
+export interface IssueCredentialRequest {
   subject_did: string;
+  issuer_did: string;
   // ...
 }
 ```
@@ -417,7 +413,7 @@ export interface CreateMandateRequest {
 
 ```typescript
 // client.ts
-async issueMandate(request: CreateMandateRequest): Promise<ApiResponse> {
+async issueCredential(request: IssueCredentialRequest): Promise<ApiResponse> {
   return this.truveraClient.request({
     method: "POST",
     endpoint: "/credentials",
@@ -430,8 +426,8 @@ async issueMandate(request: CreateMandateRequest): Promise<ApiResponse> {
 
 ```typescript
 // tests/e2e/feature-e2e.test.ts
-it('should issue mandate', async () => {
-  const response = await client.issueMandate({...});
+it('should issue credential', async () => {
+  const response = await client.issueCredential({...});
   expect(response.success).toBe(true);
   createdIds.push(response.data.id);  // Track for cleanup
 });
@@ -451,16 +447,16 @@ Test will reveal exact API requirements.
 // tools.ts
 export const toolDefs = [
   {
-    name: "issue_mandate",
-    description: "Issue an AP2 mandate credential",
-    inputSchema: schemas.IssueMandateRequest
+    name: "issue_credential",
+    description: "Issue a verifiable credential",
+    inputSchema: schemas.IssueCredentialRequest
   }
 ];
 
 export function getHandlers(client: FeatureClient): Map<string, ToolHandler> {
   const handlers = new Map();
-  handlers.set("issue_mandate", async (args) => {
-    return formatResult(await client.issueMandate(args));
+  handlers.set("issue_credential", async (args) => {
+    return formatResult(await client.issueCredential(args));
   });
   return handlers;
 }
@@ -472,7 +468,6 @@ export function getHandlers(client: FeatureClient): Map<string, ToolHandler> {
 
 When adding features, update:
 - `README.md` - Feature overview
-- `schemas/SCHEMAS.md` - Schema documentation
 - Examples in markdown with actual usage
 
 ### Code Comments
