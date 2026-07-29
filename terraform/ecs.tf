@@ -141,18 +141,13 @@ resource "aws_ecs_task_definition" "wallet_server" {
       { name = "WALLET_DB_BASE_PATH",  value = "/data/wallets" },
     ]
 
-    # MCP_JWT_PUBLIC_KEY, WALLET_MASTER_KEY, and ADMIN_REVOKE_SECRET are injected
-    # from Secrets Manager at task startup by the execution role. The secret
-    # must be a JSON object with those three keys — see the wallet_secret_arn
-    # variable comment.
+    # MCP_JWT_PUBLIC_KEY and ADMIN_REVOKE_SECRET are injected from Secrets
+    # Manager at task startup by the execution role. The secret must be a JSON
+    # object with those two keys — see the wallet_secret_arn variable comment.
     secrets = [
       {
         name      = "MCP_JWT_PUBLIC_KEY"
         valueFrom = "${var.wallet_secret_arn}:MCP_JWT_PUBLIC_KEY::"
-      },
-      {
-        name      = "WALLET_MASTER_KEY"
-        valueFrom = "${var.wallet_secret_arn}:WALLET_MASTER_KEY::"
       },
       {
         name      = "ADMIN_REVOKE_SECRET"

@@ -11,6 +11,17 @@ export type { AuthConfig, AuthContext };
  * `toolHandlerFactory` (called per-session, receives the resolved AuthContext).
  * `toolHandlerFactory` takes precedence when both are supplied.
  */
+/**
+ * Result of a per-session toolHandlerFactory call. Return a bare Map when the
+ * session's handlers hold no resources that need releasing; return the object
+ * form with `dispose` when they do (e.g. background timers, open file handles)
+ * so the transport can release them as soon as the session ends, rather than
+ * only at process shutdown.
+ */
+export type ToolHandlerFactoryResult =
+  | Map<string, ToolHandler>
+  | { handlers: Map<string, ToolHandler>; dispose?: () => void | Promise<void> };
+
 export interface ServerConfig {
   /** Server name (e.g., "truvera-mcp-service") */
   name: string;
@@ -22,8 +33,12 @@ export interface ServerConfig {
   tools: ToolDef[];
   /** Static handlers shared across all sessions. */
   toolHandlers?: Map<string, ToolHandler>;
-  /** Per-session handler factory. Takes precedence over toolHandlers when provided. */
-  toolHandlerFactory?: (context: AuthContext) => Map<string, ToolHandler> | Promise<Map<string, ToolHandler>>;
+  /**
+   * Per-session handler factory. Takes precedence over toolHandlers when provided.
+   * In HTTP mode this is called once per session and its `dispose` (if returned)
+   * runs when that session's transport closes.
+   */
+  toolHandlerFactory?: (context: AuthContext) => ToolHandlerFactoryResult | Promise<ToolHandlerFactoryResult>;
 }
 
 /**

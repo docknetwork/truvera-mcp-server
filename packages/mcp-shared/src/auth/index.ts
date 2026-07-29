@@ -1,4 +1,3 @@
-import { createHmac } from "node:crypto";
 import { jwtVerify, importSPKI } from "jose";
 import type { IncomingMessage } from "node:http";
 
@@ -67,10 +66,6 @@ export async function verifyJWT(
   }
 
   return { sub: payload.sub, iat: payload.iat };
-}
-
-export function deriveWalletKey(masterSecret: string, tenantId: string): string {
-  return createHmac("sha256", masterSecret).update(tenantId).digest("hex");
 }
 
 export async function resolveAuthContext(

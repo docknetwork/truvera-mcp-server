@@ -1,8 +1,9 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { findNextAvailablePort, resolvePortConflict, startHTTPTransport } from "./index.js";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { SignJWT, exportSPKI, generateKeyPair } from "jose";
 
 describe("findNextAvailablePort", () => {
   let occupiedServer: http.Server | undefined;
@@ -93,7 +94,7 @@ describe("startHTTPTransport /admin/revoke-tenant", () => {
   async function start(adminRevoke?: { secret: string; onRevoke: (tenantId: string) => void | Promise<void> }) {
     const port = await findNextAvailablePort(41000);
     server = await startHTTPTransport({
-      serverFactory: () => ({}) as McpServer,
+      serverFactory: () => ({ server: {} as McpServer }),
       MCP_PORT: port,
       BUILD_INFO: { timestamp: "2026-01-01T00:00:00Z", buildNumber: 1, version: "0.0.0-test" },
       tools: [],
@@ -160,5 +161,109 @@ describe("startHTTPTransport /admin/revoke-tenant", () => {
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ ok: true, tenantId: "alice" });
     expect(onRevoke).toHaveBeenCalledWith("alice");
+  });
+});
+
+describe("startHTTPTransport JWT session reuse", () => {
+  let server: http.Server | undefined;
+  let baseUrl: string;
+  let publicKeyPem: string;
+  // jose types generateKeyPair's return generically; ES256 always yields a KeyLike/CryptoKey.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let privateKey: any;
+
+  beforeAll(async () => {
+    const { publicKey, privateKey: priv } = await generateKeyPair("ES256", { extractable: true });
+    publicKeyPem = await exportSPKI(publicKey);
+    privateKey = priv;
+  });
+
+  async function signToken(tenantId: string): Promise<string> {
+    return new SignJWT({})
+      .setProtectedHeader({ alg: "ES256" })
+      .setSubject(tenantId)
+      .setIssuedAt()
+      .setExpirationTime("1h")
+      .sign(privateKey);
+  }
+
+  async function start() {
+    const port = await findNextAvailablePort(41200);
+    server = await startHTTPTransport({
+      serverFactory: () => ({ server: new McpServer({ name: "test-service", version: "0.0.0" }) }),
+      MCP_PORT: port,
+      BUILD_INFO: { timestamp: "2026-01-01T00:00:00Z", buildNumber: 1, version: "0.0.0-test" },
+      tools: [],
+      serviceName: "test-service",
+      authConfig: { mode: "jwt", publicKeyPem },
+    });
+    baseUrl = `http://127.0.0.1:${port}`;
+  }
+
+  afterEach(async () => {
+    if (!server) return;
+    await new Promise<void>((resolve) => server!.close(() => resolve()));
+    server = undefined;
+  });
+
+  async function initialize(token: string) {
+    return fetch(`${baseUrl}/mcp`, {
+      method: "POST",
+      headers: {
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test", version: "0.0.0" } },
+      }),
+    });
+  }
+
+  function reuseSession(sessionId: string, headers: Record<string, string> = {}) {
+    return fetch(`${baseUrl}/mcp`, {
+      method: "POST",
+      headers: {
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+        "mcp-session-id": sessionId,
+        ...headers,
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }),
+    });
+  }
+
+  it("rejects reuse of a session with no Authorization header", async () => {
+    await start();
+    const initRes = await initialize(await signToken("tenant-a"));
+    expect(initRes.status).toBe(200);
+    const sessionId = initRes.headers.get("mcp-session-id")!;
+    expect(sessionId).toBeTruthy();
+
+    const res = await reuseSession(sessionId);
+    expect(res.status).toBe(401);
+  });
+
+  it("rejects reuse of a session with a different tenant's token", async () => {
+    await start();
+    const initRes = await initialize(await signToken("tenant-a"));
+    const sessionId = initRes.headers.get("mcp-session-id")!;
+
+    const res = await reuseSession(sessionId, { authorization: `Bearer ${await signToken("tenant-b")}` });
+    expect(res.status).toBe(403);
+  });
+
+  it("allows reuse of a session with the same tenant's token", async () => {
+    await start();
+    const token = await signToken("tenant-a");
+    const initRes = await initialize(token);
+    const sessionId = initRes.headers.get("mcp-session-id")!;
+
+    const res = await reuseSession(sessionId, { authorization: `Bearer ${token}` });
+    expect(res.status).not.toBe(401);
+    expect(res.status).not.toBe(403);
   });
 });

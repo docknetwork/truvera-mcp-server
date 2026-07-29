@@ -33,9 +33,9 @@ export async function bootstrapMCPServer(
   // Factory function to create a configured MCP server for a given auth context.
   // In HTTP mode this is called once per session; in stdio mode it is called once at startup.
   const createServer = async (context: AuthContext) => {
-    const handlers = toolHandlerFactory
-      ? await toolHandlerFactory(context)
-      : toolHandlers!;
+    const factoryResult = toolHandlerFactory ? await toolHandlerFactory(context) : toolHandlers!;
+    const handlers = factoryResult instanceof Map ? factoryResult : factoryResult.handlers;
+    const dispose = factoryResult instanceof Map ? undefined : factoryResult.dispose;
 
     const server = new McpServer({ name, version });
 
@@ -68,7 +68,7 @@ export async function bootstrapMCPServer(
       createCallToolHandler(handlers) as any
     );
 
-    return server;
+    return { server, dispose };
   };
 
   // Start the appropriate transport
@@ -84,8 +84,9 @@ export async function bootstrapMCPServer(
       adminRevoke: transportConfig.adminRevoke,
     });
   } else {
-    // stdio is always single-tenant; resolve with no-auth context
-    const server = await createServer({ mode: "none" });
+    // stdio is always single-tenant; resolve with no-auth context. There is no
+    // per-session boundary to dispose at — the process itself is the session.
+    const { server } = await createServer({ mode: "none" });
     await startStdioTransport({
       server,
       BUILD_INFO: buildInfo,

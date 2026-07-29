@@ -22,7 +22,7 @@ A Model Context Protocol (MCP) server for interacting with the Truvera Wallet SD
 ### Known limitations
 
 - **No cloud sync:** The wallet uses a local SQLite database. Credentials and DIDs are not automatically synced to a cloud EDV.
-- **No encryption at rest yet:** `WALLET_MASTER_KEY` is checked at startup but not currently wired into the SQLite data store — the wallet database is not encrypted at rest. Tenant isolation in JWT mode is filesystem-path-only (separate SQLite files per tenant), not key-based.
+- **No encryption at rest:** the wallet database is not encrypted at rest. Tenant isolation in JWT mode is filesystem-path-only (separate SQLite files per tenant), not key-based.
 - **Production hardening pending:** Key management, backup strategies, and full multi-user isolation are not yet implemented.
 
 ---
@@ -41,7 +41,7 @@ npm install
 
 ```bash
 cp .env.example .env
-# Edit .env — at minimum, set WALLET_MASTER_KEY
+# Edit .env as needed — all defaults are suitable for local development
 ```
 
 ### 3. Build
@@ -116,7 +116,6 @@ Use the shared MCP Inspector instructions in the repo root README:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `WALLET_MASTER_KEY` | Yes | — | Reserved for a future wallet encryption key. Currently checked at startup (a warning is logged if unset) but not yet wired into the data store — see [Known limitations](#known-limitations). |
 | `MCP_MODE` | No | `stdio` | Transport: `http` or `stdio` |
 | `MCP_PORT` | No | `3001` | HTTP port (only used when `MCP_MODE=http`) |
 | `CHEQD_NETWORK` | No | `testnet` | Cheqd network: `testnet` or `mainnet` |
@@ -142,7 +141,7 @@ In HTTP mode, the server supports JWT-based multi-tenant auth. Each tenant gets 
 - The server derives the tenant's wallet path (`<WALLET_DB_BASE_PATH>/<sub>`) from the JWT `sub` claim, giving each tenant their own isolated SQLite database.
 - Adding a new tenant requires no server redeployment — just mint them a JWT.
 
-**Note on encryption:** tenant isolation here is filesystem-path-only — each tenant gets a separate SQLite file, but none of them are currently encrypted (see [Known limitations](#known-limitations)). `@truvera/mcp-shared/auth` exports a `deriveWalletKey()` HMAC helper intended for per-tenant key derivation, but the wallet server doesn't call it yet. Anyone with filesystem access to the `/data/wallets` volume can read any tenant's wallet database directly.
+**Note on encryption:** tenant isolation here is filesystem-path-only — each tenant gets a separate SQLite file, but none of them are currently encrypted (see [Known limitations](#known-limitations)). Anyone with filesystem access to the `/data/wallets` volume can read any tenant's wallet database directly.
 
 ### One-time setup: generate a keypair
 
