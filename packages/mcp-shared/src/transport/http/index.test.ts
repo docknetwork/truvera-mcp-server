@@ -267,3 +267,94 @@ describe("startHTTPTransport JWT session reuse", () => {
     expect(res.status).not.toBe(403);
   });
 });
+
+describe("startHTTPTransport passthrough session reuse", () => {
+  let server: http.Server | undefined;
+  let baseUrl: string;
+  // Passthrough auth resolution has no crypto step, so these tests run back
+  // to back within a few ms — fast enough that a stale keep-alive socket from
+  // the previous test's (now-closed) server can still be sitting in fetch's
+  // connection pool if consecutive tests reuse the exact same port. Starting
+  // each test's port search well above the last one avoids that collision.
+  let nextPort = 41300;
+
+  async function start() {
+    const port = await findNextAvailablePort(nextPort);
+    nextPort = port + 10;
+    server = await startHTTPTransport({
+      serverFactory: () => ({ server: new McpServer({ name: "test-service", version: "0.0.0" }) }),
+      MCP_PORT: port,
+      BUILD_INFO: { timestamp: "2026-01-01T00:00:00Z", buildNumber: 1, version: "0.0.0-test" },
+      tools: [],
+      serviceName: "test-service",
+      authConfig: { mode: "passthrough" },
+    });
+    baseUrl = `http://127.0.0.1:${port}`;
+  }
+
+  afterEach(async () => {
+    if (!server) return;
+    await new Promise<void>((resolve) => server!.close(() => resolve()));
+    server = undefined;
+  });
+
+  async function initialize(apiKey: string) {
+    return fetch(`${baseUrl}/mcp`, {
+      method: "POST",
+      headers: {
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test", version: "0.0.0" } },
+      }),
+    });
+  }
+
+  function reuseSession(sessionId: string, headers: Record<string, string> = {}) {
+    return fetch(`${baseUrl}/mcp`, {
+      method: "POST",
+      headers: {
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+        "mcp-session-id": sessionId,
+        ...headers,
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }),
+    });
+  }
+
+  it("rejects reuse of a session with no Authorization header", async () => {
+    await start();
+    const initRes = await initialize("client-a-key");
+    expect(initRes.status).toBe(200);
+    const sessionId = initRes.headers.get("mcp-session-id")!;
+    expect(sessionId).toBeTruthy();
+
+    const res = await reuseSession(sessionId);
+    expect(res.status).toBe(401);
+  });
+
+  it("rejects reuse of a session with a different client's API key", async () => {
+    await start();
+    const initRes = await initialize("client-a-key");
+    const sessionId = initRes.headers.get("mcp-session-id")!;
+
+    const res = await reuseSession(sessionId, { authorization: "Bearer client-b-key" });
+    expect(res.status).toBe(403);
+  });
+
+  it("allows reuse of a session with the same client's API key", async () => {
+    await start();
+    const initRes = await initialize("client-a-key");
+    const sessionId = initRes.headers.get("mcp-session-id")!;
+
+    const res = await reuseSession(sessionId, { authorization: "Bearer client-a-key" });
+    expect(res.status).not.toBe(401);
+    expect(res.status).not.toBe(403);
+  });
+});

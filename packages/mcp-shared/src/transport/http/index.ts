@@ -48,6 +48,16 @@ async function readJsonBody(req: IncomingMessage): Promise<unknown> {
   return data ? JSON.parse(data) : undefined;
 }
 
+const SENSITIVE_HEADERS = new Set(["authorization", "x-admin-secret", "cookie"]);
+
+function redactHeaders(headers: IncomingMessage["headers"]): Record<string, unknown> {
+  const redacted: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    redacted[key] = SENSITIVE_HEADERS.has(key.toLowerCase()) ? "[redacted]" : value;
+  }
+  return redacted;
+}
+
 function secretsMatch(provided: string, expected: string): boolean {
   const providedBuf = Buffer.from(provided);
   const expectedBuf = Buffer.from(expected);
@@ -203,11 +213,14 @@ export async function startHTTPTransport({
   }
 
   const httpServer = http.createServer(async (req: IncomingMessage, res: ServerResponse) => {
-    // Debug: Log all incoming requests
+    // Debug: Log all incoming requests. Headers are redacted — Authorization
+    // carries the tenant JWT or Truvera API key, X-Admin-Secret the revoke
+    // secret; logging those in the clear hands out live credentials to
+    // anyone with log access.
     console.error("[DEBUG] Incoming request:", {
       method: req.method,
       url: req.url,
-      headers: req.headers
+      headers: redactHeaders(req.headers)
     });
 
     // Enable CORS
@@ -222,7 +235,11 @@ export async function startHTTPTransport({
       return;
     }
 
-    // Health check endpoint
+    // Health check endpoint. Deliberately unauthenticated (load balancers and
+    // uptime monitors hit this with no credentials) — so it must not leak
+    // anything beyond "the service is up". Tool names/descriptions map the
+    // whole attack surface (delegation, credential issuance, AP2 payment
+    // tools) to anyone who can reach this port; toolCount alone doesn't.
     if (req.method === "GET" && req.url === "/health") {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({
@@ -232,7 +249,6 @@ export async function startHTTPTransport({
         buildNumber: BUILD_INFO.buildNumber,
         buildTime: BUILD_INFO.timestamp,
         toolCount: tools.length,
-        tools: tools.map((t) => ({ name: t.name, description: t.description ?? null })),
       }));
       return;
     }
@@ -317,13 +333,15 @@ export async function startHTTPTransport({
       let server: McpServer | undefined;
       let initializedSessionId: string | undefined;
       if (sessionId && typeof sessionId === "string" && transports[sessionId]) {
-        // Existing session: reuse transport and server. In JWT mode, re-check
-        // auth on every request rather than only at session creation — otherwise
-        // a session outlives its token's revocation (POST /admin/revoke-tenant
-        // would have no effect until the client reconnects) and a leaked/guessed
-        // Mcp-Session-Id would grant access with no Authorization header at all.
+        // Existing session: reuse transport and server. In jwt/passthrough mode,
+        // re-check auth on every request rather than only at session creation —
+        // otherwise a session outlives its token's revocation (POST
+        // /admin/revoke-tenant would have no effect until the client
+        // reconnects) and a leaked/guessed Mcp-Session-Id would grant access
+        // (riding the original client's JWT or API key) with no Authorization
+        // header at all.
         const session = transports[sessionId];
-        if (authConfig?.mode === "jwt") {
+        if (authConfig?.mode === "jwt" || authConfig?.mode === "passthrough") {
           let requestAuthContext;
           try {
             requestAuthContext = await resolveAuthContext(req, authConfig);
@@ -335,13 +353,16 @@ export async function startHTTPTransport({
             }
             throw err;
           }
-          if (
-            requestAuthContext.mode !== "jwt" ||
-            session.authContext.mode !== "jwt" ||
-            requestAuthContext.tenantId !== session.authContext.tenantId
-          ) {
+          const credentialsMatch =
+            (requestAuthContext.mode === "jwt" &&
+              session.authContext.mode === "jwt" &&
+              requestAuthContext.tenantId === session.authContext.tenantId) ||
+            (requestAuthContext.mode === "passthrough" &&
+              session.authContext.mode === "passthrough" &&
+              requestAuthContext.apiKey === session.authContext.apiKey);
+          if (!credentialsMatch) {
             res.writeHead(403, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ error: "Token does not match this session's tenant" }));
+            res.end(JSON.stringify({ error: "Credentials do not match this session" }));
             return;
           }
         }
