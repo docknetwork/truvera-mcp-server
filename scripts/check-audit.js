@@ -19,18 +19,25 @@
  */
 import { execSync } from "node:child_process";
 
-// Keep in sync with the package groupings documented in .trivyignore.
-// brace-expansion isn't in .trivyignore because it never reaches the built
-// image — it's pulled in only by eslint/typescript-eslint/babel-jest
-// (devDependencies), but npm's --omit=dev doesn't fully prune it from a
-// hoisted workspace tree.
+// Keep in sync with the package groupings documented in .trivyignore — see
+// that file for the CVE IDs and per-package reasoning.
 const ACCEPTED_RISK = new Set([
   "axios",
   "@cosmjs/tendermint-rpc", // depends on axios
   "underscore",
   "jsonpath", // depends on underscore
   "@sphereon/pex", // depends on jsonpath
-  "brace-expansion", // devDependency-only (eslint/typescript-eslint/babel-jest)
+  // brace-expansion (see .trivyignore) has one residual CVE minimatch@9 can't
+  // take a fix for. npm audit doesn't just flag brace-expansion for this —
+  // it also synthesizes "X depends on vulnerable brace-expansion" entries for
+  // every ancestor in the chain (minimatch -> glob -> typeorm), each a
+  // restatement of the same single issue, not three new ones. Trivy doesn't
+  // do this: it matches actual package+version against its DB, so it only
+  // ever flags brace-expansion itself.
+  "brace-expansion",
+  "minimatch",
+  "glob",
+  "typeorm",
 ]);
 
 let raw;
