@@ -113,6 +113,14 @@ jobs:
         if: inputs.should_run
         continue-on-error: true
         uses: aquasecurity/trivy-action@v0.35.0
+        env:
+          # Not exposed as a trivy-action input; Trivy reads it directly.
+          # Suppresses the "Report Summary" table (one row per scanned
+          # package.json, almost all showing 0 vulnerabilities in a project
+          # this size) so the output only shows targets with actual findings.
+          # Must not be set on the SARIF step below — Trivy errors if
+          # table-mode is set with a non-table format.
+          TRIVY_TABLE_MODE: detailed
         with:
           image-ref: ${{ inputs.image_ref }}
           format: table
