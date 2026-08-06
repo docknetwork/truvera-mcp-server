@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import * as bs58 from "base58-universal";
 import { Secp256r1Keypair } from "@docknetwork/crypto-utils/keypairs";
-import { secp256r1PublicKeyToJwk } from "@docknetwork/crypto-utils/vc";
+import { jwkToSecp256r1PublicKey } from "@docknetwork/crypto-utils/vc";
 import {
   verifyClosedCheckoutMandate,
   verifyClosedPaymentMandate,
@@ -44,7 +44,7 @@ describe("unit: AP2Client (real crypto, fake wallet provider)", () => {
   const merchant = { id: "merchant_1", name: "Demo Merchant", website: "https://demo-merchant.example" };
 
   it("issues and verifies an autonomous Checkout + Payment mandate chain", async () => {
-    const { provider, keyIdToKeypair } = createFakeProvider();
+    const { provider } = createFakeProvider();
     const client = new AP2Client(provider);
 
     const user = await client.createSigningKey({ controller: "did:key:zUser" });
@@ -69,11 +69,12 @@ describe("unit: AP2Client (real crypto, fake wallet provider)", () => {
       checkoutJwt,
       nonce: "nonce-1",
       openMandatePresentation: openCheckout.presentation,
+      openMandateIssuerPublicJwk: user.publicJwk,
     });
 
-    const agentPublicKeyBytes = keyIdToKeypair.get(agent.keyId).publicKey().value.bytes;
     const checkoutVerification = verifyClosedCheckoutMandate(closedCheckout.presentation, {
-      holderJwk: secp256r1PublicKeyToJwk(agentPublicKeyBytes),
+      userPublicKey: jwkToSecp256r1PublicKey(user.publicJwk),
+      expectedNonce: "nonce-1",
       openMandatePresentation: openCheckout.presentation,
     });
     expect(checkoutVerification.verified).toBe(true);
@@ -96,11 +97,13 @@ describe("unit: AP2Client (real crypto, fake wallet provider)", () => {
       paymentInstrument: { id: "stub", type: "card", description: "Card ****4242" },
       nonce: "nonce-2",
       openMandatePresentation: openPayment.presentation,
+      openMandateIssuerPublicJwk: user.publicJwk,
     });
     expect(closedPayment.transactionId).toBe(closedCheckout.checkoutHash);
 
     const paymentVerification = verifyClosedPaymentMandate(closedPayment.presentation, {
-      holderJwk: secp256r1PublicKeyToJwk(agentPublicKeyBytes),
+      userPublicKey: jwkToSecp256r1PublicKey(user.publicJwk),
+      expectedNonce: "nonce-2",
       checkoutJwt,
       openMandatePresentation: openPayment.presentation,
     });
@@ -132,7 +135,7 @@ describe("unit: AP2Client.issueClosedPaymentMandate (Open Payment Mandate constr
   }
 
   it("rejects a paymentAmount over the payment.budget max", async () => {
-    const { client, agent, openMandatePresentation } = await setup([
+    const { client, user, agent, openMandatePresentation } = await setup([
       { type: "payment.budget", max: 100, currency: "USD" },
     ]);
 
@@ -145,12 +148,13 @@ describe("unit: AP2Client.issueClosedPaymentMandate (Open Payment Mandate constr
         paymentInstrument: instrument,
         nonce: "nonce-1",
         openMandatePresentation,
+        openMandateIssuerPublicJwk: user.publicJwk,
       })
     ).rejects.toThrow(/payment\.budget/);
   });
 
   it("rejects a paymentAmount currency mismatching the payment.budget constraint", async () => {
-    const { client, agent, openMandatePresentation } = await setup([
+    const { client, user, agent, openMandatePresentation } = await setup([
       { type: "payment.budget", max: 100, currency: "USD" },
     ]);
 
@@ -163,12 +167,13 @@ describe("unit: AP2Client.issueClosedPaymentMandate (Open Payment Mandate constr
         paymentInstrument: instrument,
         nonce: "nonce-1",
         openMandatePresentation,
+        openMandateIssuerPublicJwk: user.publicJwk,
       })
     ).rejects.toThrow(/payment\.budget/);
   });
 
   it("rejects a paymentAmount outside a payment.amount_range constraint", async () => {
-    const { client, agent, openMandatePresentation } = await setup([
+    const { client, user, agent, openMandatePresentation } = await setup([
       { type: "payment.amount_range", currency: "USD", min: 10, max: 100 },
     ]);
 
@@ -181,12 +186,13 @@ describe("unit: AP2Client.issueClosedPaymentMandate (Open Payment Mandate constr
         paymentInstrument: instrument,
         nonce: "nonce-1",
         openMandatePresentation,
+        openMandateIssuerPublicJwk: user.publicJwk,
       })
     ).rejects.toThrow(/payment\.amount_range/);
   });
 
   it("rejects a payee not in payment.allowed_payees", async () => {
-    const { client, agent, openMandatePresentation } = await setup([
+    const { client, user, agent, openMandatePresentation } = await setup([
       { type: "payment.allowed_payees", allowed: [merchant] },
     ]);
 
@@ -199,12 +205,13 @@ describe("unit: AP2Client.issueClosedPaymentMandate (Open Payment Mandate constr
         paymentInstrument: instrument,
         nonce: "nonce-1",
         openMandatePresentation,
+        openMandateIssuerPublicJwk: user.publicJwk,
       })
     ).rejects.toThrow(/payment\.allowed_payees/);
   });
 
   it("rejects a paymentInstrument not in payment.allowed_payment_instruments", async () => {
-    const { client, agent, openMandatePresentation } = await setup([
+    const { client, user, agent, openMandatePresentation } = await setup([
       { type: "payment.allowed_payment_instruments", allowed: [instrument] },
     ]);
 
@@ -217,12 +224,13 @@ describe("unit: AP2Client.issueClosedPaymentMandate (Open Payment Mandate constr
         paymentInstrument: otherInstrument,
         nonce: "nonce-1",
         openMandatePresentation,
+        openMandateIssuerPublicJwk: user.publicJwk,
       })
     ).rejects.toThrow(/payment\.allowed_payment_instruments/);
   });
 
   it("accepts any payee/instrument/amount when no matching constraint is declared (no regression)", async () => {
-    const { client, agent, openMandatePresentation } = await setup([]);
+    const { client, user, agent, openMandatePresentation } = await setup([]);
 
     const result = await client.issueClosedPaymentMandate({
       keyId: agent.keyId,
@@ -232,13 +240,14 @@ describe("unit: AP2Client.issueClosedPaymentMandate (Open Payment Mandate constr
       paymentInstrument: otherInstrument,
       nonce: "nonce-1",
       openMandatePresentation,
+      openMandateIssuerPublicJwk: user.publicJwk,
     });
 
     expect(result.presentation).toContain("~");
   });
 
   it("issues a verifiable Closed Payment Mandate when within budget and allow-lists", async () => {
-    const { client, agent, keyIdToKeypair, openMandatePresentation } = await setup([
+    const { client, user, agent, openMandatePresentation } = await setup([
       { type: "payment.budget", max: 100, currency: "USD" },
       { type: "payment.allowed_payees", allowed: [merchant] },
       { type: "payment.allowed_payment_instruments", allowed: [instrument] },
@@ -252,11 +261,12 @@ describe("unit: AP2Client.issueClosedPaymentMandate (Open Payment Mandate constr
       paymentInstrument: instrument,
       nonce: "nonce-1",
       openMandatePresentation,
+      openMandateIssuerPublicJwk: user.publicJwk,
     });
 
-    const agentPublicKeyBytes = keyIdToKeypair.get(agent.keyId).publicKey().value.bytes;
     const verification = verifyClosedPaymentMandate(result.presentation, {
-      holderJwk: secp256r1PublicKeyToJwk(agentPublicKeyBytes),
+      userPublicKey: jwkToSecp256r1PublicKey(user.publicJwk),
+      expectedNonce: "nonce-1",
       checkoutJwt,
       openMandatePresentation,
     });
@@ -284,9 +294,10 @@ describe("unit: AP2Client.issueClosedPaymentMandate (Open Payment Mandate constr
         paymentAmount: { amount: 50, currency: "USD" },
         paymentInstrument: instrument,
         nonce: "nonce-1",
+        openMandateIssuerPublicJwk: user.publicJwk,
         openMandatePresentation: openPayment.presentation,
       })
-    ).rejects.toThrow(/cnf\.jwk/);
+    ).rejects.toThrow(/verification against the Open Payment Mandate failed/);
   });
 });
 

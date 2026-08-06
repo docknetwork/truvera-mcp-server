@@ -8,7 +8,8 @@
 
 const p256JwkSchema = {
   type: "object",
-  description: "The Shopping Agent's public JWK, from the Open Payment Mandate's cnf.jwk.",
+  description:
+    "The User's own public JWK -- the key that signed the Open Payment (and Open Checkout, if supplied) Mandate. Independently resolved/trusted by the caller (e.g. via DID resolution or a wallet registry), not read out of the mandate presentations themselves.",
   properties: {
     kty: { type: "string" },
     crv: { type: "string" },
@@ -23,14 +24,18 @@ const verifyPaymentMandateProperties = {
     type: "string",
     description: "Compact presentation returned by wallet-server's issue_closed_payment_mandate.",
   },
-  holderJwk: p256JwkSchema,
+  userJwk: p256JwkSchema,
+  paymentExpectedNonce: {
+    type: "string",
+    description: "The single-use nonce this Credential Provider generated for this transaction, checked against the Closed Payment Mandate's nonce claim.",
+  },
   checkoutJwt: {
     type: "string",
     description: "The merchant-signed Checkout JWT, to verify transaction_id against.",
   },
   openPaymentMandatePresentation: {
     type: "string",
-    description: "Compact presentation returned by issue_open_payment_mandate, to verify sd_hash against.",
+    description: "Compact presentation returned by issue_open_payment_mandate. Required by @docknetwork/ap2's own verification to derive the Shopping Agent's cnf.jwk and check sd_hash.",
   },
   closedCheckoutMandatePresentation: {
     type: "string",
@@ -38,14 +43,30 @@ const verifyPaymentMandateProperties = {
   },
   openCheckoutMandatePresentation: {
     type: "string",
-    description: "Compact presentation returned by issue_open_checkout_mandate, required if closedCheckoutMandatePresentation is supplied.",
+    description: "Compact presentation returned by issue_open_checkout_mandate. Required if closedCheckoutMandatePresentation is supplied; also used, together with openPaymentMandatePresentation, to verify the payment.reference binding.",
+  },
+  checkoutExpectedNonce: {
+    type: "string",
+    description: "The merchant-generated single-use nonce checked against the Closed Checkout Mandate's nonce claim. Required if closedCheckoutMandatePresentation is supplied.",
+  },
+};
+
+// closedCheckoutMandatePresentation, if supplied, needs openCheckoutMandatePresentation
+// and checkoutExpectedNonce to actually verify anything -- @docknetwork/ap2's
+// verifyClosedCheckoutMandate requires openMandatePresentation unconditionally.
+// (mcp-shared's Ajv instance defaults to draft-07, hence "dependencies"
+// rather than the newer "dependentRequired" keyword.)
+const requiresCheckoutMandateFields = {
+  dependencies: {
+    closedCheckoutMandatePresentation: ["openCheckoutMandatePresentation", "checkoutExpectedNonce"],
   },
 };
 
 export const verifyPaymentMandateSchema = {
   type: "object",
   properties: verifyPaymentMandateProperties,
-  required: ["closedPaymentMandatePresentation", "holderJwk"],
+  required: ["closedPaymentMandatePresentation", "userJwk", "paymentExpectedNonce", "openPaymentMandatePresentation"],
+  ...requiresCheckoutMandateFields,
 };
 
 export const issuePaymentTokenSchema = {
@@ -69,5 +90,13 @@ export const issuePaymentTokenSchema = {
       description: "Transaction confirmation id at the payment network.",
     },
   },
-  required: ["closedPaymentMandatePresentation", "holderJwk", "issuer", "paymentId"],
+  required: [
+    "closedPaymentMandatePresentation",
+    "userJwk",
+    "paymentExpectedNonce",
+    "openPaymentMandatePresentation",
+    "issuer",
+    "paymentId",
+  ],
+  ...requiresCheckoutMandateFields,
 };

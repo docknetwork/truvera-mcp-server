@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ap2ToolDefs, getAP2Handlers } from "../../tools.js";
 import type { AP2Client } from "../../client.js";
 
-const HOLDER_JWK = { kty: "EC", crv: "P-256", x: "x-coordinate", y: "y-coordinate" };
+const USER_JWK = { kty: "EC", crv: "P-256", x: "x-coordinate", y: "y-coordinate" };
 
 describe("unit: ap2 tools (truvera-api)", () => {
   let mockClient: AP2Client;
@@ -31,11 +31,13 @@ describe("unit: ap2 tools (truvera-api)", () => {
       });
     });
 
-    it("verify_payment_mandate requires closedPaymentMandatePresentation and holderJwk", () => {
+    it("verify_payment_mandate requires closedPaymentMandatePresentation, userJwk, paymentExpectedNonce, and openPaymentMandatePresentation", () => {
       const tool = ap2ToolDefs.find((t) => t.name === "verify_payment_mandate")!;
       const required = (tool.inputSchema as any).required as string[];
       expect(required).toContain("closedPaymentMandatePresentation");
-      expect(required).toContain("holderJwk");
+      expect(required).toContain("userJwk");
+      expect(required).toContain("paymentExpectedNonce");
+      expect(required).toContain("openPaymentMandatePresentation");
     });
 
     it("issue_payment_token additionally requires issuer and paymentId", () => {
@@ -51,7 +53,7 @@ describe("unit: ap2 tools (truvera-api)", () => {
       (mockClient.verifyPaymentMandate as any).mockResolvedValue({ paymentMandateVerified: true });
 
       const handlers = getAP2Handlers(mockClient);
-      const params = { closedPaymentMandatePresentation: "jwt~d~", holderJwk: HOLDER_JWK };
+      const params = { closedPaymentMandatePresentation: "jwt~d~", userJwk: USER_JWK, paymentExpectedNonce: "nonce-1" };
       const result = await handlers.get("verify_payment_mandate")!(params);
 
       expect(mockClient.verifyPaymentMandate).toHaveBeenCalledWith(params);
@@ -68,7 +70,7 @@ describe("unit: ap2 tools (truvera-api)", () => {
       const handlers = getAP2Handlers(mockClient);
       const params = {
         closedPaymentMandatePresentation: "jwt~d~",
-        holderJwk: HOLDER_JWK,
+        userJwk: USER_JWK, paymentExpectedNonce: "nonce-1",
         issuer: "mpp.acme",
         paymentId: "PAY-001",
       };

@@ -7,7 +7,7 @@
  */
 
 import * as bs58 from "base58-universal";
-import { secp256r1PublicKeyToJwk } from "@docknetwork/crypto-utils/vc";
+import { secp256r1PublicKeyToJwk, jwkToSecp256r1PublicKey } from "@docknetwork/crypto-utils/vc";
 import {
   buildOpenCheckoutMandate,
   signOpenCheckoutMandate,
@@ -19,6 +19,7 @@ import {
   signClosedPaymentMandate,
   computeCheckoutHash,
   resolveOpenPaymentMandateContent,
+  verifyClosedCheckoutMandate,
   verifyClosedPaymentMandate,
 } from "@docknetwork/ap2";
 import type { IDIDProvider } from "@docknetwork/wallet-sdk-core/lib/types.js";
@@ -223,6 +224,27 @@ export class AP2Client {
       nonce: params.nonce,
       openMandatePresentation: params.openMandatePresentation,
     });
+
+    // Confirms the key that actually signed this Closed Checkout Mandate
+    // (params.keyId, resolved through IDIDProvider) is the one the Open
+    // Checkout Mandate itself endorsed as its closer (cnf.jwk), and that the
+    // Open Checkout Mandate was itself genuinely signed by the User identified
+    // by openMandateIssuerPublicJwk -- otherwise a presentation meant for one
+    // holder key could be closed with a different, unauthorized one, or the
+    // whole Open+Closed chain could be self-forged.
+    const verification = verifyClosedCheckoutMandate(presentation, {
+      userPublicKey: jwkToSecp256r1PublicKey(params.openMandateIssuerPublicJwk),
+      expectedNonce: params.nonce,
+      openMandatePresentation: params.openMandatePresentation,
+    });
+    if (!verification.verified) {
+      throw new Error(
+        `issue_closed_checkout_mandate: verification against the Open Checkout Mandate failed (${
+          verification.error?.message ?? "verification failed"
+        })`
+      );
+    }
+
     return { presentation, checkoutHash };
   }
 
@@ -261,19 +283,20 @@ export class AP2Client {
 
     // Confirms the key that actually signed this Closed Payment Mandate
     // (params.keyId, resolved through IDIDProvider) is the one the Open
-    // Payment Mandate itself endorsed as its closer (cnf.jwk) -- otherwise a
-    // presentation meant for one holder key could be closed with a
-    // different, unauthorized one. Does not (and cannot, without an
-    // independently-known issuer key) verify who originally issued the Open
-    // Payment Mandate; see resolveOpenPaymentMandateContent's doc comment.
+    // Payment Mandate itself endorsed as its closer (cnf.jwk), and that the
+    // Open Payment Mandate was itself genuinely signed by the User identified
+    // by openMandateIssuerPublicJwk -- otherwise a presentation meant for one
+    // holder key could be closed with a different, unauthorized one, or the
+    // whole Open+Closed chain could be self-forged.
     const verification = verifyClosedPaymentMandate(presentation, {
-      holderJwk: openContent.cnf.jwk,
+      userPublicKey: jwkToSecp256r1PublicKey(params.openMandateIssuerPublicJwk),
+      expectedNonce: params.nonce,
       checkoutJwt: params.checkoutJwt,
       openMandatePresentation: params.openMandatePresentation,
     });
     if (!verification.verified) {
       throw new Error(
-        `issue_closed_payment_mandate: keyId does not match the Open Payment Mandate's cnf.jwk (${
+        `issue_closed_payment_mandate: verification against the Open Payment Mandate failed (${
           verification.error?.message ?? "verification failed"
         })`
       );

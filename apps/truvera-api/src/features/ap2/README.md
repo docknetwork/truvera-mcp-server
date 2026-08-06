@@ -23,21 +23,31 @@ Payment Mandate and return a Payment Receipt.
 
 ### `verify_payment_mandate`
 
-Verifies a Closed Payment Mandate: the Shopping Agent's signature, `aud`/
-expiry, `transaction_id` against a provided `checkoutJwt`, and `sd_hash`
-against the referenced Open Payment Mandate presentation. Optionally also
-verifies the paired Closed Checkout Mandate.
+Verifies a Closed Payment Mandate: the Open Payment Mandate's issuer
+signature against the supplied `userJwk`, the Shopping Agent's `cnf.jwk`
+signature on the Closed Mandate (derived from the Open Mandate itself, never
+from a caller-supplied key), `aud`/expiry/`nonce`, `transaction_id` against a
+provided `checkoutJwt`, and `sd_hash` against the referenced Open Payment
+Mandate presentation. Optionally also verifies the paired Closed Checkout
+Mandate.
 
-**Required:** `closedPaymentMandatePresentation`, `holderJwk` (the Shopping
-Agent's public key, from the Open Payment Mandate's `cnf.jwk`)
+**Required:** `closedPaymentMandatePresentation`, `userJwk` (the User's own
+public key — the key that signed the Open Payment/Checkout Mandate(s),
+independently resolved/trusted by the caller, e.g. via DID resolution or a
+wallet registry), `paymentExpectedNonce` (this Credential Provider's own
+single-use nonce for the transaction)
 
 **Optional:** `checkoutJwt`, `openPaymentMandatePresentation`,
-`closedCheckoutMandatePresentation`, `openCheckoutMandatePresentation`
+`closedCheckoutMandatePresentation`, `openCheckoutMandatePresentation`,
+`checkoutExpectedNonce` (required if `closedCheckoutMandatePresentation` is
+supplied)
 
-Note: this does **not** verify the `conditional_transaction_id`/delegate-chain
-binding (the Open Payment Mandate's `payment.reference` constraint against
-the Checkout's delegate chain) — see `@docknetwork/ap2`'s
-`verifyClosedPaymentMandate` docs for what is and isn't covered.
+When both `openPaymentMandatePresentation` and `openCheckoutMandatePresentation`
+are supplied, the Open Payment Mandate's `payment.reference` constraint
+(`conditional_transaction_id`) is verified against a fresh `sd_hash` of the
+Open Checkout Mandate — a mismatch fails verification outright, not just the
+`referenceVerified` flag. See `@docknetwork/ap2`'s `verifyClosedPaymentMandate`
+docs for the full set of checks.
 
 ### `issue_payment_token`
 

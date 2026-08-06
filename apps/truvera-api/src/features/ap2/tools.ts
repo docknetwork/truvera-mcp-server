@@ -14,7 +14,7 @@ export const ap2ToolDefs: ToolDef[] = [
   {
     name: "verify_payment_mandate",
     description:
-      "Verify a Closed Payment Mandate (mandate.payment.1) as the AP2 Credential Provider: checks the Shopping Agent's signature, aud/expiry, transaction_id against a provided checkout_jwt, and sd_hash against the referenced Open Payment Mandate. Optionally also verifies the paired Closed Checkout Mandate. Does not verify the conditional_transaction_id/delegate-chain binding — see @docknetwork/ap2's verifyClosedPaymentMandate docs.",
+      "Verify a Closed Payment Mandate (mandate.payment.1) as the AP2 Credential Provider: checks the Open Payment Mandate's issuer signature against the supplied userJwk, the Shopping Agent's cnf.jwk signature on the Closed Mandate, aud/expiry/nonce, transaction_id against a provided checkout_jwt, sd_hash against the referenced Open Payment Mandate, and (when openCheckoutMandatePresentation is supplied) the payment.reference binding against it. Optionally also verifies the paired Closed Checkout Mandate.",
     inputSchema: verifyPaymentMandateSchema,
   },
   {

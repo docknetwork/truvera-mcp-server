@@ -13,6 +13,7 @@ import {
   buildPaymentReceipt,
   computeMandateReference,
 } from "@docknetwork/ap2";
+import { jwkToSecp256r1PublicKey } from "@docknetwork/crypto-utils/vc";
 import type {
   VerifyPaymentMandateRequest,
   VerifyPaymentMandateResult,
@@ -23,10 +24,19 @@ import type {
 
 export class AP2Client {
   async verifyPaymentMandate(params: VerifyPaymentMandateRequest): Promise<VerifyPaymentMandateResult> {
+    // @docknetwork/ap2 requires this to verify the Open Mandate's own issuer
+    // signature -- without it, a Closed Mandate's cnf.jwk delegation could be
+    // trusted from an entirely self-forged Open + Closed Mandate chain. It's
+    // the User's own key, independently resolved/trusted by this caller (see
+    // userJwk's doc comment on VerifyPaymentMandateRequest).
+    const userPublicKey = jwkToSecp256r1PublicKey(params.userJwk);
+
     const paymentResult = verifyClosedPaymentMandate(params.closedPaymentMandatePresentation, {
-      holderJwk: params.holderJwk,
+      userPublicKey,
+      expectedNonce: params.paymentExpectedNonce,
       checkoutJwt: params.checkoutJwt,
       openMandatePresentation: params.openPaymentMandatePresentation,
+      openCheckoutMandatePresentation: params.openCheckoutMandatePresentation,
     });
 
     const result: VerifyPaymentMandateResult = {
@@ -35,21 +45,30 @@ export class AP2Client {
         ? {
             transactionIdVerified: paymentResult.transactionIdVerified,
             sdHashVerified: paymentResult.sdHashVerified,
+            referenceVerified: paymentResult.referenceVerified,
+            openMandateIssuerVerified: paymentResult.openMandateIssuerVerified,
             paymentMandateContent: paymentResult.content as Record<string, unknown> | undefined,
           }
         : { paymentMandateError: paymentResult.error?.message }),
     };
 
     if (params.closedCheckoutMandatePresentation) {
-      const checkoutResult = verifyClosedCheckoutMandate(params.closedCheckoutMandatePresentation, {
-        holderJwk: params.holderJwk,
-        openMandatePresentation: params.openCheckoutMandatePresentation,
-      });
-      result.checkoutMandateVerified = checkoutResult.verified;
-      if (checkoutResult.verified) {
-        result.checkoutMandateContent = checkoutResult.content as Record<string, unknown> | undefined;
+      if (!params.openCheckoutMandatePresentation || !params.checkoutExpectedNonce) {
+        result.checkoutMandateVerified = false;
+        result.checkoutMandateError =
+          "closedCheckoutMandatePresentation requires openCheckoutMandatePresentation and checkoutExpectedNonce";
       } else {
-        result.checkoutMandateError = checkoutResult.error?.message;
+        const checkoutResult = verifyClosedCheckoutMandate(params.closedCheckoutMandatePresentation, {
+          userPublicKey,
+          expectedNonce: params.checkoutExpectedNonce,
+          openMandatePresentation: params.openCheckoutMandatePresentation,
+        });
+        result.checkoutMandateVerified = checkoutResult.verified;
+        if (checkoutResult.verified) {
+          result.checkoutMandateContent = checkoutResult.content as Record<string, unknown> | undefined;
+        } else {
+          result.checkoutMandateError = checkoutResult.error?.message;
+        }
       }
     }
 
@@ -63,6 +82,17 @@ export class AP2Client {
       return { verification, signed: false };
     }
     if (params.closedCheckoutMandatePresentation && !verification.checkoutMandateVerified) {
+      return { verification, signed: false };
+    }
+    // A "Success" receipt asserts full verification, not merely a valid
+    // signature -- so transaction_id/reference bindings must have actually
+    // been checked (and passed), not just left undefined because the caller
+    // omitted checkoutJwt/openCheckoutMandatePresentation. 
+    if (
+      verification.transactionIdVerified !== true ||
+      verification.sdHashVerified !== true ||
+      verification.referenceVerified !== true
+    ) {
       return { verification, signed: false };
     }
 

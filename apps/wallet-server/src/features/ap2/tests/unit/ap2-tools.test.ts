@@ -53,6 +53,7 @@ describe("unit: ap2 tools (wallet-server)", () => {
           "paymentInstrument",
           "nonce",
           "openMandatePresentation",
+          "openMandateIssuerPublicJwk",
         ])
       );
     });

@@ -65,6 +65,15 @@ export interface IssueClosedCheckoutMandateRequest {
   nonce: string;
   /** The compact presentation returned by issue_open_checkout_mandate. */
   openMandatePresentation: string;
+  /**
+   * The public key of the User who signed the referenced Open Checkout
+   * Mandate (i.e. the publicJwk of the keyId originally passed to
+   * issue_open_checkout_mandate). Used to verify that Open Mandate's own
+   * issuer signature before trusting its cnf.jwk delegation to keyId here --
+   * without it, this close could bind to a cnf.jwk from an Open Mandate that
+   * was never actually signed by a real User.
+   */
+  openMandateIssuerPublicJwk: P256Jwk;
 }
 
 export interface IssueClosedCheckoutMandateResult {
@@ -164,6 +173,15 @@ export interface IssueClosedPaymentMandateRequest {
   nonce: string;
   /** The compact presentation returned by issue_open_payment_mandate. */
   openMandatePresentation: string;
+  /**
+   * The public key of the User who signed the referenced Open Payment
+   * Mandate (i.e. the publicJwk of the keyId originally passed to
+   * issue_open_payment_mandate). Used to verify that Open Mandate's own
+   * issuer signature before trusting its cnf.jwk delegation to keyId here --
+   * without it, this close could bind to a cnf.jwk from an Open Mandate that
+   * was never actually signed by a real User.
+   */
+  openMandateIssuerPublicJwk: P256Jwk;
 }
 
 export interface IssueClosedPaymentMandateResult {

@@ -367,8 +367,12 @@ export const issueClosedCheckoutMandateSchema = {
       type: "string",
       description: "The compact presentation string returned by issue_open_checkout_mandate.",
     },
+    openMandateIssuerPublicJwk: {
+      ...p256JwkSchema,
+      description: "The public JWK of the User's key that signed the referenced Open Checkout Mandate (i.e. the publicJwk from the create_ap2_signing_key call for the keyId originally passed to issue_open_checkout_mandate). Verified against that Open Mandate's own issuer signature before this close is trusted.",
+    },
   },
-  required: ["keyId", "checkoutJwt", "nonce", "openMandatePresentation"],
+  required: ["keyId", "checkoutJwt", "nonce", "openMandatePresentation", "openMandateIssuerPublicJwk"],
 };
 
 export const issueOpenPaymentMandateSchema = {
@@ -455,6 +459,19 @@ export const issueClosedPaymentMandateSchema = {
       type: "string",
       description: "The compact presentation string returned by issue_open_payment_mandate.",
     },
+    openMandateIssuerPublicJwk: {
+      ...p256JwkSchema,
+      description: "The public JWK of the User's key that signed the referenced Open Payment Mandate (i.e. the publicJwk from the create_ap2_signing_key call for the keyId originally passed to issue_open_payment_mandate). Verified against that Open Mandate's own issuer signature before this close is trusted.",
+    },
   },
-  required: ["keyId", "checkoutJwt", "payee", "paymentAmount", "paymentInstrument", "nonce", "openMandatePresentation"],
+  required: [
+    "keyId",
+    "checkoutJwt",
+    "payee",
+    "paymentAmount",
+    "paymentInstrument",
+    "nonce",
+    "openMandatePresentation",
+    "openMandateIssuerPublicJwk",
+  ],
 };
