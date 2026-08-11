@@ -21,7 +21,7 @@ export class TruveraClient {
   private apiKey: string;
   private apiEndpoint: string;
 
-  constructor(apiKey: string, apiEndpoint: string = "https://api.truvera.com") {
+  constructor(apiKey: string, apiEndpoint: string = "https://api.truvera.io") {
     if (!apiKey) {
       throw new Error("TRUVERA_API_KEY environment variable is required");
     }

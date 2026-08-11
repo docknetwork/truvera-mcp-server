@@ -187,7 +187,7 @@ The AI will call the appropriate Truvera API tools and return real results. No c
 - Only needed when using the `mcp-remote` fallback config (Option B) against a plain `http://` URL (e.g. self-hosted on localhost). It allows `mcp-remote` to connect without TLS. Drop it for the Truvera-hosted `https://` URLs. It does **not** affect your Truvera API key security. The Settings UI method (Option A) doesn't use `mcp-remote` at all, so this flag never applies there.
 
 **Tools appear but calls fail with auth errors**
-- Your API key may be for the wrong environment. Testnet keys only work with `https://api-testnet.truvera.io`; production keys with `https://api.truvera.com`. Check `TRUVERA_API_ENDPOINT` in `apps/truvera-api/.env` (self-hosted) or confirm which environment your key was issued for (hosted).
+- Your API key may be for the wrong environment. Testnet keys only work with `https://api-testnet.truvera.io`; production keys with `https://api.truvera.io`. Check `TRUVERA_API_ENDPOINT` in `apps/truvera-api/.env` (self-hosted) or confirm which environment your key was issued for (hosted).
 - Double check whether you're relying on the shared-key fallback or a per-client header — a stale/wrong key in either place produces the same error.
 
 ## MCP Inspector (Shared for All Servers)

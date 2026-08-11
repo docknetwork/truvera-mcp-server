@@ -33,7 +33,7 @@ wallet_secret_arn = "arn:aws:secretsmanager:us-west-1:ACCOUNT_ID:secret:prod/mcp
 
 # Optional overrides
 # cheqd_network        = "mainnet"
-# truvera_api_endpoint = "https://api.truvera.com"
+# truvera_api_endpoint = "https://api.truvera.io"
 # truvera_api_cpu      = 512
 # truvera_api_memory   = 1024
 # wallet_server_cpu    = 1024

@@ -13,6 +13,7 @@ import { CredentialClient, credentialToolDefs, getCredentialHandlers } from "./f
 import { MessageClient, messageToolDefs, getMessageHandlers } from "./features/messages/index.js";
 import { AgentCardClient, agentCardToolDefs, getAgentCardHandlers } from "./features/agent-card/index.js";
 import { DelegationClient, delegationToolDefs, getDelegationHandlers } from "./features/delegation/index.js";
+import { AP2Client, ap2ToolDefs, getAP2Handlers } from "./features/ap2/index.js";
 
 // wallet-sdk-wasm's storageService calls global.localStorage for DID resolution
 // caching during BBS+ proof generation (see cached-did-resolver.js). Node.js has
@@ -74,9 +75,30 @@ const WALLET_REVOCATIONS_DB_PATH = process.env.WALLET_REVOCATIONS_DB_PATH || "/d
 // Shared secret for POST /admin/revoke-tenant. Required to expose that route;
 // if unset, JWT auth still works but tenants cannot be revoked before expiry.
 const ADMIN_REVOKE_SECRET = process.env.ADMIN_REVOKE_SECRET;
+// Explicit opt-out for running an unauthenticated HTTP server (see guard below).
+const MCP_ALLOW_UNAUTHENTICATED_HTTP = process.env.MCP_ALLOW_UNAUTHENTICATED_HTTP === "true";
 
 if (MCP_AUTH_MODE === "jwt" && !MCP_JWT_PUBLIC_KEY) {
   console.error("Fatal: MCP_JWT_PUBLIC_KEY is required when MCP_AUTH_MODE=jwt");
+  process.exit(1);
+}
+
+// MCP_AUTH_MODE defaults to "none" (fail-open) and the HTTP transport always
+// binds 0.0.0.0 (see @truvera/mcp-shared's startHTTPTransport), not just
+// localhost -- so MCP_MODE=http with no MCP_AUTH_MODE set silently exposes one
+// shared, unauthenticated wallet (every signing key usable by any caller who
+// can reach the port) to the network. Refuse to start unless that's explicitly
+// acknowledged, mirroring the MCP_JWT_PUBLIC_KEY check above. stdio mode is
+// exempt: it's a single local subprocess, not network-reachable by other
+// callers, so MCP_AUTH_MODE=none there is the normal single-user case.
+if (MCP_MODE === "http" && MCP_AUTH_MODE === "none" && !MCP_ALLOW_UNAUTHENTICATED_HTTP) {
+  console.error(
+    "Fatal: MCP_MODE=http with MCP_AUTH_MODE=none exposes one shared wallet, with no per-caller " +
+      "isolation, to any network client that can reach this server -- every signing key becomes " +
+      "usable by any caller. Set MCP_AUTH_MODE=jwt for multi-tenant/networked deployments, or set " +
+      "MCP_ALLOW_UNAUTHENTICATED_HTTP=true to confirm this is an intentionally single-tenant " +
+      "deployment on a trusted network."
+  );
   process.exit(1);
 }
 
@@ -135,6 +157,7 @@ async function toolHandlerFactory(context: AuthContext): Promise<ToolHandlerFact
   const messageClient = new MessageClient(wallet, didProvider);
   const agentCardClient = new AgentCardClient(didClient);
   const delegationClient = new DelegationClient(wallet);
+  const ap2Client = new AP2Client(didProvider);
 
   activeMessageClients.add(messageClient);
 
@@ -145,6 +168,7 @@ async function toolHandlerFactory(context: AuthContext): Promise<ToolHandlerFact
       ...getMessageHandlers(messageClient),
       ...getDelegationHandlers(delegationClient),
       ...getAgentCardHandlers(agentCardClient),
+      ...getAP2Handlers(ap2Client),
     ]),
     dispose: async () => {
       activeMessageClients.delete(messageClient);
@@ -164,6 +188,7 @@ async function main() {
     ...messageToolDefs,
     ...delegationToolDefs,
     ...agentCardToolDefs,
+    ...ap2ToolDefs,
   ];
 
   console.error(`  - Tools available: ${tools.length}`);

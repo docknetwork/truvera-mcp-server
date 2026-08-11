@@ -124,6 +124,7 @@ Use the shared MCP Inspector instructions in the repo root README:
 | `WALLET_DB_BASE_PATH` | No | `/data/wallets` | Base directory for per-tenant SQLite databases. Only used when `MCP_AUTH_MODE=jwt` — each tenant gets `<WALLET_DB_BASE_PATH>/<jwt-sub>`. |
 | `MCP_AUTH_MODE` | No | `none` | Auth mode: `jwt` (require signed tokens, multi-tenant) or `none` (no auth, single shared wallet — local dev or single-user deployments). |
 | `MCP_JWT_PUBLIC_KEY` | When `MCP_AUTH_MODE=jwt` | — | ES256 public key (PEM) for verifying tenant JWTs. |
+| `MCP_ALLOW_UNAUTHENTICATED_HTTP` | Only to run `MCP_MODE=http` with `MCP_AUTH_MODE=none` | — | The server refuses to start with that combination otherwise (fatal error) — it would expose one shared, unauthenticated wallet to any network client that can reach the port, since the HTTP transport binds `0.0.0.0`. Set to `true` only to confirm an intentionally single-tenant deployment on a trusted network. Not needed for `MCP_MODE=stdio` (a single local subprocess, not network-reachable). |
 | `WALLET_REVOCATIONS_DB_PATH` | No | `/data/revocations.db` | SQLite file tracking per-tenant revocation cutoffs. Only used when `MCP_AUTH_MODE=jwt`. Separate from any tenant's own wallet database. |
 | `ADMIN_REVOKE_SECRET` | No (but required to revoke) | — | Shared secret for `POST /admin/revoke-tenant`. Only relevant when `MCP_AUTH_MODE=jwt` and `MCP_MODE=http`; without it the route is disabled and tenants can't be revoked before their JWT expires. |
 
@@ -132,6 +133,8 @@ Use the shared MCP Inspector instructions in the repo root README:
 ## Authentication (ECS / remote deployments)
 
 In HTTP mode, the server supports JWT-based multi-tenant auth. Each tenant gets an isolated wallet, identified by the `sub` claim of their JWT.
+
+**The server refuses to start as `MCP_MODE=http` with `MCP_AUTH_MODE=none`** unless `MCP_ALLOW_UNAUTHENTICATED_HTTP=true` is also set. The HTTP transport binds `0.0.0.0`, and `none` mode means one shared, unauthenticated wallet — every signing key would be usable by any network client that can reach the port, with no per-caller isolation at all. Set `MCP_AUTH_MODE=jwt` for any real deployment.
 
 ### How it works
 

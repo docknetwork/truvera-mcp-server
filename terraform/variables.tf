@@ -60,7 +60,7 @@ variable "cheqd_network" {
 
 variable "truvera_api_endpoint" {
   description = "Truvera REST API base URL"
-  default     = "https://api.truvera.com"
+  default     = "https://api.truvera.io"
 }
 
 # ----- sizing ----------------------------------------------------------------

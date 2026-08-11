@@ -11,7 +11,7 @@ export interface IssueCredentialRequest {
    * Output format
    * @default "jsonld"
    */
-  format?: 'jsonld' | 'jwt';
+  format?: 'jsonld' | 'jwt' | 'sdjwt';
 
   /**
    * Persist credential in Truvera storage

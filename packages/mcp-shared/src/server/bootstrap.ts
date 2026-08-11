@@ -65,7 +65,7 @@ export async function bootstrapMCPServer(
     server.server.setRequestHandler(
       CallToolRequestSchema,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      createCallToolHandler(handlers) as any
+      createCallToolHandler(handlers, tools) as any
     );
 
     return { server, dispose };

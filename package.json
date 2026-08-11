@@ -28,6 +28,9 @@
     "packages/*",
     "apps/*"
   ],
+  "dependencies": {
+    "@digitalbazaar/http-client": "^3.4.1"
+  },
   "overrides": {
     "@hono/node-server": "^1.19.12",
     "express-rate-limit": "^8.3.2",
@@ -36,14 +39,18 @@
     "base58-universal": "2.0.0",
     "base64url-universal": "1.1.0",
     "@digitalbazaar/http-client": "^3.4.1",
-    "jsonld@5.2.0": {
+    "@digitalbazaar/edv-client": {
       "@digitalbazaar/http-client": "^3.4.1"
     },
-    "jsonld-signatures@9.3.1": {
-      "@digitalbazaar/http-client": "^3.4.1"
+    "jsonld-signatures": {
+      "jsonld": {
+        "@digitalbazaar/http-client": "^3.4.1"
+      }
     },
-    "@transmute/jsonld@0.0.4": {
-      "@digitalbazaar/http-client": "^3.4.1"
+    "@transmute/jsonld": {
+      "jsonld": {
+        "@digitalbazaar/http-client": "^3.4.1"
+      }
     },
     "undici": ">=6.27.0",
     "tmp": "^0.2.6",

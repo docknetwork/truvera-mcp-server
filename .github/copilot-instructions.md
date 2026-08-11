@@ -39,7 +39,7 @@ Each app is a self-contained MCP server with its own:
 ### Environment Variables
 
 - **TRUVERA_API_KEY** (required): Authentication key for Truvera API
-- **TRUVERA_API_ENDPOINT** (optional): Base URL for Truvera API (defaults to `https://api.truvera.com`)
+- **TRUVERA_API_ENDPOINT** (optional): Base URL for Truvera API (defaults to `https://api.truvera.io`)
 
 ### Documentation
 
