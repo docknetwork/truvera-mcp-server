@@ -27,17 +27,6 @@ const ACCEPTED_RISK = new Set([
   "underscore",
   "jsonpath", // depends on underscore
   "@sphereon/pex", // depends on jsonpath
-  // brace-expansion (see .trivyignore) has one residual CVE minimatch@9 can't
-  // take a fix for. npm audit doesn't just flag brace-expansion for this —
-  // it also synthesizes "X depends on vulnerable brace-expansion" entries for
-  // every ancestor in the chain (minimatch -> glob -> typeorm), each a
-  // restatement of the same single issue, not three new ones. Trivy doesn't
-  // do this: it matches actual package+version against its DB, so it only
-  // ever flags brace-expansion itself.
-  "brace-expansion",
-  "minimatch",
-  "glob",
-  "typeorm",
 ]);
 
 let raw;
