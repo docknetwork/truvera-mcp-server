@@ -22,8 +22,8 @@ console.log(`
 ╚══════════════════════════════════════════════════════╝
 
 ▼ PRIVATE KEY — keep this secret ▼
-Store in a password manager or AWS Secrets Manager.
-Set as MCP_JWT_PRIVATE_KEY when running scripts/mint-jwt.js.
+Store in AWS Secrets Manager and use with mint-jwt.js --secret (prod/shared deployments),
+or save to a local file and use with mint-jwt.js --key-file (local dev only).
 Never commit it or add it to an ECS task definition.
 
 ${privatePem}
