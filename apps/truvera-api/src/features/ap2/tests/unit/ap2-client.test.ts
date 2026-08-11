@@ -257,6 +257,7 @@ describe("unit: AP2Client (truvera-api Credential Provider role)", () => {
     expect(result.verification.paymentMandateVerified).toBe(true);
     expect(result.verification.transactionIdVerified).toBeUndefined();
     expect(result.verification.referenceVerified).toBeUndefined();
+    expect(result.verification.checkoutMandateError).toMatch(/checkoutJwt and openCheckoutMandatePresentation/);
     expect(result.signed).toBe(false);
     expect(result.receipt).toBeUndefined();
   });

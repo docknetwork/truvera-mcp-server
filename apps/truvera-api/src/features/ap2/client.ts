@@ -87,12 +87,18 @@ export class AP2Client {
     // A "Success" receipt asserts full verification, not merely a valid
     // signature -- so transaction_id/reference bindings must have actually
     // been checked (and passed), not just left undefined because the caller
-    // omitted checkoutJwt/openCheckoutMandatePresentation. 
+    // omitted checkoutJwt/openCheckoutMandatePresentation.
     if (
       verification.transactionIdVerified !== true ||
       verification.sdHashVerified !== true ||
       verification.referenceVerified !== true
     ) {
+      if (!verification.checkoutMandateError) {
+        verification.checkoutMandateError =
+          "No receipt issued: a Payment Receipt requires transactionIdVerified, sdHashVerified, and " +
+          "referenceVerified to all be true, which requires checkoutJwt and openCheckoutMandatePresentation " +
+          "to be supplied.";
+      }
       return { verification, signed: false };
     }
 
