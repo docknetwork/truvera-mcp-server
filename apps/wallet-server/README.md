@@ -160,14 +160,16 @@ This outputs two PEM blocks:
 
 ```bash
 node scripts/mint-jwt.js <tenantId> --secret <secretManagerId> [--profile <awsProfile>] [--region <region>] [--expires-in <duration>]
+node scripts/mint-jwt.js <tenantId> --key-file <path>          [--expires-in <duration>]
 ```
 
 | Argument | Description |
 |----------|-------------|
 | `<tenantId>` | Unique identifier for the tenant (e.g. `alice`). Becomes the wallet path `/data/wallets/alice`. |
-| `--secret` | AWS Secrets Manager secret name or ARN containing the private key PEM. Defaults to `MCP_JWT_PRIVATE_KEY_SECRET` env var. |
-| `--profile` | AWS profile to use (e.g. `dev`, `prod`). Defaults to `AWS_PROFILE` env var or the default profile. |
-| `--region` | AWS region (e.g. `us-east-1`). Defaults to `AWS_REGION` env var. |
+| `--secret` | AWS Secrets Manager secret name or ARN containing the private key PEM. Defaults to `MCP_JWT_PRIVATE_KEY_SECRET` env var. Mutually exclusive with `--key-file`. |
+| `--key-file` | Path to a local PEM private key file (from `scripts/generate-keypair.js`). Defaults to `MCP_JWT_PRIVATE_KEY_FILE` env var. Dev-only alternative to `--secret` — skips AWS entirely. Mutually exclusive with `--secret`. |
+| `--profile` | AWS profile to use (e.g. `dev`, `prod`). Defaults to `AWS_PROFILE` env var or the default profile. Ignored with `--key-file`. |
+| `--region` | AWS region (e.g. `us-east-1`). Defaults to `AWS_REGION` env var. Ignored with `--key-file`. |
 | `--expires-in` | Token lifetime (e.g. `30d`, `90d`, `1y`). Default: `1y`. |
 
 **Examples:**
@@ -181,9 +183,17 @@ node scripts/mint-jwt.js alice \
 
 # Using npm script shorthand (prompts for args)
 npm run admin:mint-jwt -- alice --secret dev/wallet-server/jwt-private-key --profile dev
+
+# Local dev: no AWS account needed, key lives on disk
+node scripts/generate-keypair.js
+# save the printed private key PEM to, e.g., ./dev-jwt-private-key.pem
+# set MCP_JWT_PUBLIC_KEY on the server to the printed public key PEM
+node scripts/mint-jwt.js alice --key-file ./dev-jwt-private-key.pem --expires-in 30d
 ```
 
 The token is printed to stdout — send it to the tenant to use as their Bearer token.
+
+**Never use a `--key-file`-minted keypair for a real deployment** — keep dev and prod keypairs separate, and never commit a private key PEM to the repo.
 
 ### Revoke a tenant
 
